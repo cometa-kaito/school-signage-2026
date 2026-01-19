@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>サイネージ管理 | Edix</title>
+    <link rel="stylesheet" href="auth-style.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: var(--bg);
+            padding: 0;
+            margin: 0;
+            color: #333;
+        }
+
+        /* アプリ本体 */
+        #appContainer {
+            display: none;
+            padding: 20px;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .app-header h1 {
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin: 0;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* カード */
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            transition: opacity 0.3s, background 0.3s;
+        }
+
+        .card.disabled {
+            opacity: 0.5;
+            background: #f5f5f5;
+            pointer-events: none;
+        }
+
+        .card.disabled label {
+            color: #999;
+        }
+
+        .card.disabled input {
+            background: #eee;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        /* フォーム */
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        /* チェックボックス行 */
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* オプションセクション */
+        .optional-section {
+            margin-top: 16px;
+            border-top: 1px solid #eee;
+            padding-top: 12px;
+        }
+
+        .optional-header {
+            color: #666;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 8px 0;
+            user-select: none;
+        }
+
+        .optional-header:hover {
+            color: var(--accent);
+        }
+
+        .optional-fields {
+            padding-top: 8px;
+        }
+
+        .optional-fields.hidden {
+            display: none;
+        }
+
+        /* タブ */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: #ddd;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* 送信ボタン */
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: #1a252f;
+        }
+
+        /* ユーティリティ */
+        .hidden {
+            display: none;
+        }
+    </style>
+    <!-- フォールバック: Firebase SDKがブロックされた場合のタイムアウト処理 -->
+    <script>
+        window.firebaseLoaded = false;
+        setTimeout(function() {
+            if (!window.firebaseLoaded) {
+                var login = document.getElementById('loginContainer');
+                var error = document.getElementById('loginError');
+                if (login) login.style.display = 'flex';
+                if (error) {
+                    error.textContent = 'ネットワーク接続を確認してください。Firebaseへの接続がブロックされている可能性があります。';
+                    error.style.display = 'block';
+                }
+            }
+        }, 5000);
+    </script>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-box">
+            <h2>🔐 管理者ログイン</h2>
+            
+            <div id="loginError" class="error-msg"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">メールアドレス</label>
+                    <input type="email" id="loginEmail" required 
+                           placeholder="admin@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">パスワード</label>
+                    <input type="password" id="loginPassword" required 
+                           placeholder="パスワード" autocomplete="current-password">
+                </div>
+                <button type="submit" id="loginBtn" class="login-btn">ログイン</button>
+            </form>
+            
+            <div class="divider"><span>または</span></div>
+            
+            <button type="button" id="googleLoginBtn" class="google-btn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                Googleでログイン
+            </button>
+            
+            <p class="login-note">※管理者のみログインできます</p>
+        </div>
+    </div>
+
+    <!-- アプリ本体 -->
+    <div id="appContainer">
+        <div class="app-header">
+            <h1>📢 連絡事項の登録</h1>
+            <div class="header-right">
+                <span id="userEmail" class="user-email"></span>
+                <button id="logoutBtn" class="logout-btn">ログアウト</button>
+            </div>
+        </div>
+
+        <div id="successMsg" class="success-msg">登録が完了しました！</div>
+        <div id="errorMsg" class="error-msg"></div>
+
+        <div class="card" id="target-date-card">
+            <label for="target-date">対象日</label>
+            <input type="date" id="target-date">
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="schedule">予定</button>
+            <button class="tab-btn" data-tab="notice">連絡</button>
+            <button class="tab-btn" data-tab="assignment">提出物</button>
+        </div>
+
+        <div class="card">
+            <div id="form-schedule">
+                <label for="sched-time-select">時間</label>
+                <select id="sched-time-select" onchange="toggleCustomTime()">
+                    <option value="">-- 選択 --</option>
+                    <option value="終日">終日 (All Day)</option>
+                    <option value="1限">1限</option>
+                    <option value="2限">2限</option>
+                    <option value="3限">3限</option>
+                    <option value="4限">4限</option>
+                    <option value="5限">5限</option>
+                    <option value="6限">6限</option>
+                    <option value="その他">その他（自由入力）</option>
+                </select>
+                <div id="custom-time-group" style="display: none;">
+                    <label for="sched-time-custom">自由入力</label>
+                    <input type="text" id="sched-time-custom" placeholder="例: 放課後, 13:30">
+                </div>
+                <label for="sched-content">内容</label>
+                <input type="text" id="sched-content" placeholder="避難訓練">
+                <label for="sched-location">場所</label>
+                <input type="text" id="sched-location" placeholder="グラウンド">
+                
+                <div class="optional-section">
+                    <div class="optional-header" onclick="toggleOptional('sched-optional')">
+                        ▶ 表示期間（オプション）
+                    </div>
+                    <div id="sched-optional" class="optional-fields hidden">
+                        <label for="sched-display-start">表示開始日</label>
+                        <input type="date" id="sched-display-start">
+                        <label for="sched-display-end">表示終了日</label>
+                        <input type="date" id="sched-display-end">
+                    </div>
+                </div>
+            </div>
+
+            <div id="form-notice" class="hidden">
+                <label for="notice-text">連絡内容</label>
+                <textarea id="notice-text" rows="3" placeholder="体操服を忘れないように"></textarea>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="notice-highlight">
+                    <span style="color: #e74c3c;">重要（赤字にする）</span>
+                </div>
+                
+                <div class="optional-section">
+                    <div class="optional-header" onclick="toggleOptional('notice-optional')">
+                        ▶ 表示期間（オプション）
+                    </div>
+                    <div id="notice-optional" class="optional-fields hidden">
+                        <label for="notice-display-start">表示開始日</label>
+                        <input type="date" id="notice-display-start">
+                        <label for="notice-display-end">表示終了日</label>
+                        <input type="date" id="notice-display-end">
+                    </div>
+                </div>
+            </div>
+
+            <div id="form-assignment" class="hidden">
+                <label for="assign-deadline">提出期限</label>
+                <input type="date" id="assign-deadline">
+                <label for="assign-subject">科目</label>
+                <select id="assign-subject">
+                    <option value="実習">実習</option>
+                    <option value="数学">数学</option>
+                    <option value="英語">英語</option>
+                    <option value="HR">ホームルーム</option>
+                    <option value="その他">その他</option>
+                </select>
+                <label for="assign-task">提出物名</label>
+                <input type="text" id="assign-task" placeholder="レポート">
+            </div>
+
+            <button class="submit-btn" id="submitBtn">登録する</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            db, 
+            SCHOOL_ID, 
+            login, 
+            loginWithGoogle, 
+            logout, 
+            onAuthChange, 
+            isUserAdmin 
+        } from './config.js';
+        import { 
+            doc, 
+            setDoc, 
+            arrayUnion 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase SDK読み込み成功を通知
+        window.firebaseLoaded = true;
+
+        // DOM要素
+        const loginContainer = document.getElementById('loginContainer');
+        const appContainer = document.getElementById('appContainer');
+        const loginError = document.getElementById('loginError');
+        const successMsg = document.getElementById('successMsg');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // アプリ状態
+        let currentMode = 'schedule';
+        let appInitialized = false;
+
+        // 認証状態の監視
+        onAuthChange(async (user) => {
+            if (user) {
+                const isAdmin = await isUserAdmin(user);
+                if (isAdmin) {
+                    showApp(user);
+                } else {
+                    await logout();
+                    showError('管理者権限がありません');
+                }
+            } else {
+                showLogin();
+            }
+        });
+
+        // ログインフォーム
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            
+            btn.disabled = true;
+            btn.textContent = 'ログイン中...';
+            hideError();
+            
+            const result = await login(email, password);
+            if (!result.success) {
+                showError(result.error);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'ログイン';
+        });
+
+        // Googleログイン
+        document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+            hideError();
+            const result = await loginWithGoogle();
+            if (!result.success) {
+                showError(result.error);
+            }
+        });
+
+        // ログアウト
+        document.getElementById('logoutBtn').addEventListener('click', () => logout());
+
+        // UI表示切替
+        function showApp(user) {
+            loginContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+            document.getElementById('userEmail').textContent = user.email;
+            initApp();
+        }
+
+        function showLogin() {
+            loginContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+
+        function showError(msg) {
+            loginError.textContent = msg;
+            loginError.style.display = 'block';
+        }
+
+        function hideError() {
+            loginError.style.display = 'none';
+        }
+
+        // アプリ初期化
+        function initApp() {
+            if (appInitialized) return;
+            appInitialized = true;
+            
+            document.getElementById('target-date').value = new Date().toISOString().split('T')[0];
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+            
+            document.getElementById('submitBtn').addEventListener('click', submitData);
+        }
+
+        function switchTab(type) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('[id^="form-"]').forEach(f => f.classList.add('hidden'));
+            document.querySelector(`[data-tab="${type}"]`).classList.add('active');
+            document.getElementById(`form-${type}`).classList.remove('hidden');
+            currentMode = type;
+            
+            // 提出物タブの場合は対象日カードを無効化（入力不可）
+            const targetDateCard = document.getElementById('target-date-card');
+            const targetDateInput = document.getElementById('target-date');
+            if (targetDateCard && targetDateInput) {
+                if (type === 'assignment') {
+                    targetDateCard.classList.add('disabled');
+                    targetDateInput.disabled = true;
+                } else {
+                    targetDateCard.classList.remove('disabled');
+                    targetDateInput.disabled = false;
+                }
+            }
+        }
+
+        // その他選択時の自由入力表示切り替え
+        window.toggleCustomTime = function() {
+            const select = document.getElementById('sched-time-select');
+            const customGroup = document.getElementById('custom-time-group');
+            if (select && customGroup) {
+                customGroup.style.display = select.value === 'その他' ? 'block' : 'none';
+            }
+        };
+
+        // オプションセクションの表示切り替え
+        window.toggleOptional = function(id) {
+            const el = document.getElementById(id);
+            const header = el?.previousElementSibling;
+            if (el) {
+                const isHidden = el.classList.contains('hidden');
+                el.classList.toggle('hidden');
+                if (header) {
+                    header.textContent = (isHidden ? '▼' : '▶') + ' 表示期間（オプション）';
+                }
+            }
+        };
+
+        async function submitData() {
+            const btn = document.getElementById('submitBtn');
+            
+            btn.disabled = true;
+            btn.textContent = '送信中...';
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            try {
+                let dateStr;
+                
+                if (currentMode === 'assignment') {
+                    // 提出物の場合は期限日をドキュメントのキーとして使用
+                    dateStr = document.getElementById('assign-deadline').value;
+                    if (!dateStr) throw new Error("提出期限を選択してください");
+                } else {
+                    // 予定・連絡の場合は対象日を使用
+                    dateStr = document.getElementById('target-date').value;
+                    if (!dateStr) throw new Error("対象日を選択してください");
+                }
+
+                const docRef = doc(db, "schools", SCHOOL_ID, "daily_data", dateStr);
+                const updateData = buildUpdateData(dateStr);
+
+                await setDoc(docRef, updateData, { merge: true });
+                
+                clearForm();
+                successMsg.style.display = 'block';
+                setTimeout(() => successMsg.style.display = 'none', 3000);
+            } catch (error) {
+                errorMsg.textContent = 'エラー: ' + error.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '登録する';
+            }
+        }
+
+        function buildUpdateData(dateStr) {
+            const builders = {
+                schedule: () => {
+                    const content = document.getElementById('sched-content').value;
+                    if (!content) throw new Error("内容を入力してください");
+                    
+                    const selectValue = document.getElementById('sched-time-select').value;
+                    const customValue = document.getElementById('sched-time-custom').value;
+                    const time = selectValue === 'その他' ? customValue : selectValue;
+                    
+                    const scheduleData = {
+                        time: time,
+                        content,
+                        location: document.getElementById('sched-location').value
+                    };
+                    
+                    // 表示期間（オプション）
+                    const displayStart = document.getElementById('sched-display-start').value;
+                    const displayEnd = document.getElementById('sched-display-end').value;
+                    if (displayStart) scheduleData.display_start = displayStart;
+                    if (displayEnd) scheduleData.display_end = displayEnd;
+                    
+                    return {
+                        date: dateStr,
+                        schedules: arrayUnion(scheduleData)
+                    };
+                },
+                notice: () => {
+                    const text = document.getElementById('notice-text').value;
+                    if (!text) throw new Error("内容を入力してください");
+                    
+                    const noticeData = {
+                        text,
+                        is_highlight: document.getElementById('notice-highlight').checked
+                    };
+                    
+                    // 表示期間（オプション）
+                    const displayStart = document.getElementById('notice-display-start').value;
+                    const displayEnd = document.getElementById('notice-display-end').value;
+                    if (displayStart) noticeData.display_start = displayStart;
+                    if (displayEnd) noticeData.display_end = displayEnd;
+                    
+                    return {
+                        date: dateStr,
+                        notices: arrayUnion(noticeData)
+                    };
+                },
+                assignment: () => {
+                    const deadline = document.getElementById('assign-deadline').value;
+                    const task = document.getElementById('assign-task').value;
+                    if (!deadline || !task) throw new Error("期限と提出物を入力してください");
+                    return {
+                        date: deadline,
+                        assignments: arrayUnion({
+                            deadline,
+                            subject: document.getElementById('assign-subject').value,
+                            task
+                        })
+                    };
+                }
+            };
+
+            return builders[currentMode]();
+        }
+
+        function clearForm() {
+            document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = '');
+            const highlightCheckbox = document.getElementById('notice-highlight');
+            if (highlightCheckbox) highlightCheckbox.checked = false;
+            
+            // ドロップダウンをリセット
+            const timeSelect = document.getElementById('sched-time-select');
+            if (timeSelect) timeSelect.value = '';
+            
+            // カスタム時間入力を非表示
+            const customGroup = document.getElementById('custom-time-group');
+            if (customGroup) customGroup.style.display = 'none';
+            
+            // 表示期間フィールドをクリア
+            const displayFields = [
+                'sched-display-start', 'sched-display-end',
+                'notice-display-start', 'notice-display-end'
+            ];
+            displayFields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            
+            // オプションセクションを閉じる
+            document.querySelectorAll('.optional-fields').forEach(el => {
+                el.classList.add('hidden');
+                const header = el.previousElementSibling;
+                if (header) header.textContent = '▶ 表示期間（オプション）';
+            });
+        }
+    </script>
+</body>
+</html>

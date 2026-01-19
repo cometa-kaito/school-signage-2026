@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Signage Dashboard (管理者)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="auth-style.css">
+    <link rel="stylesheet" href="dashboard-style.css">
+    <!-- フォールバック: Firebase SDKがブロックされた場合のタイムアウト処理 -->
+    <script>
+        window.firebaseLoaded = false;
+        setTimeout(function() {
+            if (!window.firebaseLoaded) {
+                var overlay = document.getElementById('loadingOverlay');
+                var login = document.getElementById('loginContainer');
+                var error = document.getElementById('loginError');
+                if (overlay) overlay.style.display = 'none';
+                if (login) login.style.display = 'flex';
+                if (error) {
+                    error.textContent = 'ネットワーク接続を確認してください。Firebaseへの接続がブロックされている可能性があります。';
+                    error.style.display = 'block';
+                }
+            }
+        }, 5000);
+    </script>
+</head>
+<body>
+    <!-- ローディング -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- ログイン画面 -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-box">
+            <h2>🔐 管理者ログイン</h2>
+            <div id="loginError" class="error-msg"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">メールアドレス</label>
+                    <input type="email" id="loginEmail" required 
+                           placeholder="admin@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">パスワード</label>
+                    <input type="password" id="loginPassword" required 
+                           placeholder="パスワード" autocomplete="current-password">
+                </div>
+                <button type="submit" id="loginBtn" class="login-btn">ログイン</button>
+            </form>
+            
+            <div class="divider"><span>または</span></div>
+            
+            <button type="button" id="googleLoginBtn" class="google-btn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                Googleでログイン
+            </button>
+            
+            <p class="login-note">※管理者のみログインできます</p>
+        </div>
+    </div>
+
+    <!-- アプリ本体 -->
+    <div id="appContainer">
+        <div class="user-bar-fixed">
+            <span id="userEmail" class="user-email"></span>
+            <button id="logoutBtn" class="logout-btn">ログアウト</button>
+        </div>
+
+        <div class="container">
+            <main class="info-area">
+                <header class="header-block">
+                    <div class="date-group">
+                        <span id="current-date" class="date-text">--月--日</span>
+                        <span id="current-day" class="day-badge">--</span>
+                        <span id="current-time" class="time-text">--:--</span>
+                    </div>
+                    <h1 id="class-name" class="class-title editable" 
+                        onclick="window.dashboard && window.dashboard.openConfigModal()">--</h1>
+                </header>
+
+                <div class="content-grid">
+                    <section class="card schedule-section">
+                        <h2><span class="icon">📅</span> 今後3日間の予定</h2>
+                        <div id="schedule-grid" class="schedule-grid-container"></div>
+                    </section>
+
+                    <section class="card notice-section">
+                        <h2><span class="icon">📢</span> 各種連絡</h2>
+                        <ul id="notice-list" class="list-group"></ul>
+                        <div class="btn-add-area" 
+                             onclick="window.dashboard && window.dashboard.openAddModal('notice')">+ 連絡を追加</div>
+                    </section>
+
+                    <section class="card assignment-section">
+                        <h2><span class="icon">⚠️</span> 提出物管理</h2>
+                        <div class="table-wrapper">
+                            <table class="task-table">
+                                <thead>
+                                    <tr>
+                                        <th width="30%">期限</th>
+                                        <th width="20%">科目</th>
+                                        <th width="40%">提出物</th>
+                                        <th width="10%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="assignment-list"></tbody>
+                            </table>
+                        </div>
+                        <div class="btn-add-area" 
+                             onclick="window.dashboard && window.dashboard.openAddModal('assignment')">+ 提出物を追加</div>
+                    </section>
+                </div>
+
+                <footer class="branding">Edix by Rebounder (管理者モード)</footer>
+            </main>
+
+            <aside class="ad-area">
+                <div class="ad-container" onclick="window.dashboard && window.dashboard.openAdManager()">
+                    <img id="ad-image" src="" alt="Advertisement">
+                    <div class="img-edit-overlay">
+                        <div class="img-edit-text">画像を管理する</div>
+                        <div class="img-edit-sub">追加・変更・削除 (最大5枚)</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- 編集モーダル -->
+        <div id="edit-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header" id="modal-title">編集</div>
+                <div id="modal-body"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" 
+                            onclick="window.dashboard && window.dashboard.closeModal('edit-modal')">キャンセル</button>
+                    <button class="btn btn-primary" id="btn-save">保存する</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 画像管理モーダル -->
+        <div id="ad-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">画像管理設定</div>
+                <p class="modal-description">最大5枚まで登録できます。</p>
+                <div id="ad-list-container"></div>
+                <div id="ad-add-btn-wrapper">
+                    <div class="btn-add-area" 
+                         onclick="window.dashboard && window.dashboard.triggerAdUpload('add')">
+                        <span class="icon-add">+</span> 画像を追加する
+                    </div>
+                </div>
+                <p id="ad-limit-alert" class="limit-alert">※ 最大枚数(5枚)に達しています</p>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" 
+                            onclick="window.dashboard && window.dashboard.closeModal('ad-modal')">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+        <input type="file" id="ad-file-input" accept="image/*" hidden>
+    </div>
+
+    <script type="module">
+        import { login, loginWithGoogle, logout, onAuthChange, isUserAdmin } from './config.js';
+
+        // Firebase SDK読み込み成功を通知
+        window.firebaseLoaded = true;
+
+        // DOM要素
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loginContainer = document.getElementById('loginContainer');
+        const appContainer = document.getElementById('appContainer');
+        const loginError = document.getElementById('loginError');
+
+        let dashboardInitialized = false;
+
+        // 認証状態の監視
+        onAuthChange(async (user) => {
+            if (user) {
+                const isAdmin = await isUserAdmin(user);
+                if (isAdmin) {
+                    showApp(user);
+                } else {
+                    await logout();
+                    showLoginError('管理者権限がありません');
+                }
+            } else {
+                showLogin();
+            }
+        });
+
+        // ログインフォーム
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            
+            btn.disabled = true;
+            btn.textContent = 'ログイン中...';
+            loginError.style.display = 'none';
+            
+            const result = await login(email, password);
+            if (!result.success) {
+                showLoginError(result.error);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'ログイン';
+        });
+
+        // Googleログイン
+        document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+            loginError.style.display = 'none';
+            const result = await loginWithGoogle();
+            if (!result.success) {
+                showLoginError(result.error);
+            }
+        });
+
+        // ログアウト
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            loadingOverlay.style.display = 'flex';
+            await logout();
+        });
+
+        // UI表示切替
+        function showApp(user) {
+            loadingOverlay.style.display = 'none';
+            loginContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+            document.getElementById('userEmail').textContent = user.email;
+            initDashboard();
+        }
+
+        function showLogin() {
+            loadingOverlay.style.display = 'none';
+            loginContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+
+        function showLoginError(message) {
+            loginError.textContent = message;
+            loginError.style.display = 'block';
+            loadingOverlay.style.display = 'none';
+            loginContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+
+        function initDashboard() {
+            if (dashboardInitialized) return;
+            
+            // dashboard.jsの読み込みを待つ
+            if (window.dashboard && window.dashboard.init) {
+                dashboardInitialized = true;
+                window.dashboard.init();
+            } else {
+                // まだ読み込まれていない場合は少し待ってリトライ
+                setTimeout(initDashboard, 100);
+            }
+        }
+    </script>
+    
+    <script type="module" src="dashboard.js"></script>
+</body>
+</html>

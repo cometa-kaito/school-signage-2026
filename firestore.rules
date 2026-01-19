@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========================================
+    // ヘルパー関数
+    // ========================================
+    
+    // 認証済みユーザーかどうか
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // 管理者かどうか（カスタムクレームで判定）
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // メールアドレスが検証済みかどうか
+    function isEmailVerified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    
+    // 管理者かつメール検証済み
+    function isVerifiedAdmin() {
+      return isAdmin() && isEmailVerified();
+    }
+    
+    // ========================================
+    // サイネージコンテンツ（公開データ）
+    // ========================================
+    
+    // お知らせ・ニュース
+    match /announcements/{announcementId} {
+      // サイネージ表示用なので誰でも読み取り可能
+      allow read: if true;
+      // 管理者のみ作成・更新・削除可能
+      allow create, update, delete: if isVerifiedAdmin();
+    }
+    
+    // スケジュール・時間割
+    match /schedules/{scheduleId} {
+      allow read: if true;
+      allow write: if isVerifiedAdmin();
+    }
+    
+    // メディアコンテンツ情報
+    match /contents/{contentId} {
+      allow read: if true;
+      allow write: if isVerifiedAdmin();
+    }
+    
+    // スライドショー設定
+    match /slideshows/{slideshowId} {
+      allow read: if true;
+      allow write: if isVerifiedAdmin();
+    }
+    
+    // ========================================
+    // 学校別データ（SCHOOL_IDでフィルタリング）
+    // ========================================
+    
+    match /schools/{schoolId} {
+      // 学校情報の読み取りは認証済みユーザーのみ
+      allow read: if isAuthenticated();
+      allow write: if isVerifiedAdmin();
+      
+      // 表示設定（config/display_settings）
+      match /config/{configId} {
+        // サイネージ表示用なので誰でも読み取り可能
+        allow read: if true;
+        // 管理者のみ書き込み可能
+        allow write: if isVerifiedAdmin();
+      }
+      
+      // 日次データ（daily_data）- 予定、連絡、提出物
+      match /daily_data/{dateId} {
+        // サイネージ表示用なので誰でも読み取り可能
+        allow read: if true;
+        // 管理者のみ書き込み可能
+        allow write: if isVerifiedAdmin();
+      }
+      
+      // 学校配下のサブコレクション
+      match /announcements/{announcementId} {
+        allow read: if true;
+        allow write: if isVerifiedAdmin();
+      }
+      
+      match /schedules/{scheduleId} {
+        allow read: if true;
+        allow write: if isVerifiedAdmin();
+      }
+      
+      match /contents/{contentId} {
+        allow read: if true;
+        allow write: if isVerifiedAdmin();
+      }
+    }
+    
+    // ========================================
+    // 管理者専用データ（非公開）
+    // ========================================
+    
+    // システム設定
+    match /settings/{settingId} {
+      allow read, write: if isVerifiedAdmin();
+    }
+    
+    // ユーザー管理
+    match /users/{userId} {
+      // 自分のデータは読み取り可能
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // 管理者は全ユーザーのデータにアクセス可能
+      allow read, write: if isVerifiedAdmin();
+    }
+    
+    // 管理者一覧
+    match /admins/{adminId} {
+      allow read: if isAuthenticated();
+      allow write: if isVerifiedAdmin();
+    }
+    
+    // 操作ログ（監査用）
+    match /logs/{logId} {
+      // ログの読み取りは管理者のみ
+      allow read: if isVerifiedAdmin();
+      // ログの作成は認証済みユーザー（自動記録用）
+      allow create: if isAuthenticated();
+      // ログの更新・削除は禁止
+      allow update, delete: if false;
+    }
+    
+    // ========================================
+    // デフォルト：その他すべて拒否
+    // ========================================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+  }
+}

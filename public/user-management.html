@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユーザー管理 | Edix Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="auth-style.css">
+    <link rel="stylesheet" href="admin-style.css">
+    <!-- フォールバック: Firebase SDKがブロックされた場合のタイムアウト処理 -->
+    <script>
+        window.firebaseLoaded = false;
+        setTimeout(function() {
+            if (!window.firebaseLoaded) {
+                var login = document.getElementById('loginContainer');
+                var error = document.getElementById('loginError');
+                if (login) login.style.display = 'flex';
+                if (error) {
+                    error.textContent = 'ネットワーク接続を確認してください。Firebaseへの接続がブロックされている可能性があります。';
+                    error.style.display = 'block';
+                }
+            }
+        }, 5000);
+    </script>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-box">
+            <h2>🔐 管理者ログイン</h2>
+            <div id="loginError" class="error-msg"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">メールアドレス</label>
+                    <input type="email" id="loginEmail" required 
+                           placeholder="admin@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">パスワード</label>
+                    <input type="password" id="loginPassword" required 
+                           placeholder="パスワード" autocomplete="current-password">
+                </div>
+                <button type="submit" id="loginBtn" class="login-btn">ログイン</button>
+            </form>
+            
+            <div class="divider"><span>または</span></div>
+            
+            <button type="button" id="googleLoginBtn" class="google-btn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                Googleでログイン
+            </button>
+            
+            <p class="login-note">※管理者のみログインできます</p>
+        </div>
+    </div>
+
+    <!-- アプリ本体 -->
+    <div id="appContainer">
+        <header class="admin-header">
+            <h1>👥 ユーザー管理</h1>
+            <div class="header-right">
+                <span id="userEmail" class="user-email"></span>
+                <button id="logoutBtn" class="btn-logout">ログアウト</button>
+            </div>
+        </header>
+
+        <nav class="nav-links">
+            <a href="dashboard.html">📊 ダッシュボード</a>
+            <a href="admin.html">📝 連絡登録</a>
+            <a href="user-management.html" class="active">👥 ユーザー管理</a>
+        </nav>
+
+        <main class="main-content">
+            <!-- 授業時間設定カード -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>⏰ 授業時間設定（音声・広告の無効化）</h2>
+                </div>
+                <p class="setting-description">設定した時間帯は、通知音と広告画像が非表示になります。</p>
+                <div id="quietHoursContainer">
+                    <div class="quiet-hours-list" id="quietHoursList"></div>
+                    <button class="btn btn-secondary" id="addQuietHourBtn">+ 時間帯を追加</button>
+                </div>
+                <div class="setting-actions">
+                    <button class="btn btn-primary" id="saveQuietHoursBtn">設定を保存</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>登録ユーザー一覧</h2>
+                    <button class="btn btn-primary" id="createUserBtn">
+                        <span class="btn-icon-text">+</span> 新規ユーザー作成
+                    </button>
+                </div>
+                <div id="userTableContainer"></div>
+            </div>
+        </main>
+
+        <!-- ユーザー作成モーダル -->
+        <div id="createModal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>新規ユーザー作成</h3>
+                    <button class="modal-close" id="closeCreateModal">×</button>
+                </div>
+                <form id="createForm">
+                    <div class="form-group">
+                        <label for="newEmail">メールアドレス *</label>
+                        <input type="email" id="newEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">パスワード *</label>
+                        <input type="password" id="newPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="newDisplayName">表示名</label>
+                        <input type="text" id="newDisplayName">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="newIsAdmin">
+                            管理者権限を付与
+                        </label>
+                    </div>
+                </form>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelCreateBtn">キャンセル</button>
+                    <button class="btn btn-primary" id="submitCreateBtn">作成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ユーザー編集モーダル -->
+        <div id="editModal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>ユーザー編集</h3>
+                    <button class="modal-close" id="closeEditModal">×</button>
+                </div>
+                <input type="hidden" id="editUid">
+                <div class="form-group">
+                    <label for="editEmail">メールアドレス</label>
+                    <input type="email" id="editEmail">
+                </div>
+                <div class="form-group">
+                    <label for="editDisplayName">表示名</label>
+                    <input type="text" id="editDisplayName">
+                </div>
+                <div class="form-group">
+                    <label for="editPassword">新しいパスワード（変更する場合のみ）</label>
+                    <input type="password" id="editPassword" minlength="6" 
+                           placeholder="6文字以上">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelEditBtn">キャンセル</button>
+                    <button class="btn btn-primary" id="submitEditBtn">更新</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            db,
+            SCHOOL_ID,
+            login, 
+            loginWithGoogle, 
+            logout, 
+            onAuthChange, 
+            isUserAdmin,
+            listUsersFn,
+            createAdminUserFn,
+            setAdminRoleFn,
+            updateUserFn,
+            deleteUserFn,
+            toggleUserStatusFn,
+            setEmailVerifiedFn
+        } from './config.js';
+        import {
+            doc,
+            getDoc,
+            setDoc
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase SDK読み込み成功を通知
+        window.firebaseLoaded = true;
+
+        // DOM要素
+        const loginContainer = document.getElementById('loginContainer');
+        const appContainer = document.getElementById('appContainer');
+        const loginError = document.getElementById('loginError');
+
+        // アプリ状態
+        let usersData = [];
+        let currentUserUid = null;
+        let quietHours = [];
+
+        // 認証状態の監視
+        onAuthChange(async (user) => {
+            if (user) {
+                const isAdmin = await isUserAdmin(user);
+                if (isAdmin) {
+                    currentUserUid = user.uid;
+                    showApp(user);
+                    loadUsers();
+                    loadQuietHours();
+                } else {
+                    await logout();
+                    showLoginError('管理者権限がありません');
+                }
+            } else {
+                showLogin();
+            }
+        });
+
+        // ログインフォーム
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            
+            btn.disabled = true;
+            btn.textContent = 'ログイン中...';
+            loginError.style.display = 'none';
+            
+            const result = await login(email, password);
+            if (!result.success) {
+                showLoginError(result.error);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'ログイン';
+        });
+
+        // Googleログイン
+        document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+            loginError.style.display = 'none';
+            const result = await loginWithGoogle();
+            if (!result.success) {
+                showLoginError(result.error);
+            }
+        });
+
+        // ログアウト
+        document.getElementById('logoutBtn').addEventListener('click', () => logout());
+
+        // UI表示切替
+        function showApp(user) {
+            loginContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+            document.getElementById('userEmail').textContent = user.email;
+        }
+
+        function showLogin() {
+            loginContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+
+        function showLoginError(msg) {
+            loginError.textContent = msg;
+            loginError.style.display = 'block';
+        }
+
+        // ユーザー一覧読み込み
+        async function loadUsers() {
+            const container = document.getElementById('userTableContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
+            
+            try {
+                const result = await listUsersFn();
+                usersData = result.data.users;
+                renderUserTable(usersData);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                container.innerHTML = `<p class="error-text">エラー: ${error.message}</p>`;
+            }
+        }
+        
+        function renderUserTable(users) {
+            const container = document.getElementById('userTableContainer');
+            
+            if (users.length === 0) {
+                container.innerHTML = '<p class="empty-text">ユーザーがいません</p>';
+                return;
+            }
+            
+            const rows = users.map(user => {
+                const isCurrentUser = user.uid === currentUserUid;
+                const lastSignIn = user.lastSignInTime 
+                    ? new Date(user.lastSignInTime).toLocaleString('ja-JP') 
+                    : '未ログイン';
+                
+                return `
+                    <tr>
+                        <td>
+                            ${user.email}
+                            ${isCurrentUser ? '<span class="current-user-badge">(自分)</span>' : ''}
+                        </td>
+                        <td>${user.displayName || '-'}</td>
+                        <td>
+                            <span class="badge ${user.isAdmin ? 'badge-admin' : 'badge-user'}">
+                                ${user.isAdmin ? '管理者' : '一般'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${user.emailVerified ? 'badge-active' : 'badge-disabled'}">
+                                ${user.emailVerified ? '確認済' : '未確認'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${user.disabled ? 'badge-disabled' : 'badge-active'}">
+                                ${user.disabled ? '無効' : '有効'}
+                            </span>
+                        </td>
+                        <td class="last-signin">${lastSignIn}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-icon" data-action="edit" data-uid="${user.uid}" title="編集">✏️</button>
+                                <button class="btn-icon" data-action="toggle-admin" data-uid="${user.uid}" 
+                                        data-admin="${!user.isAdmin}" 
+                                        title="${user.isAdmin ? '管理者解除' : '管理者にする'}">
+                                    ${user.isAdmin ? '👤' : '👑'}
+                                </button>
+                                ${!user.emailVerified ? `
+                                    <button class="btn-icon" data-action="verify-email" data-uid="${user.uid}" 
+                                            title="メール確認済みにする">📧</button>
+                                ` : ''}
+                                <button class="btn-icon" data-action="toggle-status" data-uid="${user.uid}" 
+                                        data-disabled="${!user.disabled}" 
+                                        title="${user.disabled ? '有効化' : '無効化'}">
+                                    ${user.disabled ? '✅' : '🚫'}
+                                </button>
+                                ${!isCurrentUser ? `
+                                    <button class="btn-icon btn-danger" data-action="delete" data-uid="${user.uid}" 
+                                            title="削除">🗑️</button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            container.innerHTML = `
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>メールアドレス</th>
+                            <th>表示名</th>
+                            <th>権限</th>
+                            <th>メール確認</th>
+                            <th>状態</th>
+                            <th>最終ログイン</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+            
+            container.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', handleAction);
+            });
+        }
+
+        // アクションハンドラー
+        async function handleAction(e) {
+            const btn = e.currentTarget;
+            const action = btn.dataset.action;
+            const uid = btn.dataset.uid;
+            
+            const actions = {
+                'edit': () => openEditModal(uid),
+                'toggle-admin': () => toggleAdmin(uid, btn.dataset.admin === 'true'),
+                'toggle-status': () => toggleStatus(uid, btn.dataset.disabled === 'true'),
+                'delete': () => confirmDelete(uid),
+                'verify-email': () => verifyEmail(uid)
+            };
+            
+            if (actions[action]) {
+                await actions[action]();
+            }
+        }
+
+        // モーダル操作
+        document.getElementById('createUserBtn').addEventListener('click', () => {
+            document.getElementById('createForm').reset();
+            showModal('createModal');
+        });
+        
+        document.getElementById('closeCreateModal').addEventListener('click', () => hideModal('createModal'));
+        document.getElementById('cancelCreateBtn').addEventListener('click', () => hideModal('createModal'));
+        document.getElementById('closeEditModal').addEventListener('click', () => hideModal('editModal'));
+        document.getElementById('cancelEditBtn').addEventListener('click', () => hideModal('editModal'));
+
+        function showModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function openEditModal(uid) {
+            const user = usersData.find(u => u.uid === uid);
+            if (!user) return;
+            
+            document.getElementById('editUid').value = uid;
+            document.getElementById('editEmail').value = user.email;
+            document.getElementById('editDisplayName').value = user.displayName || '';
+            document.getElementById('editPassword').value = '';
+            showModal('editModal');
+        }
+
+        // ユーザー作成
+        document.getElementById('submitCreateBtn').addEventListener('click', async () => {
+            const email = document.getElementById('newEmail').value;
+            const password = document.getElementById('newPassword').value;
+            const displayName = document.getElementById('newDisplayName').value;
+            const setAsAdmin = document.getElementById('newIsAdmin').checked;
+            
+            if (!email || !password) {
+                showToast('メールとパスワードは必須です', 'error');
+                return;
+            }
+            
+            try {
+                const result = await createAdminUserFn({ email, password, displayName, setAsAdmin });
+                showToast(result.data.message, 'success');
+                hideModal('createModal');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+        
+        // ユーザー更新
+        document.getElementById('submitEditBtn').addEventListener('click', async () => {
+            const uid = document.getElementById('editUid').value;
+            const email = document.getElementById('editEmail').value;
+            const displayName = document.getElementById('editDisplayName').value;
+            const password = document.getElementById('editPassword').value;
+            
+            try {
+                const result = await updateUserFn({ 
+                    uid, 
+                    email, 
+                    displayName, 
+                    password: password || undefined 
+                });
+                showToast(result.data.message, 'success');
+                hideModal('editModal');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+        
+        // 管理者権限切り替え
+        async function toggleAdmin(uid, isAdmin) {
+            const user = usersData.find(u => u.uid === uid);
+            const action = isAdmin ? '管理者権限を付与' : '管理者権限を削除';
+            if (!confirm(`${user.email} の${action}しますか？`)) return;
+            
+            try {
+                const result = await setAdminRoleFn({ uid, isAdmin });
+                showToast(result.data.message, 'success');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        // ステータス切り替え
+        async function toggleStatus(uid, disabled) {
+            const user = usersData.find(u => u.uid === uid);
+            const action = disabled ? '無効化' : '有効化';
+            if (!confirm(`${user.email} を${action}しますか？`)) return;
+            
+            try {
+                const result = await toggleUserStatusFn({ uid, disabled });
+                showToast(result.data.message, 'success');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        // メール確認済みに設定
+        async function verifyEmail(uid) {
+            const user = usersData.find(u => u.uid === uid);
+            if (!confirm(`${user.email} をメール確認済みにしますか？`)) return;
+            
+            try {
+                const result = await setEmailVerifiedFn({ uid, verified: true });
+                showToast(result.data.message, 'success');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        // ユーザー削除
+        async function confirmDelete(uid) {
+            const user = usersData.find(u => u.uid === uid);
+            if (!confirm(`⚠️ ${user.email} を完全に削除しますか？\nこの操作は取り消せません。`)) return;
+            
+            try {
+                const result = await deleteUserFn({ uid });
+                showToast(result.data.message, 'success');
+                loadUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // トースト通知
+        function showToast(message, type) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ========================================
+        // 授業時間（Quiet Hours）設定
+        // ========================================
+        async function loadQuietHours() {
+            try {
+                const configRef = doc(db, "schools", SCHOOL_ID, "config", "display_settings");
+                const snap = await getDoc(configRef);
+                quietHours = snap.exists() ? (snap.data().quiet_hours || []) : [];
+                renderQuietHours();
+            } catch (error) {
+                console.error("授業時間設定の読み込みエラー:", error);
+                quietHours = [];
+                renderQuietHours();
+            }
+        }
+
+        function renderQuietHours() {
+            const container = document.getElementById('quietHoursList');
+            if (!container) return;
+
+            if (quietHours.length === 0) {
+                container.innerHTML = '<p class="empty-text">時間帯が設定されていません</p>';
+                return;
+            }
+
+            container.innerHTML = quietHours.map((item, idx) => `
+                <div class="quiet-hour-item">
+                    <div class="quiet-hour-inputs">
+                        <input type="time" value="${item.start || '08:30'}" 
+                               onchange="window.updateQuietHour(${idx}, 'start', this.value)">
+                        <span>〜</span>
+                        <input type="time" value="${item.end || '15:30'}" 
+                               onchange="window.updateQuietHour(${idx}, 'end', this.value)">
+                        <input type="text" value="${item.label || ''}" placeholder="例: 1〜4限目"
+                               onchange="window.updateQuietHour(${idx}, 'label', this.value)">
+                    </div>
+                    <button class="btn-icon btn-danger" onclick="window.removeQuietHour(${idx})">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        window.updateQuietHour = (idx, field, value) => {
+            if (quietHours[idx]) {
+                quietHours[idx][field] = value;
+            }
+        };
+
+        window.removeQuietHour = (idx) => {
+            quietHours.splice(idx, 1);
+            renderQuietHours();
+        };
+
+        document.getElementById('addQuietHourBtn')?.addEventListener('click', () => {
+            quietHours.push({ start: '08:30', end: '15:30', label: '' });
+            renderQuietHours();
+        });
+
+        document.getElementById('saveQuietHoursBtn')?.addEventListener('click', async () => {
+            try {
+                const configRef = doc(db, "schools", SCHOOL_ID, "config", "display_settings");
+                await setDoc(configRef, { quiet_hours: quietHours }, { merge: true });
+                showToast('授業時間設定を保存しました', 'success');
+            } catch (error) {
+                showToast('保存エラー: ' + error.message, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

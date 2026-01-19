@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Signage</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <main class="info-area">
+            <header class="header-block">
+                <div class="date-group">
+                    <span id="current-date" class="date-text">--月--日</span>
+                    <span id="current-day" class="day-badge">--</span>
+                    <span id="current-time" class="time-text">--:--</span>
+                </div>
+                <h1 id="class-name" class="class-title">--</h1>
+            </header>
+
+            <div class="content-grid">
+                <section class="card schedule-section">
+                    <h2><span class="icon">📅</span> 今後3日間の予定</h2>
+                    <div id="schedule-grid" class="schedule-grid-container"></div>
+                </section>
+
+                <section class="card notice-section">
+                    <h2><span class="icon">📢</span> 各種連絡</h2>
+                    <ul id="notice-list" class="list-group"></ul>
+                </section>
+
+                <section class="card assignment-section">
+                    <h2><span class="icon">⚠️</span> 提出物管理</h2>
+                    <div class="table-wrapper">
+                        <table class="task-table">
+                            <thead>
+                                <tr>
+                                    <th width="30%">期限</th>
+                                    <th width="20%">科目</th>
+                                    <th width="50%">提出物</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignment-list"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+            
+            <footer class="branding">Edix by Rebounder</footer>
+        </main>
+
+        <aside class="ad-area">
+            <div class="ad-container">
+                <img id="ad-image" src="" alt="Advertisement">
+            </div>
+        </aside>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

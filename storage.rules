@@ -1,0 +1,107 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========================================
+    // ヘルパー関数
+    // ========================================
+    
+    // 認証済みユーザーかどうか
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // 管理者かどうか（カスタムクレームで判定）
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // 許可されたファイルタイプかどうか
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidVideoType() {
+      return request.resource.contentType.matches('video/.*');
+    }
+    
+    function isValidMediaType() {
+      return isValidImageType() || isValidVideoType();
+    }
+    
+    // ファイルサイズ制限（50MB）
+    function isValidFileSize() {
+      return request.resource.size < 50 * 1024 * 1024;
+    }
+    
+    // ========================================
+    // サイネージ用メディアファイル
+    // ========================================
+    
+    // 画像ファイル
+    match /images/{allPaths=**} {
+      // サイネージ表示用なので誰でも読み取り可能
+      allow read: if true;
+      
+      // 管理者のみアップロード可能 + バリデーション
+      allow write: if isAdmin()
+        && isValidImageType()
+        && isValidFileSize();
+    }
+    
+    // 動画ファイル
+    match /videos/{allPaths=**} {
+      allow read: if true;
+      
+      // 動画は100MBまで許可
+      allow write: if isAdmin()
+        && isValidVideoType()
+        && request.resource.size < 100 * 1024 * 1024;
+    }
+    
+    // 汎用メディアフォルダ
+    match /media/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && isValidMediaType()
+        && isValidFileSize();
+    }
+    
+    // コンテンツフォルダ
+    match /contents/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && isValidMediaType()
+        && isValidFileSize();
+    }
+    
+    // ========================================
+    // 学校別メディアフォルダ
+    // ========================================
+    
+    match /schools/{schoolId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && isValidMediaType()
+        && isValidFileSize();
+    }
+    
+    // ========================================
+    // 管理者用プライベートフォルダ
+    // ========================================
+    
+    match /private/{allPaths=**} {
+      // 管理者のみアクセス可能
+      allow read, write: if isAdmin();
+    }
+    
+    // ========================================
+    // デフォルト：その他すべて拒否
+    // ========================================
+    
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+    
+  }
+}

@@ -103,6 +103,12 @@ export const UI = {
             return item.deadline >= fiveDaysAgoStr;
         });
         
+        console.log('renderAssignments - filteredAssignments:', filteredAssignments.map(a => ({
+            deadline: a.deadline,
+            _sourceDate: a._sourceDate,
+            _originalIndex: a._originalIndex
+        })));
+        
         if (filteredAssignments.length === 0) {
             container.innerHTML = '<tr><td colspan="4" class="no-assignment">提出物はありません</td></tr>';
             return;

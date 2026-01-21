@@ -29,19 +29,21 @@
 /* ダッシュボード全体のスクロール対応 */
 #appContainer {
     display: none;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow: visible;
 }
 
 #appContainer .container {
-    height: calc(100vh - 50px);
+    min-height: calc(100vh - 50px);
+    height: auto;
     margin-top: 50px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 #appContainer .info-area {
-    height: 100%;
-    overflow-y: auto !important;
+    height: auto;
+    min-height: auto;
+    overflow: visible !important;
     padding-bottom: 20px;
 }
 
@@ -98,18 +100,19 @@
 @media (max-width: 1024px) {
     #appContainer .container {
         grid-template-columns: 1fr;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: auto auto;
         height: auto;
         min-height: calc(100vh - 50px);
     }
     
     #appContainer .info-area {
         height: auto;
-        min-height: 60vh;
+        min-height: auto;
     }
     
     #appContainer .ad-area {
         height: 200px;
+        min-height: 200px;
     }
 }
 

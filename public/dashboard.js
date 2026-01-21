@@ -131,12 +131,15 @@ function startRealtimeListeners() {
             // 提出物: 全ての日付から集める（後でフィルタ）
             // ソース日付とインデックスを追跡（削除時に必要）
             if (data.assignments && data.assignments.length > 0) {
+                console.log(`Loading assignments from ${dateKey}:`, data.assignments.length, 'items');
                 data.assignments.forEach((assignment, originalIndex) => {
-                    appData.assignments.push({
+                    const item = {
                         ...assignment,
                         _sourceDate: dateKey,
                         _originalIndex: originalIndex
-                    });
+                    };
+                    console.log(`  Assignment: deadline=${assignment.deadline}, _sourceDate=${dateKey}, _originalIndex=${originalIndex}`);
+                    appData.assignments.push(item);
                 });
             }
         });
@@ -145,6 +148,12 @@ function startRealtimeListeners() {
         appData.assignments.sort((a, b) => {
             return new Date(a.deadline) - new Date(b.deadline);
         });
+        
+        console.log('All assignments after sort:', appData.assignments.map(a => ({
+            deadline: a.deadline,
+            _sourceDate: a._sourceDate,
+            _originalIndex: a._originalIndex
+        })));
 
         renderAllSections(todayStr);
     }, (error) => {
@@ -201,13 +210,21 @@ window.dashboard.openEditModal = (type, dateStr, index) => {
     currentTargetDate = dateStr;
     currentIndex = index;
     
-    const dataMap = {
-        schedule: appData.weeklySchedules[dateStr]?.[index],
-        notice: appData.notices[index],
-        assignment: appData.assignments[index]
-    };
+    let data;
+    if (type === 'assignment') {
+        // assignmentの場合は_sourceDateと_originalIndexでマッチするアイテムを探す
+        data = appData.assignments.find(item => 
+            item._sourceDate === dateStr && item._originalIndex === index
+        );
+    } else {
+        const dataMap = {
+            schedule: appData.weeklySchedules[dateStr]?.[index],
+            notice: appData.notices[index]
+        };
+        data = dataMap[type];
+    }
     
-    UI.generateModalForm(type, "編集", dataMap[type]);
+    UI.generateModalForm(type, "編集", data);
     showModal('edit-modal');
 };
 
@@ -333,6 +350,8 @@ function getFormData() {
 // 削除処理
 // ========================================
 window.dashboard.deleteItem = async (type, dateStr, index) => {
+    console.log(`deleteItem called: type=${type}, dateStr=${dateStr}, index=${index}`);
+    
     if (!confirm("削除しますか？")) return;
 
     const fieldMap = {
@@ -344,12 +363,26 @@ window.dashboard.deleteItem = async (type, dateStr, index) => {
     try {
         const field = fieldMap[type];
         const docRef = doc(db, "schools", SCHOOL_ID, "daily_data", dateStr);
+        console.log(`Fetching document: schools/${SCHOOL_ID}/daily_data/${dateStr}`);
+        
         const snap = await getDoc(docRef);
         
         if (snap.exists()) {
             const list = snap.data()[field] || [];
-            list.splice(index, 1);
-            await updateDoc(docRef, { [field]: list });
+            console.log(`Current list (${field}):`, JSON.stringify(list));
+            console.log(`Removing index ${index} from list of length ${list.length}`);
+            
+            if (index >= 0 && index < list.length) {
+                list.splice(index, 1);
+                await updateDoc(docRef, { [field]: list });
+                console.log('Delete successful');
+            } else {
+                console.error(`Invalid index: ${index} for list length ${list.length}`);
+                alert(`削除エラー: インデックス ${index} は無効です（リスト長: ${list.length}）`);
+            }
+        } else {
+            console.error(`Document not found: ${dateStr}`);
+            alert(`削除エラー: ドキュメント ${dateStr} が見つかりません`);
         }
     } catch (e) {
         console.error("削除エラー:", e);

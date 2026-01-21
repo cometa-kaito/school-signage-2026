@@ -129,12 +129,19 @@ function startRealtimeListeners() {
             }
             
             // 提出物: 全ての日付から集める（後でフィルタ）
+            // ソース日付とインデックスを追跡（削除時に必要）
             if (data.assignments && data.assignments.length > 0) {
-                appData.assignments = appData.assignments.concat(data.assignments);
+                data.assignments.forEach((assignment, originalIndex) => {
+                    appData.assignments.push({
+                        ...assignment,
+                        _sourceDate: dateKey,
+                        _originalIndex: originalIndex
+                    });
+                });
             }
         });
         
-        // 提出物を期限でソート
+        // 提出物を期限でソート（ソート後もソース情報は保持される）
         appData.assignments.sort((a, b) => {
             return new Date(a.deadline) - new Date(b.deadline);
         });

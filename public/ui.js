@@ -138,9 +138,13 @@ export const UI = {
             
             const rowClass = diffDays < 0 ? 'overdue-row' : '';
             
+            // 削除・編集時には元のドキュメント日付とインデックスを使用
+            const sourceDate = item._sourceDate || todayStr;
+            const originalIndex = item._originalIndex !== undefined ? item._originalIndex : idx;
+            
             return `
             <tr class="editable ${rowClass}" 
-                onclick="window.dashboard.openEditModal('assignment', '${todayStr}', ${idx})">
+                onclick="window.dashboard.openEditModal('assignment', '${sourceDate}', ${originalIndex})">
                 <td>
                     ${item.deadline.slice(5)}
                     <br><span class="${daysClass}">${daysText}</span>
@@ -149,7 +153,7 @@ export const UI = {
                 <td>${escapeHtml(item.task)}</td>
                 <td>
                     <span class="btn-delete-item" 
-                          onclick="event.stopPropagation(); window.dashboard.deleteItem('assignment', '${todayStr}', ${idx})">×</span>
+                          onclick="event.stopPropagation(); window.dashboard.deleteItem('assignment', '${sourceDate}', ${originalIndex})">×</span>
                 </td>
             </tr>
         `}).join('');

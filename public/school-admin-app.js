@@ -746,14 +746,36 @@ function renderUnifiedUserTable() {
 function openUserModal(uid) {
     const roleGroup = document.getElementById('userModalRoleGroup');
     const roleSelect = document.getElementById('userModalRole');
+    const schoolGroup = document.getElementById('userModalSchoolGroup');
+    const schoolSelect = document.getElementById('userModalSchool');
 
     // system_adminのみ権限ドロップダウンを表示
     roleGroup.style.display = isSystemAdminUser ? 'block' : 'none';
 
+    // 学校一覧ビューからの場合は学校セレクタを表示
+    const needsSchoolSelector = isSystemAdminUser && !activeSchoolId;
+    schoolGroup.style.display = 'none'; // 初期非表示、ロール変更時に表示制御
+    if (needsSchoolSelector) {
+        schoolSelect.innerHTML = '<option value="">-- 学校を選択 --</option>' +
+            schoolsList.map(s => `<option value="${s.id}">${s.name || s.id}</option>`).join('');
+    }
+
+    // ロール変更時に学校セレクタの表示/非表示を切り替え
+    roleSelect.onchange = () => {
+        const val = roleSelect.value;
+        if (needsSchoolSelector && (val === 'school_admin' || val === 'teacher')) {
+            schoolGroup.style.display = 'block';
+        } else {
+            schoolGroup.style.display = 'none';
+        }
+    };
+
     if (uid) {
         const user = usersData.find(u => u.uid === uid) || globalUsersData.find(u => u.uid === uid);
         if (!user) return;
-        const member = membersData.find(m => m.userId === uid);
+        const member = activeSchoolId
+            ? membersData.find(m => m.userId === uid)
+            : (allMembershipsMap[uid] || [])[0] || null;
         document.getElementById('userModalTitle').textContent = 'ユーザー編集';
         document.getElementById('userModalUid').value = uid;
         document.getElementById('userModalEmail').value = user.email;
@@ -764,6 +786,11 @@ function openUserModal(uid) {
             roleSelect.value = 'system_admin';
         } else if (member) {
             roleSelect.value = member.role;
+            // 学校セレクタに既存の所属学校をセット
+            if (needsSchoolSelector && member.schoolId) {
+                schoolSelect.value = member.schoolId;
+                schoolGroup.style.display = 'block';
+            }
         } else {
             roleSelect.value = '';
         }
@@ -787,6 +814,8 @@ document.getElementById('userModalSave').addEventListener('click', () => withLoa
     const displayName = document.getElementById('userModalName').value;
     const password = document.getElementById('userModalPassword').value;
     const selectedRole = isSystemAdminUser ? document.getElementById('userModalRole').value : null;
+    // 学校ID: 詳細ビューならactiveSchoolId、一覧ビューならモーダルのセレクタから
+    const targetSchoolId = activeSchoolId || document.getElementById('userModalSchool')?.value || null;
 
     try {
         if (uid) {
@@ -795,27 +824,32 @@ document.getElementById('userModalSave').addEventListener('click', () => withLoa
 
             // 権限変更（system_adminのみ）
             if (isSystemAdminUser && selectedRole !== null) {
-                const user = usersData.find(u => u.uid === uid);
-                const member = membersData.find(m => m.userId === uid);
+                const user = usersData.find(u => u.uid === uid) || globalUsersData.find(u => u.uid === uid);
+                // 既存のメンバーシップを検索（詳細ビューならmembersData、一覧ビューならallMembershipsMap）
+                const member = activeSchoolId
+                    ? membersData.find(m => m.userId === uid)
+                    : (allMembershipsMap[uid] || [])[0] || null;
+                const memberSchoolId = member ? (activeSchoolId || member.schoolId) : null;
                 const wasAdmin = user?.isAdmin;
                 const prevRole = member?.role || '';
 
                 if (selectedRole === 'system_admin') {
                     if (!wasAdmin) await setAdminRoleFn({ uid, isAdmin: true });
-                    if (member) await removeMemberFn({ schoolId: activeSchoolId, userId: uid });
+                    if (member && memberSchoolId) await removeMemberFn({ schoolId: memberSchoolId, userId: uid });
                 } else if (selectedRole === '') {
                     // メンバーでない
                     if (wasAdmin) await setAdminRoleFn({ uid, isAdmin: false });
-                    if (member) await removeMemberFn({ schoolId: activeSchoolId, userId: uid });
+                    if (member && memberSchoolId) await removeMemberFn({ schoolId: memberSchoolId, userId: uid });
                 } else {
-                    // school_admin / teacher
+                    // school_admin / teacher — 学校IDが必要
+                    if (!targetSchoolId) { showToast('所属学校を選択してください', 'error'); return; }
                     if (wasAdmin) await setAdminRoleFn({ uid, isAdmin: false });
-                    if (member) {
+                    if (member && memberSchoolId === targetSchoolId) {
                         if (prevRole !== selectedRole) {
-                            await updateMembershipFn({ schoolId: activeSchoolId, userId: uid, role: selectedRole });
+                            await updateMembershipFn({ schoolId: targetSchoolId, userId: uid, role: selectedRole });
                         }
                     } else {
-                        await inviteMemberFn({ schoolId: activeSchoolId, email, role: selectedRole });
+                        await inviteMemberFn({ schoolId: targetSchoolId, email, role: selectedRole });
                     }
                 }
             }
@@ -826,13 +860,16 @@ document.getElementById('userModalSave').addEventListener('click', () => withLoa
             const result = await createAdminUserFn({ email, password, displayName, setAsAdmin });
 
             // 作成後にロールを設定
-            if (isSystemAdminUser && selectedRole && selectedRole !== 'system_admin' && result.data?.uid) {
-                await inviteMemberFn({ schoolId: activeSchoolId, email, role: selectedRole });
+            if (isSystemAdminUser && selectedRole && selectedRole !== 'system_admin') {
+                if (!targetSchoolId) { showToast('所属学校を選択してください', 'error'); return; }
+                await inviteMemberFn({ schoolId: targetSchoolId, email, role: selectedRole });
             }
         }
         showToast('保存しました', 'success');
         document.getElementById('userModal').style.display = 'none';
-        loadUsersAndMembers();
+        // 適切なリストを再読み込み
+        if (activeSchoolId) { loadUsersAndMembers(); }
+        else { loadGlobalUsers(); }
     } catch (e) { showToast('エラー: ' + e.message, 'error'); }
 }));
 

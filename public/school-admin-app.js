@@ -35,7 +35,7 @@ const schoolParam = urlParams.get('school');
 
 let currentUserUid = null;
 let isSystemAdminUser = false;
-let schoolsList = [], gradesList = [], classesList = [];
+let schoolsList = [], gradesList = [];
 let activeSchoolId = null, activeGradeId = null;
 let usersData = [], membersData = [];
 let quietHours = [];
@@ -316,45 +316,122 @@ document.getElementById('deleteSchoolBtn').addEventListener('click', async () =>
 // 学年管理
 // ========================================
 
+// 学年ごとのクラスデータキャッシュ
+let gradeClassesCache = {};
+
 async function loadGrades(schoolId) {
     try {
         const r = await listGradesFn({ schoolId });
         gradesList = r.data.grades || [];
-        renderGradeList();
-            } catch (e) { gradesList = []; renderGradeList(); initAdSelectors(); }
+        gradeClassesCache = {};
+        // 全学年のクラスを並列取得
+        await Promise.all(gradesList.map(async (g) => {
+            try {
+                const cr = await listClassesFn({ schoolId, gradeId: g.id });
+                gradeClassesCache[g.id] = cr.data.classes || [];
+            } catch { gradeClassesCache[g.id] = []; }
+        }));
+        renderGradeClassTree();
+    } catch (e) { gradesList = []; renderGradeClassTree(); }
 }
 
-function renderGradeList() {
-    const c = document.getElementById('gradeListContainer');
-    if (gradesList.length === 0) { c.innerHTML = '<p class="empty-text">学年がありません</p>'; return; }
-    c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;">${gradesList.map(g => `
-        <div style="background:${g.id === activeGradeId ? '#e3f2fd' : '#f5f5f5'};padding:8px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px;border:${g.id === activeGradeId ? '2px solid #667eea' : '2px solid transparent'};"
-             onclick="window.selectGrade('${g.id}')">
-            <span>${g.name}</span>
-            <button class="btn-icon btn-danger" onclick="event.stopPropagation();window.deleteGrade('${g.id}')" title="削除" style="font-size:12px;">x</button>
-        </div>
-    `).join('')}</div>`;
+function renderGradeClassTree() {
+    const c = document.getElementById('gradeClassTreeContainer');
+    if (gradesList.length === 0) {
+        c.innerHTML = '<p class="empty-text">学年がありません。「+ 学年追加」から作成してください。</p>';
+        return;
+    }
+
+    c.innerHTML = gradesList.map(g => {
+        const classes = gradeClassesCache[g.id] || [];
+        const isOpen = g.id === activeGradeId;
+        return `
+        <div style="border:1px solid #e1e1e1;border-radius:10px;margin-bottom:10px;overflow:hidden;">
+            <div style="background:${isOpen ? '#e8eaf6' : '#f5f5f5'};padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
+                 onclick="window.toggleGrade('${g.id}')">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:13px;color:#888;">${isOpen ? '&#9660;' : '&#9654;'}</span>
+                    <span style="font-weight:bold;font-size:15px;">${g.name}</span>
+                    <span style="font-size:12px;color:#888;">(${classes.length}クラス)</span>
+                </div>
+                <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                    <button class="btn btn-secondary btn-sm" onclick="window.addClassToGrade('${g.id}','${g.name.replace(/'/g, "\\'")}')">+ クラス</button>
+                    <button class="btn-icon btn-danger" onclick="window.deleteGrade('${g.id}')" title="学年を削除" style="font-size:12px;">x</button>
+                </div>
+            </div>
+            ${isOpen ? `
+            <div style="padding:12px 16px;background:#fff;">
+                ${classes.length === 0 ? '<p class="empty-text" style="margin:0;">クラスがありません。「+ クラス」から追加してください。</p>' :
+                `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
+                    ${classes.map(cl => `
+                        <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-weight:500;">${cl.name}</span>
+                            <div style="display:flex;gap:4px;">
+                                <button class="btn-icon" onclick="window.showClassUrls('${cl.id}','${cl.name.replace(/'/g, "\\'")}')" title="詳細・URL" style="font-size:12px;">&#128279;</button>
+                                <button class="btn-icon btn-danger" onclick="window.deleteClassInGrade('${g.id}','${cl.id}')" title="削除" style="font-size:12px;">x</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`}
+            </div>` : ''}
+        </div>`;
+    }).join('');
 }
 
-window.selectGrade = (gradeId) => {
+window.toggleGrade = (gradeId) => {
+    activeGradeId = (activeGradeId === gradeId) ? null : gradeId;
+    renderGradeClassTree();
+};
+
+window.addClassToGrade = (gradeId, gradeName) => {
     activeGradeId = gradeId;
-    setSchoolContext(activeSchoolId, activeGradeId, null);
-    renderGradeList();
-    loadClassesForGrade(activeSchoolId, gradeId);
-    const grade = gradesList.find(g => g.id === gradeId);
-    document.getElementById('gradeNameLabel').textContent = grade ? `(${grade.name})` : '';
+    showGenericModal(`${gradeName} にクラスを追加`,
+        '<div class="form-group"><label>クラス名</label><input type="text" id="inp-class-name" placeholder="例: 電子工学科"></div>',
+        async () => {
+            const name = document.getElementById('inp-class-name').value;
+            if (!name) { showToast('クラス名を入力してください', 'error'); return; }
+            try {
+                const result = await createClassFn({ schoolId: activeSchoolId, gradeId, name });
+                document.getElementById('genericModal').style.display = 'none';
+                showToast('クラスを作成しました', 'success');
+                // キャッシュ更新
+                try {
+                    const cr = await listClassesFn({ schoolId: activeSchoolId, gradeId });
+                    gradeClassesCache[gradeId] = cr.data.classes || [];
+                } catch { /* ignore */ }
+                renderGradeClassTree();
+                // 作成したクラスのURLを表示
+                const newClass = (gradeClassesCache[gradeId] || []).find(c => c.name === name);
+                if (newClass) showUrlModal(newClass.id, newClass.name);
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
+};
+
+window.deleteClassInGrade = async (gradeId, classId) => {
+    if (!confirm('クラスを削除しますか？')) return;
+    await withLoading(async () => {
+        try {
+            await deleteClassFn({ schoolId: activeSchoolId, gradeId, classId });
+            showToast('削除しました', 'success');
+            // キャッシュ更新
+            gradeClassesCache[gradeId] = (gradeClassesCache[gradeId] || []).filter(c => c.id !== classId);
+            renderGradeClassTree();
+        } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 };
 
 window.deleteGrade = async (gradeId) => {
-    if (!confirm('この学年を削除しますか？')) return;
-    try {
-        await deleteGradeFn({ schoolId: activeSchoolId, gradeId });
-        showToast('削除しました', 'success');
-        if (activeGradeId === gradeId) activeGradeId = null;
-        loadGrades(activeSchoolId);
-        classesList = [];
-        renderClassList();
-    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    if (!confirm('この学年と含まれるクラスをすべて削除しますか？')) return;
+    await withLoading(async () => {
+        try {
+            await deleteGradeFn({ schoolId: activeSchoolId, gradeId });
+            showToast('削除しました', 'success');
+            if (activeGradeId === gradeId) activeGradeId = null;
+            delete gradeClassesCache[gradeId];
+            loadGrades(activeSchoolId);
+        } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 };
 
 document.getElementById('createGradeBtn').addEventListener('click', () => {
@@ -372,33 +449,6 @@ document.getElementById('createGradeBtn').addEventListener('click', () => {
         }
     );
 });
-
-// ========================================
-// クラス管理
-// ========================================
-
-async function loadClassesForGrade(schoolId, gradeId) {
-    try {
-        const r = await listClassesFn({ schoolId, gradeId });
-        classesList = r.data.classes || [];
-        renderClassList();
-    } catch (e) { classesList = []; renderClassList(); }
-}
-
-function renderClassList() {
-    const c = document.getElementById('classListContainer');
-    if (!activeGradeId) { c.innerHTML = '<p class="empty-text">上の学年を選択してください</p>'; return; }
-    if (classesList.length === 0) { c.innerHTML = '<p class="empty-text">クラスがありません</p>'; return; }
-
-    const origin = window.location.origin;
-    c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;">${classesList.map(cl => `
-        <div style="background:#f5f5f5;padding:8px 14px;border-radius:8px;display:flex;align-items:center;gap:8px;">
-            <span>${cl.name}</span>
-            <button class="btn-icon" onclick="window.showClassUrls('${cl.id}','${cl.name.replace(/'/g, "\\'")}')" title="URL表示" style="font-size:12px;">&#128279;</button>
-            <button class="btn-icon btn-danger" onclick="window.deleteClass('${cl.id}')" title="削除" style="font-size:12px;">x</button>
-        </div>
-    `).join('')}</div>`;
-}
 
 function showUrlModal(classId, className) {
     const origin = window.location.origin;
@@ -438,37 +488,6 @@ function showUrlModal(classId, className) {
 window.showClassUrls = (classId, className) => {
     showUrlModal(classId, className);
 };
-
-window.deleteClass = async (classId) => {
-    if (!confirm('クラスを削除しますか？')) return;
-    try {
-        await deleteClassFn({ schoolId: activeSchoolId, gradeId: activeGradeId, classId });
-        showToast('削除しました', 'success');
-        loadClassesForGrade(activeSchoolId, activeGradeId);
-    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-};
-
-document.getElementById('createClassBtn').addEventListener('click', () => {
-    if (!activeGradeId) { showToast('先に学年を選択してください', 'error'); return; }
-    showGenericModal('クラスを追加',
-        '<div class="form-group"><label>クラス名</label><input type="text" id="inp-class-name" placeholder="例: A組"></div>',
-        async () => {
-            const name = document.getElementById('inp-class-name').value;
-            if (!name) { showToast('クラス名を入力してください', 'error'); return; }
-            try {
-                const result = await createClassFn({ schoolId: activeSchoolId, gradeId: activeGradeId, name });
-                document.getElementById('genericModal').style.display = 'none';
-                showToast('クラスを作成しました', 'success');
-                await loadClassesForGrade(activeSchoolId, activeGradeId);
-                // 作成したクラスのURLを表示
-                const newClass = classesList.find(c => c.name === name);
-                if (newClass) {
-                    showUrlModal(newClass.id, newClass.name);
-                }
-            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-        }
-    );
-});
 
 // ========================================
 // ユーザー・メンバー統合管理

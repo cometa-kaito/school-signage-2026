@@ -12,6 +12,7 @@ import {
     getMyMembershipsFn
 } from './config.js';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { escapeHtml } from './utils.js';
 
 window.firebaseLoaded = true;
 
@@ -72,7 +73,8 @@ onAuthChange(async (user) => {
                     loginContainer.style.display = 'none';
                     appContainer.style.display = 'block';
                     const roleLabel = await getUserRoleLabel(user);
-                    document.getElementById('userEmail').textContent = `${user.email}${roleLabel ? ` (${roleLabel})` : ''}`;
+                    const namePart = user.displayName ? `${user.displayName} / ` : '';
+                    document.getElementById('userEmail').textContent = `${namePart}${user.email}${roleLabel ? ` (${roleLabel})` : ''}`;
                     activeSchoolId = targetSchool;
                     hideLoading();
                     showDetailView();
@@ -90,7 +92,8 @@ onAuthChange(async (user) => {
         isSystemAdminUser = true;
         loginContainer.style.display = 'none';
         appContainer.style.display = 'block';
-        document.getElementById('userEmail').textContent = `${user.email} (システム管理者)`;
+        const sysNamePart = user.displayName ? `${user.displayName} / ` : '';
+        document.getElementById('userEmail').textContent = `${sysNamePart}${user.email} (システム管理者)`;
         hideLoading();
 
         if (schoolParam) {
@@ -231,7 +234,7 @@ window.openSchool = (schoolId) => {
 
 window.editSchool = (schoolId, currentName) => {
     showGenericModal('学校名を編集',
-        `<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" value="${currentName}"></div>`,
+        `<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" value="${escapeHtml(currentName)}"></div>`,
         async () => {
             const name = document.getElementById('inp-school-name').value;
             if (!name) { showToast('学校名を入力してください', 'error'); return; }
@@ -307,7 +310,7 @@ function renderGlobalUserTable() {
     if (globalUsersData.length === 0) { container.innerHTML = '<p class="empty-text">ユーザーがいません</p>'; return; }
 
     const roleLabels = { school_admin: '学校管理者', teacher: '教員' };
-    const schoolOpts = schoolsList.map(s => `<option value="${s.id}">${s.name || s.id}</option>`).join('');
+    const schoolOpts = schoolsList.map(s => `<option value="${s.id}">${escapeHtml(s.name || s.id)}</option>`).join('');
 
     const rows = globalUsersData.map(user => {
         const memberships = allMembershipsMap[user.uid] || [];
@@ -370,9 +373,13 @@ async function loadSchoolDetail() {
         document.getElementById('schoolIdBadge').textContent = `学校ID: ${activeSchoolId}`;
     }
 
-    // system_admin以外はユーザー作成・学校編集/削除を非表示
+    // system_admin以外はユーザー作成を非表示
     if (!isSystemAdminUser) {
         document.getElementById('createUserBtn').style.display = 'none';
+    }
+    // 学校編集・削除は学校一覧からの遷移時（schoolParam指定時）は非表示
+    // 学校一覧ビュー（schoolParamなし）からのみ操作可能
+    if (schoolParam || !isSystemAdminUser) {
         document.getElementById('editSchoolBtn').style.display = 'none';
         document.getElementById('deleteSchoolBtn').style.display = 'none';
     }
@@ -388,7 +395,7 @@ async function loadSchoolDetail() {
 document.getElementById('editSchoolBtn').addEventListener('click', () => {
     const currentName = document.getElementById('schoolNameHeader').textContent;
     showGenericModal('学校名を編集',
-        `<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" value="${currentName}"></div>`,
+        `<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" value="${escapeHtml(currentName)}"></div>`,
         async () => {
             const name = document.getElementById('inp-school-name').value;
             if (!name) { showToast('学校名を入力してください', 'error'); return; }
@@ -672,7 +679,7 @@ function openUserModal(uid) {
     schoolGroup.style.display = 'none'; // 初期非表示、ロール変更時に表示制御
     if (needsSchoolSelector) {
         schoolSelect.innerHTML = '<option value="">-- 学校を選択 --</option>' +
-            schoolsList.map(s => `<option value="${s.id}">${s.name || s.id}</option>`).join('');
+            schoolsList.map(s => `<option value="${s.id}">${escapeHtml(s.name || s.id)}</option>`).join('');
     }
 
     // ロール変更時に学校セレクタの表示/非表示を切り替え

@@ -68,6 +68,11 @@ body {
     background: rgba(255, 255, 255, 0.3);
 }
 
+.admin-header .user-email {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+}
+
 /* ナビゲーション */
 .nav-links {
     background: white;

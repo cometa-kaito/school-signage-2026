@@ -6,7 +6,7 @@
  */
 
 const functions = require('firebase-functions');
-const { bucket, classPath, dailyDataPath, formatDate } = require('../helpers/paths');
+const { db, bucket, classPath, dailyDataPath, formatDate } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
@@ -16,6 +16,11 @@ async function generateClassSignageJson(schoolId, gradeId, classId) {
 
         const classSnap = await classPath(schoolId, gradeId, classId).get();
         const classData = classSnap.exists ? classSnap.data() : {};
+
+        // 学年名を取得
+        const gradeSnap = await db.collection('schools').doc(schoolId)
+            .collection('grades').doc(gradeId).get();
+        const gradeName = gradeSnap.exists ? (gradeSnap.data().name || '') : '';
 
         const today = new Date();
         const fiveDaysAgo = new Date(today); fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
@@ -34,6 +39,7 @@ async function generateClassSignageJson(schoolId, gradeId, classId) {
             generatedAt: new Date().toISOString(), schoolId, gradeId, classId,
             config: {
                 schoolName: classData.schoolName || '',
+                gradeName: gradeName,
                 className: classData.name || '',
                 ads: displaySettings.ads || [],
                 quietHours: displaySettings.quietHours || []

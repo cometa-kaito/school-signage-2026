@@ -297,13 +297,8 @@ function processSnapshotData(snapshot, todayStr) {
         const data = docSnap.data();
         const dateKey = data.date;
 
-        if (dateKey >= todayStr && data.schedules) {
-            const filtered = data.schedules.filter(s => {
-                const ds = s.display_start || dateKey;
-                const de = s.display_end || dateKey;
-                return todayStr >= ds && todayStr <= de;
-            });
-            if (filtered.length > 0) appData.weeklySchedules[dateKey] = filtered;
+        if (dateKey >= todayStr && data.schedules && data.schedules.length > 0) {
+            appData.weeklySchedules[dateKey] = data.schedules;
         }
 
         if (data.schedules && data.schedules.length > 0) {
@@ -559,14 +554,15 @@ function renderCalendar() {
 
 window.dashboard.showDayDetail = (dateStr) => {
     const { schedules, notices, assignments } = getDataForDate(dateStr);
-    const date = new Date(dateStr);
+    const [year, mon, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, mon - 1, day);
     const m = date.getMonth() + 1, d = date.getDate();
     const dow = ['日','月','火','水','木','金','土'][date.getDay()];
 
     const detailContainer = document.getElementById('calendar-day-detail');
     const detailTitle = document.getElementById('calendar-day-title');
     const detailContent = document.getElementById('calendar-day-content');
-    if (!detailContainer) return;
+    if (!detailContainer || !detailTitle || !detailContent) return;
 
     detailTitle.textContent = `${m}/${d} (${dow})`;
 

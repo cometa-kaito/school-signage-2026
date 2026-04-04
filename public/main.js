@@ -40,6 +40,7 @@ const IMAGE_POLLING_INTERVAL = 300000;   // 画像: 5分
 
 const appData = {
     schoolName: "ロード中...",
+    gradeName: "",
     className: "",
     date: getTodayString(),
     weeklySchedules: {},
@@ -350,8 +351,7 @@ function setupLateAudioEnable() {
         if (!audioContext || audioContext.state === 'suspended') {
             initAudioContext();
             if (audioContext && audioContext.state === 'running') {
-                playTestSound();
-                updateAudioStatus();
+                console.log('音声が有効化されました');
             }
         }
     };
@@ -547,6 +547,15 @@ function startRealtimeListeners() {
     const todayStr = getTodayString();
     pendingUpdates = 2;
 
+    // 学年名の監視
+    const gradeRef = doc(db, "schools", SCHOOL_ID, "grades", GRADE_ID);
+    onSnapshot(gradeRef, (snap) => {
+        if (snap.exists()) {
+            appData.gradeName = snap.data().name || "";
+            updateUI();
+        }
+    });
+
     // 設定・広告の監視（学年 > クラス）
     const classRef = classDocRef(SCHOOL_ID, GRADE_ID, CLASS_ID);
     onSnapshot(classRef, async (snap) => {
@@ -692,6 +701,15 @@ async function fetchStaticJson(isInitial) {
         const config = jsonData.config || {};
         appData.schoolName = config.schoolName || 'School Name';
         appData.className = config.className || '';
+        // 学年名: JSONに含まれていればそれを使う、なければFirestoreから取得
+        if (config.gradeName) {
+            appData.gradeName = config.gradeName;
+        } else if (!appData.gradeName && GRADE_ID) {
+            try {
+                const gradeSnap = await getDoc(doc(db, "schools", SCHOOL_ID, "grades", GRADE_ID));
+                if (gradeSnap.exists()) appData.gradeName = gradeSnap.data().name || "";
+            } catch (e) { /* ignore */ }
+        }
         appData.quietHours = config.quiet_hours || config.quietHours || [];
 
         const todayStr = getTodayString();
@@ -774,7 +792,9 @@ function renderHeader() {
 
     const dateText = `${month}月${date}日`;
     const dayText = `(${day})`;
-    const className = appData.className;
+    const displayName = appData.gradeName
+        ? `${appData.gradeName} ${appData.className}`
+        : appData.className;
 
     // デスクトップ用（広告エリア上部）
     const dateEl = document.getElementById('current-date');
@@ -783,7 +803,7 @@ function renderHeader() {
 
     if (dateEl) dateEl.textContent = dateText;
     if (dayEl) dayEl.textContent = dayText;
-    if (classEl) classEl.textContent = className;
+    if (classEl) classEl.textContent = displayName;
 
     // モバイル用（モバイル広告エリア上部）
     const mobileDateEl = document.getElementById('mobile-current-date');
@@ -792,7 +812,7 @@ function renderHeader() {
 
     if (mobileDateEl) mobileDateEl.textContent = dateText;
     if (mobileDayEl) mobileDayEl.textContent = dayText;
-    if (mobileClassEl) mobileClassEl.textContent = className;
+    if (mobileClassEl) mobileClassEl.textContent = displayName;
 }
 
 /**

@@ -15,6 +15,7 @@ import {
 } from './config.js';
 import {
     doc,
+    getDoc,
     setDoc,
     arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -124,10 +125,19 @@ async function showApp(user) {
         return;
     }
 
-    // コンテキスト情報をヘッダーに表示
+    // コンテキスト情報をヘッダーに表示（学年名・クラス名を取得）
     const label = document.getElementById('contextLabel');
     if (label) {
-        label.textContent = `${SCHOOL_ID} / ${GRADE_ID} / ${CLASS_ID}`;
+        label.textContent = '読み込み中...';
+        try {
+            const gradeSnap = await getDoc(doc(db, "schools", SCHOOL_ID, "grades", GRADE_ID));
+            const classSnap = await getDoc(doc(db, "schools", SCHOOL_ID, "grades", GRADE_ID, "classes", CLASS_ID));
+            const gradeName = gradeSnap.exists() ? gradeSnap.data().name : GRADE_ID;
+            const className = classSnap.exists() ? classSnap.data().name : CLASS_ID;
+            label.textContent = `${gradeName} ${className}`;
+        } catch {
+            label.textContent = `${GRADE_ID} / ${CLASS_ID}`;
+        }
     }
 
     initApp();

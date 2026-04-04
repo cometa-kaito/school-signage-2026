@@ -156,11 +156,11 @@ window.copyToClipboard = copyToClipboard;
 // ビュー切り替え
 // ========================================
 
-function showListView() {
+async function showListView() {
     document.getElementById('pageTitle').textContent = '学校管理';
     schoolListView.style.display = 'block';
     schoolDetailView.style.display = 'none';
-    loadSchoolList();
+    await loadSchoolList();
     loadGlobalUsers();
 }
 

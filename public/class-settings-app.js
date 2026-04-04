@@ -2,7 +2,7 @@
 
 import {
     db, storage, SCHOOL_ID, GRADE_ID, CLASS_ID,
-    login, loginWithGoogle, logout, onAuthChange, isUserAdmin, isUserTeacher, hasAnyAccess
+    login, loginWithGoogle, logout, onAuthChange, isUserAdmin, isUserTeacher, hasAnyAccess, getUserRoleLabel
 } from './config.js';
 import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
@@ -45,7 +45,8 @@ onAuthChange(async (user) => {
         if (canAccess) {
             loginContainer.style.display = 'none';
             appContainer.style.display = 'block';
-            document.getElementById('userEmail').textContent = user.email;
+            const roleLabel = await getUserRoleLabel(user);
+            document.getElementById('userEmail').textContent = `${user.email}${roleLabel ? ` (${roleLabel})` : ''}`;
             hideLoading();
             initPage();
         } else { hideLoading(); await logout(); showLoginError('アクセス権限がありません'); }

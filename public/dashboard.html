@@ -242,7 +242,7 @@
     </div>
 
     <script type="module">
-        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserTeacher, hasAnyAccess } from './config.js';
+        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserTeacher, hasAnyAccess, getUserRoleLabel } from './config.js';
 
         // Firebase SDK読み込み成功を通知
         window.firebaseLoaded = true;
@@ -335,8 +335,9 @@
             loadingOverlay.style.display = 'none';
             loginContainer.style.display = 'none';
             appContainer.style.display = 'block';
-            const displayName = user.email || (isAdmin ? '管理者' : 'コンテンツ編集者');
-            document.getElementById('userEmail').textContent = displayName;
+            getUserRoleLabel(user).then(roleLabel => {
+                document.getElementById('userEmail').textContent = `${user.email}${roleLabel ? ` (${roleLabel})` : ''}`;
+            });
             initDashboard();
         }
 

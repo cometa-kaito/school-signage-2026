@@ -10,7 +10,8 @@ import {
     onAuthChange,
     isUserAdmin,
     isUserTeacher,
-    hasAnyAccess
+    hasAnyAccess,
+    getUserRoleLabel
 } from './config.js';
 import {
     doc,
@@ -107,10 +108,11 @@ document.getElementById('googleLoginBtn').addEventListener('click', async () => 
 document.getElementById('logoutBtn').addEventListener('click', () => logout());
 
 // UI表示切替
-function showApp(user) {
+async function showApp(user) {
     loginContainer.style.display = 'none';
     appContainer.style.display = 'block';
-    document.getElementById('userEmail').textContent = user.email;
+    const roleLabel = await getUserRoleLabel(user);
+    document.getElementById('userEmail').textContent = `${user.email}${roleLabel ? ` (${roleLabel})` : ''}`;
 
     // URLパラメータが揃っていない場合はコンテキスト選択画面を表示
     if (!hasFullContext()) {

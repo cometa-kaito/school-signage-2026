@@ -202,6 +202,20 @@ export async function getUserClaims(user) {
     catch { return {}; }
 }
 
+export async function getUserRoleLabel(user) {
+    if (!user) return '';
+    const claims = await getUserClaims(user);
+    if (claims.admin === true || claims.systemRole === 'system_admin') return 'システム管理者';
+    if (claims.teacher === true || claims.editor === true) return '教員';
+    try {
+        const result = await getMyMembershipsFn();
+        const memberships = result.data.memberships || [];
+        if (memberships.some(m => m.role === 'school_admin')) return '学校管理者';
+        if (memberships.some(m => m.role === 'teacher')) return '教員';
+    } catch { /* ignore */ }
+    return '';
+}
+
 export async function loginAsEditor(password, schoolId) {
     try {
         const result = await loginAsEditorFn({ password, schoolId: schoolId || SCHOOL_ID });

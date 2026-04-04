@@ -1,7 +1,7 @@
 // school-admin-app.js - 学校管理ロジック（学校一覧 + 学校詳細の2ビュー）
 
 import {
-    db, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext,
+    db, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext, getUserRoleLabel,
     login, loginWithGoogle, logout, onAuthChange, isUserAdmin, getUserClaims,
     listUsersFn, createAdminUserFn, setAdminRoleFn, updateUserFn, deleteUserFn,
     toggleUserStatusFn, setEmailVerifiedFn, setEditorPasswordFn,
@@ -71,7 +71,8 @@ onAuthChange(async (user) => {
                     }
                     loginContainer.style.display = 'none';
                     appContainer.style.display = 'block';
-                    document.getElementById('userEmail').textContent = user.email;
+                    const roleLabel = await getUserRoleLabel(user);
+                    document.getElementById('userEmail').textContent = `${user.email}${roleLabel ? ` (${roleLabel})` : ''}`;
                     activeSchoolId = targetSchool;
                     hideLoading();
                     showDetailView();
@@ -89,7 +90,7 @@ onAuthChange(async (user) => {
         isSystemAdminUser = true;
         loginContainer.style.display = 'none';
         appContainer.style.display = 'block';
-        document.getElementById('userEmail').textContent = user.email;
+        document.getElementById('userEmail').textContent = `${user.email} (システム管理者)`;
         hideLoading();
 
         if (schoolParam) {

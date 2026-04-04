@@ -624,6 +624,7 @@ window.dashboard.showDayDetail = (dateStr) => {
 
     detailContent.innerHTML = html;
     detailContainer.style.display = 'block';
+    detailContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
 window.dashboard.calendarEdit = (type, dateStr, idx) => { hideModal('calendar-modal'); window.dashboard.openEditModal(type, dateStr, idx); };

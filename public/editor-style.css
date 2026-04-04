@@ -510,6 +510,8 @@
 .calendar-modal-content {
     max-width: 800px;
     width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .calendar-modal-content .modal-header {

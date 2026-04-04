@@ -77,22 +77,23 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================================
 
 async function initSelectors() {
+    // 学校名を取得
     try {
         const result = await listSchoolsFn();
         availableSchools = result.data.schools || [];
     } catch (e) {
-        console.error('学校一覧取得エラー:', e);
         availableSchools = [{ id: activeSchoolId, name: activeSchoolId }];
     }
 
-    renderSelectors();
-
+    // 学年・クラスを取得
     if (activeSchoolId) {
         await loadGrades(activeSchoolId);
         if (activeGradeId) {
             await loadClasses(activeSchoolId, activeGradeId);
         }
     }
+
+    renderSelectors();
 
     if (activeSchoolId && activeGradeId && activeClassId) {
         startRealtimeListeners();
@@ -105,9 +106,14 @@ function renderSelectors() {
     const container = document.getElementById('school-class-selector');
     if (!container) return;
 
-    const schoolOpts = availableSchools.map(s =>
-        `<option value="${s.id}" ${s.id === activeSchoolId ? 'selected' : ''}>${escapeHtml(s.name || s.id)}</option>`
-    ).join('');
+    const school = availableSchools.find(s => s.id === activeSchoolId);
+    const schoolName = school ? escapeHtml(school.name) : activeSchoolId;
+
+    const grade = availableGrades.find(g => g.id === activeGradeId);
+    const gradeName = grade ? escapeHtml(grade.name) : '';
+
+    const cls = availableClasses.find(c => c.id === activeClassId);
+    const className = cls ? escapeHtml(cls.name) : '';
 
     const gradeOpts = availableGrades.map(g =>
         `<option value="${g.id}" ${g.id === activeGradeId ? 'selected' : ''}>${escapeHtml(g.name)}</option>`
@@ -118,55 +124,49 @@ function renderSelectors() {
     ).join('');
 
     container.innerHTML = `
-        <div class="selector-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label>学校:</label>
-            <select id="school-select" style="padding:6px;border-radius:6px;border:1px solid #ccc;">${schoolOpts}</select>
-            <label>学年:</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;">
+            <span style="color:#888;">${schoolName}</span>
+            <span style="color:#ccc;">/</span>
             <select id="grade-select" style="padding:6px;border-radius:6px;border:1px solid #ccc;">
-                <option value="">-- 選択 --</option>${gradeOpts}
+                ${gradeOpts}
             </select>
-            <label>クラス:</label>
+            <span style="color:#ccc;">/</span>
             <select id="class-select" style="padding:6px;border-radius:6px;border:1px solid #ccc;">
-                <option value="">-- 選択 --</option>${classOpts}
+                ${classOpts}
             </select>
         </div>
     `;
 
-    document.getElementById('school-select')?.addEventListener('change', async (e) => {
-        activeSchoolId = e.target.value;
-        activeGradeId = null;
-        activeClassId = null;
-        setSchoolContext(activeSchoolId, null, null);
-        availableClasses = [];
-        await loadGrades(activeSchoolId);
-        updateGradeSelector();
-        updateClassSelector();
-        stopListeners();
-        showSelectPrompt();
-    });
-
     document.getElementById('grade-select')?.addEventListener('change', async (e) => {
-        activeGradeId = e.target.value || null;
-        activeClassId = null;
-        setSchoolContext(activeSchoolId, activeGradeId, null);
-        if (activeGradeId) {
-            await loadClasses(activeSchoolId, activeGradeId);
-        } else {
-            availableClasses = [];
+        const newGradeId = e.target.value;
+        if (newGradeId && newGradeId !== activeGradeId) {
+            // 学年変更時: クラス一覧を取得して最初のクラスにリダイレクト
+            try {
+                const r = await listClassesFn({ schoolId: activeSchoolId, gradeId: newGradeId });
+                const classes = r.data.classes || [];
+                const url = new URL(window.location.href);
+                url.searchParams.set('grade', newGradeId);
+                if (classes.length > 0) {
+                    url.searchParams.set('class', classes[0].id);
+                } else {
+                    url.searchParams.delete('class');
+                }
+                window.location.href = url.toString();
+            } catch {
+                const url = new URL(window.location.href);
+                url.searchParams.set('grade', newGradeId);
+                url.searchParams.delete('class');
+                window.location.href = url.toString();
+            }
         }
-        updateClassSelector();
-        stopListeners();
-        showSelectPrompt();
     });
 
     document.getElementById('class-select')?.addEventListener('change', (e) => {
-        activeClassId = e.target.value || null;
-        setSchoolContext(activeSchoolId, activeGradeId, activeClassId);
-        if (activeClassId) {
-            restartListeners();
-        } else {
-            stopListeners();
-            showSelectPrompt();
+        const newClassId = e.target.value;
+        if (newClassId && newClassId !== activeClassId) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('class', newClassId);
+            window.location.href = url.toString();
         }
     });
 }

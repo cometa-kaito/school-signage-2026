@@ -150,6 +150,10 @@ function hideError() {
     loginError.style.display = 'none';
 }
 
+function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
+function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+async function withLoading(fn) { showLoading(); try { return await fn(); } finally { hideLoading(); } }
+
 // アプリ初期化
 function initApp() {
     if (appInitialized) return;
@@ -214,6 +218,7 @@ async function submitData() {
     btn.textContent = '送信中...';
     successMsg.style.display = 'none';
     errorMsg.style.display = 'none';
+    showLoading();
 
     try {
         let dateStr;
@@ -240,6 +245,7 @@ async function submitData() {
         errorMsg.textContent = 'エラー: ' + error.message;
         errorMsg.style.display = 'block';
     } finally {
+        hideLoading();
         btn.disabled = false;
         btn.textContent = '登録する';
     }

@@ -400,8 +400,12 @@ window.dashboard.closeModal = (id) => hideModal(id);
 // 保存処理
 // ========================================
 
+function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
+function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+async function withLoading(fn) { showLoading(); try { return await fn(); } finally { hideLoading(); } }
+
 function setupSaveButton() {
-    document.getElementById('btn-save')?.addEventListener('click', handleSave);
+    document.getElementById('btn-save')?.addEventListener('click', () => withLoading(handleSave));
 }
 
 async function handleSave() {
@@ -472,7 +476,7 @@ function getFormData() {
 window.dashboard.deleteItem = async (type, dateStr, index) => {
     if (!confirm("削除しますか？")) return;
     const fieldMap = { schedule: 'schedules', notice: 'notices', assignment: 'assignments' };
-    try {
+    await withLoading(async () => { try {
         const docRef = dailyDataDocRef(activeSchoolId, activeGradeId, activeClassId, dateStr);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
@@ -485,7 +489,7 @@ window.dashboard.deleteItem = async (type, dateStr, index) => {
     } catch (e) {
         console.error("削除エラー:", e);
         alert("削除エラー: " + e.message);
-    }
+    } });
 };
 
 // ========================================

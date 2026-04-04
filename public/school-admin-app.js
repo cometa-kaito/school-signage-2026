@@ -123,6 +123,15 @@ document.getElementById('logoutBtn').addEventListener('click', () => logout());
 
 function showLoginError(msg) { loginError.textContent = msg; loginError.style.display = 'block'; }
 
+function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
+function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+
+async function withLoading(fn) {
+    showLoading();
+    try { return await fn(); }
+    finally { hideLoading(); }
+}
+
 function showToast(msg, type) {
     const existing = document.querySelector('.toast'); if (existing) existing.remove();
     const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg;
@@ -132,7 +141,8 @@ function showToast(msg, type) {
 function showGenericModal(title, bodyHtml, onSave) {
     document.getElementById('genericModalTitle').textContent = title;
     document.getElementById('genericModalBody').innerHTML = bodyHtml;
-    document.getElementById('genericModalSave').onclick = onSave;
+    document.getElementById('genericModalSave').textContent = '保存';
+    document.getElementById('genericModalSave').onclick = () => withLoading(onSave);
     document.getElementById('genericModal').style.display = 'flex';
 }
 
@@ -578,7 +588,7 @@ function openUserModal(uid) {
 document.getElementById('createUserBtn').addEventListener('click', () => openUserModal(null));
 window.editUser = (uid) => openUserModal(uid);
 
-document.getElementById('userModalSave').addEventListener('click', async () => {
+document.getElementById('userModalSave').addEventListener('click', () => withLoading(async () => {
     const uid = document.getElementById('userModalUid').value;
     const email = document.getElementById('userModalEmail').value;
     const displayName = document.getElementById('userModalName').value;
@@ -631,31 +641,39 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
         document.getElementById('userModal').style.display = 'none';
         loadUsersAndMembers();
     } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-});
+}));
 
 window.addMember = async (uid, email) => {
-    try {
-        await inviteMemberFn({ schoolId: activeSchoolId, email, role: 'teacher' });
-        showToast(`${email} をメンバーに追加しました`, 'success');
-        loadUsersAndMembers();
-    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    await withLoading(async () => {
+        try {
+            await inviteMemberFn({ schoolId: activeSchoolId, email, role: 'teacher' });
+            showToast(`${email} をメンバーに追加しました`, 'success');
+            loadUsersAndMembers();
+        } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 };
 
 window.removeMemberFromSchool = async (uid) => {
     if (!confirm('この学校のメンバーから除外しますか？')) return;
-    try { await removeMemberFn({ schoolId: activeSchoolId, userId: uid }); showToast('除外しました', 'success'); loadUsersAndMembers(); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    await withLoading(async () => {
+        try { await removeMemberFn({ schoolId: activeSchoolId, userId: uid }); showToast('除外しました', 'success'); loadUsersAndMembers(); }
+        catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 };
 
 window.toggleStatus = async (uid, disabled) => {
-    try { await toggleUserStatusFn({ uid, disabled }); showToast(disabled ? '無効化しました' : '有効化しました', 'success'); loadUsersAndMembers(); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    await withLoading(async () => {
+        try { await toggleUserStatusFn({ uid, disabled }); showToast(disabled ? '無効化しました' : '有効化しました', 'success'); loadUsersAndMembers(); }
+        catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 };
 
 window.deleteUserAction = async (uid) => {
     if (!confirm('ユーザーを完全に削除しますか？')) return;
-    try { await deleteUserFn({ uid }); showToast('削除しました', 'success'); loadUsersAndMembers(); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    await withLoading(async () => {
+        try { await deleteUserFn({ uid }); showToast('削除しました', 'success'); loadUsersAndMembers(); }
+        catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 };
 
 // ========================================
@@ -671,8 +689,10 @@ async function loadEditorPassword() {
 document.getElementById('saveEditorPasswordBtn').addEventListener('click', async () => {
     const pw = document.getElementById('editorPasswordInput').value;
     if (pw.length < 4) { showToast('4文字以上必要です', 'error'); return; }
-    try { await setEditorPasswordFn({ password: pw, schoolId: activeSchoolId }); showToast('保存しました', 'success'); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    await withLoading(async () => {
+        try { await setEditorPasswordFn({ password: pw, schoolId: activeSchoolId }); showToast('保存しました', 'success'); }
+        catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 });
 
 // ========================================
@@ -704,8 +724,10 @@ window.updateQH = (i, f, v) => { if (quietHours[i]) quietHours[i][f] = v; };
 window.removeQH = (i) => { quietHours.splice(i, 1); renderQuietHours(); };
 document.getElementById('addQuietHourBtn').addEventListener('click', () => { quietHours.push({ start: '08:30', end: '15:30' }); renderQuietHours(); });
 document.getElementById('saveQuietHoursBtn').addEventListener('click', async () => {
-    try { await setDoc(doc(db, "schools", activeSchoolId, "config", "display_settings"), { quiet_hours: quietHours }, { merge: true }); showToast('保存しました', 'success'); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    await withLoading(async () => {
+        try { await setDoc(doc(db, "schools", activeSchoolId, "config", "display_settings"), { quiet_hours: quietHours }, { merge: true }); showToast('保存しました', 'success'); }
+        catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
 });
 
 // ========================================

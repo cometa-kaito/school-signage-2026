@@ -1,7 +1,30 @@
-/* style.css - サイネージ表示用メインスタイル */
+/**
+ * style.css - サイネージ表示用メインスタイル
+ *
+ * 目次:
+ * 1. CSSカスタムプロパティ
+ * 2. リセット・ベース
+ * 3. メインレイアウト
+ * 4. ヘッダー
+ * 5. コンテンツグリッド
+ * 6. カード共通
+ * 7. スケジュールセクション
+ * 8. 連絡セクション
+ * 9. 提出物セクション
+ * 10. フッター
+ * 11. 広告エリア
+ * 12. 更新通知バナー
+ * 13. 起動画面
+ * 14. 音声ステータス
+ * 15. 自動スクロール
+ * 16. レスポンシブ（タブレット）
+ * 17. レスポンシブ（スマホ）
+ * 18. レスポンシブ（ランドスケープ）
+ * 19. 大画面モニター対応
+ */
 
 /* =====================
-   CSS カスタムプロパティ
+   1. CSSカスタムプロパティ
    ===================== */
 :root {
     --bg-color: #f0f2f5;
@@ -46,7 +69,7 @@
 
 html, body {
     font-family: var(--font-base);
-    background-color: #333;
+    background-color: var(--bg-color);
     color: var(--text-color);
     width: 100%;
     height: 100%;
@@ -56,84 +79,94 @@ html, body {
 }
 
 /* =====================
-   メインレイアウト（PC）
+   メインレイアウト（デフォルト - 横長画面用）
+   縦長画面は下部のメディアクエリでオーバーライド
    ===================== */
 .container {
     display: grid;
-    grid-template-columns: 7fr 3fr;
+    grid-template-columns: 68fr 32fr;
+    grid-template-areas: "info ad";
     width: 100%;
     height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    padding-top: 32px;
+}
+
+.info-area {
+    grid-area: info;
+    padding: 1vmin;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
     overflow: hidden;
     background-color: var(--bg-color);
 }
 
-.info-area {
-    padding: 1.5vmin;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-}
-
 /* =====================
-   ヘッダー
+   広告エリア上部のヘッダー
    ===================== */
-.header-block {
-    background: var(--primary-color);
-    color: white;
-    padding: 1vmin 2vmin;
-    border-radius: var(--radius-md);
+.ad-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-    min-height: 50px;
-}
-
-.date-group {
-    display: flex;
-    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.85);
+    white-space: nowrap;
+    color: white;
+    z-index: 20;
+    backdrop-filter: blur(5px);
 }
 
 .date-text {
-    font-size: clamp(1.2rem, 2.5vw, 2rem);
-    font-weight: bold;
+    font-size: clamp(0.7rem, 1vw, 0.9rem);
+    font-weight: 600;
 }
 
 .day-badge {
     background: rgba(255, 255, 255, 0.2);
-    padding: 0.25em 0.6em;
-    border-radius: var(--radius-sm);
-    font-size: clamp(0.9rem, 1.5vw, 1.3rem);
-    margin-left: 0.5rem;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: clamp(0.6rem, 0.9vw, 0.8rem);
 }
 
 .time-text {
-    font-size: clamp(1rem, 2vw, 2rem);
-    font-weight: bold;
-    margin-left: 1rem;
-    padding-left: 1rem;
-    border-left: 2px solid rgba(255, 255, 255, 0.3);
-    font-family: monospace;
+    font-size: clamp(0.7rem, 1vw, 0.9rem);
+    font-weight: 500;
+    margin-left: 0.3rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.4);
+    font-family: "Roboto", monospace;
 }
 
 .class-title {
-    font-size: clamp(1rem, 2vw, 1.8rem);
+    font-size: clamp(0.7rem, 1vw, 0.9rem);
+    font-weight: 600;
+    margin-left: 0.3rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 /* =====================
    コンテンツグリッド
+   サイネージモード: 予定を最優先、他は残りスペースに収める
    ===================== */
 .content-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: minmax(0, 35fr) minmax(0, 65fr);
+    grid-template-rows: auto 1fr;
     gap: var(--content-gap);
     flex: 1;
     min-height: 0;
-    margin-top: var(--content-gap);
+    margin-top: calc(var(--content-gap) * 0.5);
     overflow: hidden;
 }
 
@@ -143,9 +176,9 @@ html, body {
 .card {
     background: white;
     border-radius: var(--radius-md);
-    padding: 1vmin 1.5vmin;
+    padding: 0.8vmin 1.2vmin;
     box-shadow: var(--shadow-sm);
-    border-top: 4px solid var(--accent-color);
+    border-top: 3px solid var(--accent-color);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -153,22 +186,28 @@ html, body {
 }
 
 .card h2 {
-    font-size: clamp(0.9rem, 1.5vw, 1.3rem);
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.5rem;
+    font-size: clamp(0.75rem, 1.2vw, 1rem);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.3rem;
     flex-shrink: 0;
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
 .card h2 .icon {
-    margin-right: 0.5rem;
+    margin-right: 0.3rem;
+    font-size: 0.9em;
 }
 
 /* =====================
    スケジュールセクション
+   サイネージモード: 予定を最優先、内容に応じて高さを確保
    ===================== */
 .schedule-section {
     grid-column: 1 / -1;
+    min-height: auto;
+    max-height: 60vh;
 }
 
 .schedule-grid-container {
@@ -176,8 +215,8 @@ html, body {
     grid-template-columns: repeat(3, 1fr);
     gap: 1vmin;
     flex: 1;
-    min-height: 0;
-    overflow: hidden;
+    min-height: 120px;
+    overflow: visible;
 }
 
 .schedule-day-column {
@@ -187,18 +226,19 @@ html, body {
     border: 1px solid #e9ecef;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
+    overflow: visible;
+    min-height: 100px;
 }
 
 .schedule-date-header {
     text-align: center;
-    font-weight: bold;
+    font-weight: 700;
     border-bottom: 2px solid var(--accent-color);
-    margin-bottom: 0.5rem;
-    font-size: clamp(0.8rem, 1.2vw, 1.4rem);
-    padding: 0.3rem;
+    margin-bottom: 0.3rem;
+    font-size: clamp(1rem, 1.6vw, 1.4rem);
+    padding: 0.25rem;
     flex-shrink: 0;
+    color: var(--primary-color);
 }
 
 .is-today .schedule-date-header {
@@ -209,14 +249,12 @@ html, body {
 
 .schedule-scroll-area {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 0;
-    max-height: 100%;
+    overflow: visible;
+    min-height: 80px;  /* 3行分の最小高さを確保 */
 }
 
 .schedule-list-item {
-    font-size: clamp(0.85rem, 1.2vw, 1.3rem);
+    font-size: clamp(0.95rem, 1.5vw, 1.4rem);
     padding: 0.4rem 0;
     border-bottom: 1px dotted #ccc;
     line-height: 1.4;
@@ -224,9 +262,14 @@ html, body {
 
 .schedule-time {
     display: block;
-    font-size: 0.85em;
-    color: #666;
-    font-weight: bold;
+    font-size: 0.75em;
+    color: var(--accent-color);
+    font-weight: 700;
+}
+
+.schedule-content {
+    display: block;
+    font-weight: 600;
 }
 
 .no-schedule {
@@ -234,6 +277,16 @@ html, body {
     color: var(--text-muted);
     font-size: 0.85rem;
     padding: 10px;
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 空欄プレースホルダー（3行分確保用） */
+.schedule-placeholder {
+    visibility: hidden;
+    border-bottom: 1px dotted transparent !important;
 }
 
 /* =====================
@@ -256,8 +309,9 @@ html, body {
 .list-group li {
     padding: 0.5rem 0;
     border-bottom: 1px solid var(--border-color);
-    font-size: clamp(0.9rem, 1.3vw, 1.4rem);
+    font-size: clamp(1rem, 1.6vw, 1.5rem);
     line-height: 1.4;
+    font-weight: 600;
 }
 
 .no-notice {
@@ -304,18 +358,21 @@ html, body {
 
 .task-table th {
     background: #f8f9fa;
-    padding: 0.5rem;
+    padding: 0.4rem;
     text-align: left;
-    font-size: clamp(0.8rem, 1.1vw, 1.2rem);
+    font-size: clamp(0.8rem, 1.2vw, 1rem);
     position: sticky;
     top: 0;
     z-index: 1;
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
 .task-table td {
     padding: 0.5rem;
     border-bottom: 1px solid var(--border-color);
-    font-size: clamp(0.85rem, 1.2vw, 1.3rem);
+    font-size: clamp(0.95rem, 1.5vw, 1.4rem);
+    font-weight: 600;
 }
 
 .no-assignment {
@@ -358,14 +415,19 @@ html, body {
    広告エリア
    ===================== */
 .ad-area {
+    grid-area: ad;
     background: linear-gradient(-45deg, #141E30, #243B55, #2c3e50, #4ca1af);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     overflow: hidden;
     position: relative;
+    height: 100vh;
+    max-height: 100vh;
+    min-height: 100%;
 }
 
 @keyframes gradientBG {
@@ -375,7 +437,7 @@ html, body {
 }
 
 .ad-area::after {
-    content: "Edix Signage";
+    content: "キミテラス Signage";
     position: absolute;
     color: rgba(255, 255, 255, 0.1);
     font-size: clamp(1.5rem, 4vw, 3rem);
@@ -388,15 +450,18 @@ html, body {
 
 .ad-container {
     width: 100%;
-    height: 100%;
+    flex: 1;
     position: relative;
-    z-index: 1;
+    z-index: 10;
+    overflow: hidden;
 }
 
 .ad-area img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    position: relative;
+    z-index: 11;
 }
 
 .ad-area img[src=""],
@@ -413,6 +478,310 @@ html, body {
 
 .ad-area.quiet-mode img {
     display: none !important;
+}
+
+/* =====================
+   詳細表示モード (#3)
+   タップで情報エリアを全画面表示
+   ===================== */
+body.detail-mode .container {
+    grid-template-columns: 1fr !important;
+}
+
+body.detail-mode .ad-area {
+    display: none !important;
+}
+
+body.detail-mode .info-area {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body.detail-mode .content-grid {
+    grid-template-rows: auto auto !important;
+}
+
+body.detail-mode .schedule-section,
+body.detail-mode .notice-section,
+body.detail-mode .assignment-section {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body.detail-mode .schedule-scroll-area,
+body.detail-mode .table-wrapper,
+body.detail-mode #notice-list {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* =====================
+   カレンダーボタン
+   ===================== */
+.calendar-toggle-btn {
+    float: right;
+    background: linear-gradient(135deg, var(--accent-color), #2980b9);
+    border: none;
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calendar-toggle-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+
+.calendar-toggle-btn:active {
+    transform: scale(0.98);
+}
+
+.calendar-toggle-btn .calendar-icon {
+    font-size: 0.9em;
+}
+
+/* =====================
+   カレンダーモーダル
+   ===================== */
+.calendar-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 10001;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.calendar-modal.show {
+    display: flex;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.calendar-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 450px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.calendar-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--accent-color), #2980b9);
+    color: white;
+    position: relative;
+}
+
+.calendar-modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.calendar-nav-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.calendar-close-btn {
+    position: absolute;
+    right: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.3rem;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.calendar-close-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.calendar-grid {
+    padding: 1rem;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.calendar-weekdays span:first-child {
+    color: #e74c3c;
+}
+
+.calendar-weekdays span:last-child {
+    color: #3498db;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    position: relative;
+}
+
+.calendar-day:hover {
+    background: #f0f0f0;
+}
+
+.calendar-day.other-month {
+    color: #ccc;
+}
+
+.calendar-day.today {
+    background: var(--accent-color);
+    color: white;
+    font-weight: bold;
+}
+
+.calendar-day.selected {
+    background: #2c3e50;
+    color: white;
+}
+
+.calendar-day.has-schedule::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #27ae60;
+}
+
+.calendar-day.today.has-schedule::after,
+.calendar-day.selected.has-schedule::after {
+    background: white;
+}
+
+.calendar-day.sunday {
+    color: #e74c3c;
+}
+
+.calendar-day.saturday {
+    color: #3498db;
+}
+
+.calendar-day.other-month.sunday,
+.calendar-day.other-month.saturday {
+    opacity: 0.5;
+}
+
+.calendar-schedule-detail {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.calendar-detail-placeholder {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 1rem 0;
+}
+
+.calendar-detail-date {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.calendar-detail-item {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px dotted #ddd;
+    font-size: 0.9rem;
+}
+
+.calendar-detail-item:last-child {
+    border-bottom: none;
+}
+
+.calendar-detail-time {
+    color: var(--accent-color);
+    font-weight: 600;
+    min-width: 60px;
+}
+
+.calendar-detail-content {
+    flex: 1;
+}
+
+.calendar-no-schedule {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 0.5rem 0;
 }
 
 /* =====================
@@ -576,162 +945,284 @@ html, body {
 }
 
 /* =====================
-   レスポンシブ（タブレット）
+   サイネージモード（大きめタブレット以上: 幅900px-1024px）
    ===================== */
-@media (max-width: 1024px) {
+@media (min-width: 900px) and (max-width: 1024px) {
     html, body {
-        overflow: auto;
-        height: auto;
-        min-height: 100%;
-    }
-
-    .container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto;
-        height: auto;
-        min-height: 100vh;
-        overflow: visible;
+        overflow: hidden;
+        height: 100vh;
+        max-height: 100vh;
+        background-color: var(--bg-color);
     }
 
     .info-area {
-        height: auto;
-        min-height: auto;
-        overflow: visible;
+        height: 100vh;
+        max-height: 100vh;
+        background-color: var(--bg-color);
     }
 
     .ad-area {
-        height: 30vh;
-        min-height: 200px;
+        height: 100vh;
+        max-height: 100vh;
+    }
+
+    .ad-header {
+        padding: 5px 10px;
+        gap: 0.4rem;
+    }
+
+    .date-text {
+        font-size: 0.65rem;
+    }
+
+    .day-badge {
+        font-size: 0.55rem;
+    }
+
+    .time-text {
+        font-size: 0.65rem;
+    }
+
+    .class-title {
+        font-size: 0.65rem;
     }
 
     .content-grid {
-        grid-template-rows: auto auto auto;
-        height: auto;
-        overflow: visible;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: minmax(0, 35fr) minmax(0, 65fr);
+        flex: 1;
+        overflow: hidden;
     }
 
-    .header-block {
-        padding: 1vmin;
+    .card h2 {
+        font-size: 0.7rem;
     }
-    
-    .card {
-        height: auto;
-        min-height: auto;
-        overflow: visible;
+
+    .schedule-list-item {
+        font-size: 1rem;
     }
-    
-    .schedule-grid-container,
-    .schedule-day-column,
-    .list-group,
-    .table-wrapper {
-        height: auto;
-        max-height: none;
-        overflow: visible;
+
+    .list-group li {
+        font-size: 1rem;
+    }
+
+    .task-table td {
+        font-size: 0.9rem;
     }
 }
 
 /* =====================
-   レスポンシブ（スマホ）
+   モバイルモード（幅900px未満: スマホ縦横・小さめタブレット）
+   広告を上部に、その下にコンテンツを縦並びで表示
+   JSでvertical-modeクラスが付与された場合に適用
    ===================== */
-@media (max-width: 600px) {
-    :root {
-        --content-gap: 8px;
+@media (max-width: 899px) {
+    html, body {
+        overflow: auto !important;
+        height: auto !important;
+        min-height: 100vh;
+        background-color: var(--bg-color) !important;
+    }
+
+    /* スクロールバーを表示（手動スクロール用） */
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+        display: block;
+        width: 8px;
+    }
+
+    html::-webkit-scrollbar-track,
+    body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    html::-webkit-scrollbar-thumb,
+    body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
     }
 
     html, body {
-        overflow: auto;
-        height: auto;
-        min-height: 100%;
+        -ms-overflow-style: auto;
+        scrollbar-width: thin;
     }
 
     .container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto;
-        height: auto;
-        min-height: 100vh;
-        overflow: visible;
+        display: flex !important;
+        flex-direction: column !important;
+        grid-template-columns: unset !important;
+        grid-template-areas: unset !important;
+        height: auto !important;
+        min-height: 100vh !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background-color: var(--bg-color) !important;
     }
 
-    .info-area {
-        padding: 2vmin;
-        height: auto;
-        min-height: auto;
-        overflow: visible;
-    }
-
+    /* 広告エリア: vertical-modeクラスで制御するため、CSSメディアクエリでは非表示 */
     .ad-area {
-        height: 25vh;
-        min-height: 150px;
+        display: none !important;
     }
 
-    .header-block {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
+    /* コンテンツエリア */
+    .info-area {
+        order: 1 !important;
+        grid-area: unset !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        padding: 2vmin !important;
+        background-color: var(--bg-color) !important;
+    }
+
+    /* コンテンツグリッドを縦1列に */
+    .content-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        grid-template-columns: none !important;
+        grid-template-rows: none !important;
+        gap: 2vmin;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* スマホ（レスポンシブ）モード: 全て表示、スクロールで閲覧 */
+    .schedule-section {
+        order: 1 !important;
+        grid-column: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .notice-section {
+        order: 2 !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .assignment-section {
+        order: 3 !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    /* プレースホルダー行（空データ）のスタイル */
+    .notice-placeholder,
+    .assignment-placeholder {
+        visibility: hidden;
+    }
+
+    /* カード共通（縦長用） */
+    .card {
+        height: auto !important;
+        min-height: auto;
+        max-height: none !important;
+        overflow: visible !important;
         padding: 2vmin;
     }
 
-    .date-group {
-        width: 100%;
-        justify-content: space-between;
+    .card h2 {
+        font-size: clamp(1rem, 3vw, 1.4rem);
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.5rem;
     }
 
-    .time-text {
-        margin-left: auto;
-        padding-left: 0.5rem;
-        border-left: none;
-    }
-
-    .class-title {
-        width: 100%;
-        text-align: center;
-        font-size: 1.1rem;
-    }
-
-    .content-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
-        gap: 6px;
-        height: auto;
-        overflow: visible;
-    }
-    
-    .card {
-        height: auto;
-        min-height: auto;
-        overflow: visible;
-    }
-
+    /* スマホ用スケジュールグリッド: 全て表示 */
+    /* min-heightはJSで動的に設定（3行分の領域確保） */
     .schedule-grid-container {
-        grid-template-columns: 1fr 1fr 1fr;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 4px;
-        height: auto;
-        overflow: visible;
+        /* min-heightはJSで設定 */
+        max-height: none !important;
+        overflow: visible !important;
     }
-    
+
     .schedule-day-column {
-        height: auto;
-        overflow: visible;
+        /* min-heightはJSで設定 */
+        max-height: none !important;
+        overflow: visible !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
-    
-    .list-group,
-    .table-wrapper {
-        max-height: none;
-        overflow: visible;
+
+    .schedule-scroll-area {
+        flex: 1 !important;
+        /* min-heightはJSで設定 */
+        max-height: none !important;
+        overflow: visible !important;
     }
 
     .schedule-date-header {
-        font-size: 0.7rem;
-        padding: 0.2rem;
+        font-size: clamp(0.75rem, 2.5vw, 0.95rem);
+        padding: 0.3rem;
+        flex-shrink: 0 !important;
     }
 
     .schedule-list-item {
-        font-size: 0.7rem;
-        padding: 0.2rem 0;
+        font-size: clamp(0.8rem, 3vw, 1rem);
+        padding: 0.4rem 0;
+        line-height: 1.4;
     }
 
-    .schedule-time {
-        font-size: 0.65rem;
+    .no-schedule {
+        /* min-heightはJSで親要素に設定 */
+        padding: 15px !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+    }
+
+    /* 連絡リスト */
+    .list-group {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .list-group li {
+        font-size: clamp(1rem, 3vw, 1.3rem);
+        padding: 0.5rem 0;
+    }
+
+    /* 提出物テーブル */
+    .table-wrapper {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .task-table th,
+    .task-table td {
+        font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+        padding: 0.5rem;
+    }
+
+    /* フッター - 余白を削減 */
+    .branding {
+        font-size: 0.75rem;
+        padding: 8px 0;
+        margin-bottom: 0;
+    }
+
+    /* ページ下部の余白を削除 */
+    .info-area {
+        padding-bottom: 0 !important;
+    }
+
+    .content-grid {
+        gap: 10px !important;
+    }
+}
+
+/* 小さい画面（スマホ: 幅600px以下） */
+@media (max-width: 600px) {
+    .info-area {
+        padding: 1.5vmin;
     }
 
     .card {
@@ -739,56 +1230,24 @@ html, body {
     }
 
     .card h2 {
-        font-size: 0.85rem;
-        padding-bottom: 0.3rem;
-        margin-bottom: 0.3rem;
+        font-size: clamp(0.9rem, 4vw, 1.1rem);
+    }
+
+    .schedule-date-header {
+        font-size: clamp(0.75rem, 3.5vw, 0.95rem);
+    }
+
+    .schedule-list-item {
+        font-size: clamp(0.8rem, 3.5vw, 1rem);
     }
 
     .list-group li {
-        font-size: 0.75rem;
-        padding: 0.3rem 0;
+        font-size: clamp(0.85rem, 4vw, 1.1rem);
     }
 
     .task-table th,
     .task-table td {
-        font-size: 0.7rem;
-        padding: 0.3rem;
-    }
-
-    .branding {
-        font-size: 0.6rem;
-        padding-top: 0.3rem;
-    }
-}
-
-/* =====================
-   横長スマホ（ランドスケープ）
-   ===================== */
-@media (max-width: 900px) and (orientation: landscape) {
-    .container {
-        grid-template-columns: 7fr 3fr;
-        grid-template-rows: 1fr;
-    }
-
-    .info-area {
-        height: 100vh;
-    }
-
-    .ad-area {
-        height: 100vh;
-    }
-
-    .content-grid {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 40% 60%;
-    }
-
-    .header-block {
-        padding: 0.8vmin 1.5vmin;
-    }
-
-    .card h2 {
-        font-size: 0.8rem;
+        font-size: clamp(0.75rem, 3vw, 0.9rem);
     }
 }
 
@@ -809,56 +1268,64 @@ html, body {
         --scale-factor: 1.3;
         --content-gap: 12px;
     }
-    
+
+    /* 広告ヘッダーは控えめに */
+    .ad-header {
+        padding: 8px 12px;
+    }
+
     .date-text {
-        font-size: clamp(1.5rem, 3vw, 2.5rem);
+        font-size: 0.95rem;
     }
-    
+
     .day-badge {
-        font-size: clamp(1.1rem, 2vw, 1.6rem);
+        font-size: 0.85rem;
     }
-    
+
     .time-text {
-        font-size: clamp(1.3rem, 2.5vw, 2.5rem);
+        font-size: 0.95rem;
     }
-    
+
     .class-title {
-        font-size: clamp(1.3rem, 2.5vw, 2.2rem);
+        font-size: 0.95rem;
     }
-    
+
     .card h2 {
-        font-size: clamp(1.1rem, 2vw, 1.6rem);
+        font-size: 1rem;
     }
-    
+
     .schedule-date-header {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
     }
-    
+
+    .schedule-list-item {
+        font-size: 1.3rem;
+    }
+
     .schedule-time {
-        font-size: 1rem;
+        font-size: 0.8em;
     }
-    
-    .schedule-content {
-        font-size: 1.1rem;
-    }
-    
+
     .list-group li {
-        font-size: 1.1rem;
-        padding: 0.6rem 0;
+        font-size: 1.3rem;
+        padding: 0.5rem 0;
     }
-    
-    .task-table th,
+
+    .task-table th {
+        font-size: 0.9rem;
+    }
+
     .task-table td {
-        font-size: 1rem;
-        padding: 0.6rem;
+        font-size: 1.2rem;
+        padding: 0.5rem;
     }
-    
+
     .no-schedule,
     .no-notice,
     .no-assignment {
         font-size: 1rem;
     }
-    
+
     .branding {
         font-size: 0.9rem;
     }
@@ -870,47 +1337,55 @@ html, body {
         --scale-factor: 2;
         --content-gap: 20px;
     }
-    
+
+    /* 広告ヘッダーは控えめに */
+    .ad-header {
+        padding: 10px 15px;
+    }
+
     .date-text {
-        font-size: clamp(2rem, 3vw, 4rem);
+        font-size: 1.2rem;
     }
-    
+
     .day-badge {
-        font-size: clamp(1.5rem, 2vw, 2.5rem);
+        font-size: 1rem;
     }
-    
+
     .time-text {
-        font-size: clamp(1.8rem, 2.5vw, 4rem);
+        font-size: 1.2rem;
     }
-    
+
     .class-title {
-        font-size: clamp(1.8rem, 2.5vw, 3rem);
+        font-size: 1.2rem;
     }
-    
+
     .card h2 {
-        font-size: clamp(1.5rem, 2vw, 2.5rem);
+        font-size: 1.3rem;
     }
-    
+
     .schedule-date-header {
+        font-size: 1.6rem;
+    }
+
+    .schedule-list-item {
         font-size: 1.8rem;
     }
-    
+
     .schedule-time {
-        font-size: 1.5rem;
+        font-size: 0.75em;
     }
-    
-    .schedule-content {
-        font-size: 1.6rem;
-    }
-    
+
     .list-group li {
-        font-size: 1.6rem;
-        padding: 0.8rem 0;
+        font-size: 1.8rem;
+        padding: 0.6rem 0;
     }
-    
-    .task-table th,
+
+    .task-table th {
+        font-size: 1.1rem;
+    }
+
     .task-table td {
-        font-size: 1.5rem;
-        padding: 0.8rem;
+        font-size: 1.6rem;
+        padding: 0.6rem;
     }
 }

@@ -1,42 +1,41 @@
 // main.js - サイネージ表示用メインスクリプト
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getFirestore, 
-    doc, 
-    collection, 
-    query, 
-    where, 
-    orderBy, 
-    limit, 
-    onSnapshot, 
-    writeBatch 
+import { db, firebaseConfig, SCHOOL_ID, GRADE_ID, CLASS_ID, getStaticJsonUrl, setSchoolContext, loginAsDevice } from './config.js';
+import {
+    query,
+    where,
+    orderBy,
+    limit,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-import { 
-    getTodayString, 
-    DAYS_JP, 
-    startClock, 
-    formatDateKey, 
+import {
+    getTodayString,
+    DAYS_JP,
+    startClock,
+    formatDateKey,
     calculateDaysLeft,
-    getDateOffset
+    getDateOffset,
+    isWeekend,
+    debounce
 } from './utils.js';
+import { ImageCache } from './image-cache.js';
+import { classDocRef, dailyDataCollectionRef } from './paths.js';
+import { getDaysAgoStr, filterByDisplayRange, filterRecentAssignments } from './data-filter.js';
+import { AutoScroller, startAutoScroll as _startAutoScroll, stopAutoScroll as _stopAutoScroll } from './auto-scroller.js';
+import { initCalendar as _initCalendar } from './calendar.js';
 
-// Firebase設定
-const firebaseConfig = {
-    apiKey: "AIzaSyAp7saZyxtWOtaus2dL_QN5jiJjdwRd1pg",
-    authDomain: "school-signage-2026.firebaseapp.com",
-    projectId: "school-signage-2026",
-    storageBucket: "school-signage-2026.firebasestorage.app",
-    messagingSenderId: "1068967206228",
-    appId: "1:1068967206228:web:14d24f8881a5cd1a0b3cc1"
-};
+// ========================================
+// 定数
+// ========================================
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const SCHOOL_ID = "gn_tech";
+const CONTENT_POLLING_INTERVAL = 3000;   // コンテンツ: 3秒
+const IMAGE_POLLING_INTERVAL = 300000;   // 画像: 5分
+// USER_PAUSE_DURATION は auto-scroller.js に移動
 
-// アプリデータ
+// ========================================
+// アプリ状態
+// ========================================
+
 const appData = {
     schoolName: "ロード中...",
     className: "",
@@ -45,7 +44,7 @@ const appData = {
     notices: [],
     assignments: [],
     ads: [],
-    quietHours: []  // 授業時間（音声・広告無効化時間）
+    quietHours: []
 };
 
 // 広告ローテーション管理
@@ -54,37 +53,156 @@ let adTimer = null;
 
 // 通知音管理
 let audioContext = null;
-let isInitialLoad = true;  // 初回ロード中フラグ
-let pendingUpdates = 0;    // 初回ロード完了待ちカウンター
+let isInitialLoad = true;
+let pendingUpdates = 0;
 
-/**
- * 現在が授業時間（Quiet Hours）内かどうかをチェック
- * @returns {boolean}
- */
-function isQuietTime() {
-    if (!appData.quietHours || appData.quietHours.length === 0) {
-        return false;
+// データ取得モード
+let useStaticJson = false;
+let contentPollingTimer = null;
+let imagePollingTimer = null;
+
+// 自動スクロール管理
+const autoScrollers = new Map();
+
+// 変更検知用ハッシュ
+let lastJsonHash = '';
+let lastAdsHash = '';
+
+// 前回のnoticeデータ（音通知用）
+let previousNoticesHash = '';
+
+// ========================================
+// 起動・初期化
+// ========================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // ページ読み込み時にスクロールを上部にリセット（複数回実行で確実に）
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
     }
-    
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
-    for (const period of appData.quietHours) {
-        if (!period.start || !period.end) continue;
-        
-        const [startH, startM] = period.start.split(':').map(Number);
-        const [endH, endM] = period.end.split(':').map(Number);
-        
-        const startMinutes = startH * 60 + startM;
-        const endMinutes = endH * 60 + endM;
-        
-        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
-            return true;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
+    // 少し遅延させて再度スクロールリセット（レンダリング完了後）
+    setTimeout(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    }, 100);
+
+    forceLayout();
+    updateLayoutMode(); // レイアウトモードを初期化
+    startClock('current-time');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isKioskMode = urlParams.get('kiosk') === '1' || urlParams.get('autostart') === '1';
+    const forceStaticJson = urlParams.get('static') === '1';
+    const deviceTokenParam = urlParams.get('token');
+
+    // デバイストークンがURLパラメータにある場合はlocalStorageに保存
+    if (deviceTokenParam) {
+        localStorage.setItem('deviceToken', deviceTokenParam);
+        console.log('デバイストークンをURLから取得・保存');
+        // トークンをURLから消す（セキュリティ）
+        const cleanUrl = new URL(window.location);
+        cleanUrl.searchParams.delete('token');
+        history.replaceState(null, '', cleanUrl);
+    }
+
+    // デバイストークン認証を試行
+    const storedDeviceToken = localStorage.getItem('deviceToken');
+    if (storedDeviceToken) {
+        console.log('デバイストークンで認証中...');
+        const authResult = await loginAsDevice(storedDeviceToken);
+        if (authResult.success) {
+            console.log(`デバイス認証成功: school=${authResult.schoolId}, class=${authResult.classId}`);
+        } else {
+            console.warn('デバイス認証失敗:', authResult.error);
+            // トークンが無効な場合は削除
+            localStorage.removeItem('deviceToken');
         }
     }
-    
-    return false;
+
+    if (isKioskMode) {
+        console.log('キオスクモードで起動');
+        startSignageKiosk();
+    } else {
+        showStartupScreen();
+    }
+
+    if (forceStaticJson) {
+        console.log('強制静的JSONモードで起動');
+        useStaticJson = true;
+        startStaticJsonPolling();
+    } else {
+        const firestoreAvailable = await testFirestoreConnection();
+        if (firestoreAvailable) {
+            console.log('Firestoreモードで起動');
+            useStaticJson = false;
+            startRealtimeListeners();
+        } else {
+            console.log('静的JSONモードにフォールバック');
+            useStaticJson = true;
+            startStaticJsonPolling();
+        }
+    }
+
+    setupResizeHandler();
+});
+
+/**
+ * リサイズハンドラーを設定
+ */
+function setupResizeHandler() {
+    const handleResize = debounce(() => {
+        updateLayoutMode();
+        adjustScrollAreas();
+        stopAutoScroll();
+        setTimeout(() => startAutoScroll(), 500);
+    }, 250);
+
+    window.addEventListener('resize', handleResize);
 }
+
+/**
+ * 画面サイズに応じてレイアウトモードを切り替え
+ *
+ * レイアウト判定基準:
+ * - モバイルモード（縦スクロール、上部広告）:
+ *   - スマホ縦画面
+ *   - スマホ横画面（幅900px未満）
+ *   - 小さめタブレット（幅900px未満）
+ * - サイネージモード（2カラム、右側広告）:
+ *   - 大きめタブレット以上（幅900px以上）
+ */
+function updateLayoutMode() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // 幅900px未満はモバイルモード（スマホ縦/横、小さめタブレット）
+    // 幅900px以上はサイネージモード（大きめタブレット、PC、サイネージ）
+    const isMobileMode = width < 900;
+
+    if (isMobileMode) {
+        console.log('モバイルモード:', width, 'x', height);
+        document.body.classList.add('vertical-mode');
+        // 強制レイアウトを削除
+        const existingStyle = document.getElementById('force-layout-style');
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+    } else {
+        console.log('サイネージモード:', width, 'x', height);
+        document.body.classList.remove('vertical-mode');
+        // サイネージモードでは強制レイアウトを適用
+        forceLayout();
+    }
+}
+
+// ========================================
+// 起動画面
+// ========================================
 
 /**
  * 起動画面を表示
@@ -102,7 +220,6 @@ function showStartupScreen() {
     `;
     document.body.appendChild(overlay);
 
-    // カウントダウン
     let remaining = 5;
     const countdownEl = overlay.querySelector('#countdown');
     const countdownTimer = setInterval(() => {
@@ -114,13 +231,12 @@ function showStartupScreen() {
         }
     }, 1000);
 
-    // タップで即座に起動
     const handleTap = (e) => {
         e.preventDefault();
         clearInterval(countdownTimer);
         startSignage();
     };
-    
+
     overlay.addEventListener('click', handleTap);
     overlay.addEventListener('touchstart', handleTap, { passive: false });
 }
@@ -129,97 +245,28 @@ function showStartupScreen() {
  * サイネージを開始
  */
 function startSignage() {
-    // AudioContext初期化を試みる（ブラウザ設定次第で成功する）
     initAudioContext();
-    
-    // テスト音を再生（有効化されていれば鳴る）
-    playTestSound();
-    
-    // 起動画面を削除
+
     const overlay = document.getElementById('startup-overlay');
     if (overlay) {
         overlay.classList.add('fade-out');
         setTimeout(() => overlay.remove(), 500);
     }
-    
-    // 音声状態を表示
-    showAudioStatus();
-    
-    // 後からでもタップで音声を有効化できるようにする
+
     setupLateAudioEnable();
 }
 
 /**
- * 音声状態を画面に表示（デバッグ用）
+ * キオスクモード用のサイネージ開始
  */
-function showAudioStatus() {
-    const status = document.createElement('div');
-    status.id = 'audio-status';
-    
-    const state = audioContext ? audioContext.state : 'no context';
-    const isEnabled = audioContext && audioContext.state === 'running';
-    
-    status.innerHTML = isEnabled 
-        ? '🔊 音声ON' 
-        : '🔇 音声OFF（タップで有効化）';
-    status.style.cssText = `
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        background: ${isEnabled ? 'rgba(46, 204, 113, 0.9)' : 'rgba(231, 76, 60, 0.9)'};
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 14px;
-        z-index: 9999;
-        cursor: pointer;
-        transition: all 0.3s;
-    `;
-    
-    // クリックで音声有効化を試みる
-    status.addEventListener('click', () => {
-        initAudioContext();
-        playTestSound();
-        updateAudioStatus();
-    });
-    
-    document.body.appendChild(status);
+function startSignageKiosk() {
+    initAudioContext();
+    setupLateAudioEnable();
 }
 
-/**
- * 音声状態表示を更新
- */
-function updateAudioStatus() {
-    const status = document.getElementById('audio-status');
-    if (!status) return;
-    
-    const isEnabled = audioContext && audioContext.state === 'running';
-    status.innerHTML = isEnabled 
-        ? '🔊 音声ON' 
-        : '🔇 音声OFF（タップで有効化）';
-    status.style.background = isEnabled 
-        ? 'rgba(46, 204, 113, 0.9)' 
-        : 'rgba(231, 76, 60, 0.9)';
-}
-
-/**
- * 後から音声を有効化するためのリスナーを設定
- */
-function setupLateAudioEnable() {
-    const enableAudio = () => {
-        if (!audioContext || audioContext.state === 'suspended') {
-            initAudioContext();
-            // 有効化されたら確認音
-            if (audioContext && audioContext.state === 'running') {
-                playTestSound();
-                updateAudioStatus();
-            }
-        }
-    };
-    
-    document.addEventListener('click', enableAudio);
-    document.addEventListener('touchstart', enableAudio);
-}
+// ========================================
+// オーディオ管理
+// ========================================
 
 /**
  * AudioContextを初期化
@@ -233,47 +280,13 @@ function initAudioContext() {
     }
 }
 
-/**
- * テスト音（起動確認用）
- */
-function playTestSound() {
-    if (!audioContext) return;
-    
-    try {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(523, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.15);
-    } catch (e) {
-        console.warn('テスト音の再生に失敗:', e);
-    }
-}
 
 /**
- * 通知音を再生（Web Audio API使用）
+ * 通知音を再生
  */
 function playNotificationSound() {
-    // 初回ロード中は鳴らさない
     if (isInitialLoad) return;
-    
-    // 更新通知バナーを表示（音声が無効でも表示）
-    showUpdateBanner();
-    
-    // 授業時間中は音を鳴らさない
-    if (isQuietTime()) {
-        console.log('授業時間中のため通知音をスキップ');
-        return;
-    }
-    
-    // AudioContextがなければ音は鳴らさない（バナーのみ）
+
     if (!audioContext || audioContext.state === 'suspended') {
         return;
     }
@@ -285,12 +298,10 @@ function playNotificationSound() {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
-        // 2段階の音（ピンポン風）
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(830, audioContext.currentTime);
         oscillator.frequency.setValueAtTime(1046, audioContext.currentTime + 0.15);
 
-        // 音量エンベロープ
         gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
 
@@ -302,24 +313,87 @@ function playNotificationSound() {
 }
 
 /**
- * 初回ロード完了をマーク
+ * 通知データをチェックして音を再生するか判断
+ * play_sound: trueが設定されたnoticeがあり、前回から変化がある場合に音を鳴らす
  */
-function markInitialLoadComplete() {
-    pendingUpdates--;
-    if (pendingUpdates <= 0) {
-        // 少し遅延させて、初回データが全て揃ってからフラグを切り替え
-        setTimeout(() => {
-            isInitialLoad = false;
-        }, 1000);
+function checkAndPlayNotificationSound() {
+    showUpdateBanner();
+
+    // 現在のnoticesでplay_sound: trueのものをハッシュ化
+    const soundNotices = appData.notices.filter(n => n.play_sound === true);
+    const currentHash = JSON.stringify(soundNotices.map(n => n.text));
+
+    // 前回と同じなら音を鳴らさない
+    if (currentHash === previousNoticesHash) {
+        return;
+    }
+
+    previousNoticesHash = currentHash;
+
+    // play_sound: trueの通知がある場合のみ音を鳴らす
+    if (soundNotices.length > 0) {
+        console.log('通知音を再生: play_sound が有効な通知があります');
+        playNotificationSound();
     }
 }
+
+/**
+ * 現在が授業時間（Quiet Hours）内かどうかをチェック
+ */
+function isQuietTime() {
+    if (!appData.quietHours || appData.quietHours.length === 0) {
+        return false;
+    }
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    for (const period of appData.quietHours) {
+        if (!period.start || !period.end) continue;
+
+        const [startH, startM] = period.start.split(':').map(Number);
+        const [endH, endM] = period.end.split(':').map(Number);
+
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+
+        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+/**
+ * 後から音声を有効化するためのリスナーを設定
+ */
+function setupLateAudioEnable() {
+    const enableAudio = () => {
+        if (!audioContext || audioContext.state === 'suspended') {
+            initAudioContext();
+            if (audioContext && audioContext.state === 'running') {
+                playTestSound();
+                updateAudioStatus();
+            }
+        }
+    };
+
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('touchstart', enableAudio);
+}
+
+// ========================================
+// 通知バナー
+// ========================================
 
 /**
  * 更新通知バナーを表示
  */
 function showUpdateBanner() {
     let banner = document.getElementById('update-banner');
-    
+
     if (!banner) {
         banner = document.createElement('div');
         banner.id = 'update-banner';
@@ -327,93 +401,162 @@ function showUpdateBanner() {
         document.body.appendChild(banner);
     }
 
-    // 既に表示中なら一度リセット
     banner.classList.remove('show');
-    
-    // 強制リフロー
     void banner.offsetWidth;
-    
     banner.classList.add('show');
-    
+
     setTimeout(() => {
         banner.classList.remove('show');
     }, 3000);
 }
 
-// DOM読み込み完了時の処理
-document.addEventListener('DOMContentLoaded', () => {
-    // 時計を開始
-    startClock('current-time');
-    
-    // URLパラメータをチェック（キオスクモード）
-    const urlParams = new URLSearchParams(window.location.search);
-    const isKioskMode = urlParams.get('kiosk') === '1' || urlParams.get('autostart') === '1';
-    
-    if (isKioskMode) {
-        // キオスクモード: 起動画面をスキップして即座に開始
-        console.log('🖥️ キオスクモードで起動');
-        startSignageKiosk();
-    } else {
-        // 通常モード: 起動画面を表示
-        showStartupScreen();
-    }
-    
-    // データ監視を開始（起動画面の裏で先にデータを取得）
-    startRealtimeListeners();
-    
-    // ウィンドウリサイズ時に高さを再調整
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-            adjustScrollAreas();
-            stopAutoScroll();
-            setTimeout(() => startAutoScroll(), 500);
-        }, 250);
-    });
-});
-
 /**
- * キオスクモード用のサイネージ開始
- * 起動画面なし、音声状態表示は自動で消える
+ * 初回ロード完了をマーク
  */
-function startSignageKiosk() {
-    // AudioContext初期化
-    initAudioContext();
-    
-    // テスト音（小さめ）
-    playTestSound();
-    
-    // 音声状態を一時的に表示（5秒後に自動で消える）
-    showAudioStatusKiosk();
-    
-    // 後からでもタップで音声を有効化できるようにする
-    setupLateAudioEnable();
+function markInitialLoadComplete() {
+    pendingUpdates--;
+    if (pendingUpdates <= 0) {
+        setTimeout(() => {
+            isInitialLoad = false;
+        }, 1000);
+    }
 }
 
+// ========================================
+// レイアウト
+// ========================================
+
 /**
- * キオスクモード用の音声状態表示（自動で消える）
+ * レイアウトを強制的に2カラムに設定（Firefox対応）
+ * 縦長モードの場合は適用しない
  */
-function showAudioStatusKiosk() {
-    const status = document.createElement('div');
-    status.id = 'audio-status';
-    
-    const isEnabled = audioContext && audioContext.state === 'running';
-    
-    status.innerHTML = isEnabled 
-        ? '🔊 音声ON' 
-        : '🔇 音声OFF';
-    
-    const bgColor = isEnabled ? 'rgba(46, 204, 113, 0.9)' : 'rgba(231, 76, 60, 0.9)';
-    status.style.cssText = 'position: fixed; bottom: 10px; right: 10px; background: ' + bgColor + '; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; z-index: 9999; transition: all 0.5s;';
-    
-    document.body.appendChild(status);
-    
-    // 5秒後に自動で消える
-    setTimeout(function() {
-        status.style.opacity = '0';
-        setTimeout(function() { status.remove(); }, 500);
-    }, 5000);
+function forceLayout() {
+    const existingStyle = document.getElementById('force-layout-style');
+
+    // 縦長モードの場合は強制レイアウトを削除して終了
+    if (document.body.classList.contains('vertical-mode')) {
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+        return;
+    }
+
+    if (existingStyle) {
+        existingStyle.remove();
+    }
+
+    const style = document.createElement('style');
+    style.id = 'force-layout-style';
+    style.textContent = `
+        .container {
+            display: grid !important;
+            width: 100% !important;
+            height: 100vh !important;
+            padding-top: 32px !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+        }
+        .ad-area {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: calc(100vh - 32px) !important;
+            min-height: 0 !important;
+            max-height: calc(100vh - 32px) !important;
+            position: relative !important;
+            overflow: hidden !important;
+            background: linear-gradient(-45deg, #141E30, #243B55, #2c3e50, #4ca1af) !important;
+        }
+        .info-area {
+            height: calc(100vh - 32px) !important;
+            min-height: 0 !important;
+            max-height: calc(100vh - 32px) !important;
+            overflow: hidden !important;
+        }
+        .ad-container {
+            width: 100% !important;
+            flex: 1 !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+        }
+        #ad-link {
+            max-height: 100% !important;
+        }
+        #ad-image {
+            display: block !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain !important;
+            margin: 0 auto !important;
+        }
+        /* サイネージモード: 予定を最優先で表示 */
+        .content-grid {
+            grid-template-rows: auto 1fr !important;
+        }
+        .schedule-section {
+            min-height: auto !important;
+            max-height: 60vh !important;
+            overflow: visible !important;
+        }
+        .schedule-grid-container {
+            min-height: 120px !important;
+            overflow: visible !important;
+        }
+        .schedule-day-column {
+            min-height: 100px !important;
+            overflow: visible !important;
+        }
+        .schedule-scroll-area {
+            min-height: 80px !important;
+            overflow: visible !important;
+        }
+        .no-schedule {
+            min-height: 70px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        /* 連絡・提出物は残りスペースに収める、見切れてもOK */
+        .notice-section,
+        .assignment-section {
+            overflow: hidden !important;
+            min-height: 0 !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// ========================================
+// Firestore接続
+// ========================================
+
+/**
+ * Firestore接続をテスト
+ */
+async function testFirestoreConnection() {
+    try {
+        console.log('Firestore接続テスト中...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(
+            `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`,
+            { method: 'GET', signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+
+        if (response.ok || response.status === 401 || response.status === 403) {
+            console.log('Firestore接続テスト: 成功');
+            return true;
+        }
+        console.log('Firestore接続テスト: 失敗 (status:', response.status, ')');
+        return false;
+    } catch (error) {
+        console.log('Firestore接続テスト: 失敗', error.message);
+        return false;
+    }
 }
 
 /**
@@ -421,49 +564,43 @@ function showAudioStatusKiosk() {
  */
 function startRealtimeListeners() {
     const todayStr = getTodayString();
-    
-    // 2つのリスナーがあるので、両方の初回ロードを待つ
     pendingUpdates = 2;
 
-    // 設定・広告の監視
-    const configRef = doc(db, "schools", SCHOOL_ID, "config", "display_settings");
-    onSnapshot(configRef, (snap) => {
+    // 設定・広告の監視（学年 > クラス）
+    const classRef = classDocRef(SCHOOL_ID, GRADE_ID, CLASS_ID);
+    onSnapshot(classRef, async (snap) => {
         if (snap.exists()) {
             const data = snap.data();
-            appData.schoolName = data.school_name || "School Name";
-            appData.className = data.class_name || "";
-            appData.ads = data.ads || [];
-            appData.quietHours = data.quiet_hours || [];
-            
+            const settings = data.displaySettings || {};
+            appData.schoolName = data.schoolName || "School Name";
+            appData.className = data.name || "";
+            appData.ads = settings.ads || [];
+            appData.quietHours = settings.quietHours || [];
+
             updateUI();
+            await syncImageCache(appData.ads);
             restartAdRotation();
             updateAdAreaVisibility();
-            
-            // 初回以降は通知音を再生
+
             if (!isInitialLoad) {
                 playNotificationSound();
             } else {
                 markInitialLoadComplete();
             }
         } else {
-            // ドキュメントが存在しない場合も初回ロード完了とする
             markInitialLoadComplete();
         }
     }, (error) => {
-        console.error('設定の監視エラー:', error);
+        console.error('クラス設定の監視エラー:', error);
         markInitialLoadComplete();
     });
 
-    // 日次データの監視（5日前から3日後まで - 提出物表示用）
-    const dailyRef = collection(db, "schools", SCHOOL_ID, "daily_data");
-    
-    // 5日前の日付を計算
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    const fiveDaysAgoStr = formatDateKey(fiveDaysAgo);
-    
+    // 日次データの監視（学年 > クラス）
+    const dailyRef = dailyDataCollectionRef(SCHOOL_ID, GRADE_ID, CLASS_ID);
+    const fiveDaysAgoStr = getDaysAgoStr(5);
+
     const q = query(
-        dailyRef, 
+        dailyRef,
         where("date", ">=", fiveDaysAgoStr),
         orderBy("date", "asc"),
         limit(10)
@@ -478,32 +615,28 @@ function startRealtimeListeners() {
             const data = docSnap.data();
             const dateKey = data.date;
 
-            // スケジュール: 今日以降3日分のみ
             if (dateKey >= todayStr && data.schedules) {
-                appData.weeklySchedules[dateKey] = data.schedules;
+                const filteredSchedules = filterByDisplayRange(data.schedules, todayStr, dateKey);
+                if (filteredSchedules.length > 0) {
+                    appData.weeklySchedules[dateKey] = filteredSchedules;
+                }
             }
 
-            // 連絡: 今日のみ
             if (dateKey === todayStr) {
                 appData.notices = data.notices || [];
             }
-            
-            // 提出物: 全ての日付から集める（後でフィルタ）
+
             if (data.assignments && data.assignments.length > 0) {
                 appData.assignments = appData.assignments.concat(data.assignments);
             }
         });
-        
-        // 提出物を期限でソート
-        appData.assignments.sort((a, b) => {
-            return new Date(a.deadline) - new Date(b.deadline);
-        });
+
+        appData.assignments.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 
         updateUI();
-        
-        // 初回以降は通知音を再生
+
         if (!isInitialLoad) {
-            playNotificationSound();
+            checkAndPlayNotificationSound();
         } else {
             markInitialLoadComplete();
         }
@@ -513,6 +646,119 @@ function startRealtimeListeners() {
     });
 }
 
+// ========================================
+// 静的JSONポーリング
+// ========================================
+
+/**
+ * 静的JSONポーリングを開始
+ */
+function startStaticJsonPolling() {
+    console.log('静的JSONポーリングを開始');
+    console.log(`  コンテンツ更新間隔: ${CONTENT_POLLING_INTERVAL / 1000}秒`);
+    console.log(`  画像更新間隔: ${IMAGE_POLLING_INTERVAL / 1000}秒`);
+
+    fetchStaticJson(true);
+
+    contentPollingTimer = setInterval(() => {
+        fetchStaticJson(false);
+    }, CONTENT_POLLING_INTERVAL);
+
+    imagePollingTimer = setInterval(() => {
+        if (appData.ads && appData.ads.length > 0) {
+            console.log('画像キャッシュを更新チェック...');
+            syncImageCache(appData.ads);
+        }
+    }, IMAGE_POLLING_INTERVAL);
+}
+
+/**
+ * 静的JSONを取得してUIを更新
+ */
+async function fetchStaticJson(isInitial) {
+    try {
+        const jsonUrl = getStaticJsonUrl(SCHOOL_ID, GRADE_ID, CLASS_ID);
+        const url = `${jsonUrl}?t=${Date.now()}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const jsonData = await response.json();
+
+        const contentHash = JSON.stringify({
+            config: jsonData.config,
+            dailyData: jsonData.dailyData
+        });
+        const adsHash = JSON.stringify(jsonData.config?.ads || []);
+
+        if (!isInitial && contentHash === lastJsonHash) {
+            return;
+        }
+
+        lastJsonHash = contentHash;
+        console.log(`静的JSON取得成功 (generated: ${jsonData.generatedAt})`);
+
+        const config = jsonData.config || {};
+        appData.schoolName = config.schoolName || 'School Name';
+        appData.className = config.className || '';
+        appData.quietHours = config.quietHours || [];
+
+        const todayStr = getTodayString();
+        const dailyData = jsonData.dailyData || {};
+
+        appData.weeklySchedules = {};
+        appData.notices = [];
+        appData.assignments = [];
+
+        Object.entries(dailyData).forEach(([dateKey, data]) => {
+            if (dateKey >= todayStr && data.schedules) {
+                appData.weeklySchedules[dateKey] = data.schedules;
+            }
+
+            if (data.notices && data.notices.length > 0) {
+                const filteredNotices = filterByDisplayRange(data.notices, todayStr, dateKey);
+                appData.notices = appData.notices.concat(filteredNotices);
+            }
+
+            if (data.assignments && data.assignments.length > 0) {
+                appData.assignments = appData.assignments.concat(data.assignments);
+            }
+        });
+
+        appData.assignments.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+        updateUI();
+
+        if (isInitial || adsHash !== lastAdsHash) {
+            lastAdsHash = adsHash;
+            appData.ads = config.ads || [];
+
+            console.log(`広告データ更新: ${appData.ads.length}件`);
+
+            await syncImageCache(appData.ads);
+            restartAdRotation();
+            updateAdAreaVisibility();
+        }
+
+        if (!isInitial && !isInitialLoad) {
+            checkAndPlayNotificationSound();
+        }
+
+        if (isInitial) {
+            isInitialLoad = false;
+        }
+
+    } catch (error) {
+        console.error('静的JSON取得エラー:', error);
+    }
+}
+
+// ========================================
+// UI更新
+// ========================================
+
 /**
  * UI全体を更新
  */
@@ -521,65 +767,15 @@ function updateUI() {
     renderSchedules();
     renderNotices();
     renderAssignments();
-    
-    // DOMの更新後に高さを調整してからスクロール開始
+
     requestAnimationFrame(() => {
         adjustScrollAreas();
-        setTimeout(() => {
-            startAutoScroll();
-        }, 300);
+        setTimeout(() => startAutoScroll(), 300);
     });
 }
 
 /**
- * スクロール領域の高さを調整
- */
-function adjustScrollAreas() {
-    // 連絡リストの高さ調整
-    const noticeSection = document.querySelector('.notice-section');
-    const noticeList = document.getElementById('notice-list');
-    if (noticeSection && noticeList) {
-        const header = noticeSection.querySelector('h2');
-        const headerHeight = header ? header.offsetHeight : 0;
-        const padding = 20; // カードのパディング分
-        const availableHeight = noticeSection.offsetHeight - headerHeight - padding;
-        if (availableHeight > 50) {
-            noticeList.style.maxHeight = availableHeight + 'px';
-        }
-    }
-    
-    // 提出物テーブルの高さ調整
-    const assignmentSection = document.querySelector('.assignment-section');
-    const tableWrapper = document.querySelector('.table-wrapper');
-    if (assignmentSection && tableWrapper) {
-        const header = assignmentSection.querySelector('h2');
-        const headerHeight = header ? header.offsetHeight : 0;
-        const padding = 20;
-        const availableHeight = assignmentSection.offsetHeight - headerHeight - padding;
-        if (availableHeight > 50) {
-            tableWrapper.style.maxHeight = availableHeight + 'px';
-        }
-    }
-    
-    // スケジュール各列の高さ調整
-    document.querySelectorAll('.schedule-day-column').forEach(column => {
-        const scrollArea = column.querySelector('.schedule-scroll-area');
-        const dateHeader = column.querySelector('.schedule-date-header');
-        if (scrollArea && dateHeader) {
-            const headerHeight = dateHeader.offsetHeight;
-            const padding = 15;
-            const availableHeight = column.offsetHeight - headerHeight - padding;
-            if (availableHeight > 30) {
-                scrollArea.style.maxHeight = availableHeight + 'px';
-            }
-        }
-    });
-    
-    console.log('高さ調整完了');
-}
-
-/**
- * ヘッダー部分を描画
+ * ヘッダー部分を描画（デスクトップ・モバイル両方）
  */
 function renderHeader() {
     const today = new Date();
@@ -587,47 +783,67 @@ function renderHeader() {
     const date = today.getDate();
     const day = DAYS_JP[today.getDay()];
 
-    document.getElementById('current-date').textContent = `${month}月${date}日`;
-    document.getElementById('current-day').textContent = `(${day})`;
-    document.getElementById('class-name').textContent = appData.className;
+    const dateText = `${month}月${date}日`;
+    const dayText = `(${day})`;
+    const className = appData.className;
+
+    // デスクトップ用（広告エリア上部）
+    const dateEl = document.getElementById('current-date');
+    const dayEl = document.getElementById('current-day');
+    const classEl = document.getElementById('class-name');
+
+    if (dateEl) dateEl.textContent = dateText;
+    if (dayEl) dayEl.textContent = dayText;
+    if (classEl) classEl.textContent = className;
+
+    // モバイル用（モバイル広告エリア上部）
+    const mobileDateEl = document.getElementById('mobile-current-date');
+    const mobileDayEl = document.getElementById('mobile-current-day');
+    const mobileClassEl = document.getElementById('mobile-class-name');
+
+    if (mobileDateEl) mobileDateEl.textContent = dateText;
+    if (mobileDayEl) mobileDayEl.textContent = dayText;
+    if (mobileClassEl) mobileClassEl.textContent = className;
 }
 
 /**
+ * 予定セクションの最小行数
+ */
+const MIN_SCHEDULE_ROWS = 3;
+
+/**
  * 予定セクションを描画
- * 土日をスキップして平日のみ3日分表示
+ * 3行分のスペースを確保するため、空欄のプレースホルダーを追加
  */
 function renderSchedules() {
     const container = document.getElementById('schedule-grid');
     container.innerHTML = '';
 
-    let displayedCount = 0;  // 表示した日数
-    let dayOffset = 0;       // 今日からの日数オフセット
+    let displayedCount = 0;
+    let dayOffset = 0;
 
     while (displayedCount < 3) {
         const targetDate = getDateOffset(dayOffset);
-        const dayOfWeek = targetDate.getDay();
-        
-        // 土日（0=日曜, 6=土曜）をスキップ
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
+
+        if (isWeekend(targetDate)) {
             dayOffset++;
             continue;
         }
 
         const dateKey = formatDateKey(targetDate);
+        const dayOfWeek = targetDate.getDay();
         const dayStr = DAYS_JP[dayOfWeek];
         const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
         const dd = String(targetDate.getDate()).padStart(2, '0');
         const displayDate = `${mm}/${dd} (${dayStr})`;
 
-        const schedules = appData.weeklySchedules[dateKey] || [];
-        const scheduleHtml = schedules.length > 0
-            ? schedules.map(item => `
-                <div class="schedule-list-item">
-                    <span class="schedule-time">${item.time}</span>
-                    <span class="schedule-content">${item.content}</span>
-                </div>
-            `).join('')
-            : '<div class="no-schedule">予定なし</div>';
+        let schedules = appData.weeklySchedules[dateKey] || [];
+
+        // 時系列順にソート
+        schedules = sortSchedulesByTime(schedules);
+
+        // 3行分のコンテンツを生成（不足分は空欄で埋める）
+        const scheduleHtml = generateScheduleRowsHtml(schedules);
 
         const isToday = dayOffset === 0;
         const columnHtml = `
@@ -637,10 +853,97 @@ function renderSchedules() {
             </div>
         `;
         container.insertAdjacentHTML('beforeend', columnHtml);
-        
+
         displayedCount++;
         dayOffset++;
     }
+}
+
+/**
+ * 予定を時系列順にソート
+ * @param {Array} schedules - 予定データ配列
+ * @returns {Array} - ソートされた予定データ配列
+ */
+function sortSchedulesByTime(schedules) {
+    return [...schedules].sort((a, b) => {
+        const timeA = parseTimeToMinutes(a.time);
+        const timeB = parseTimeToMinutes(b.time);
+        return timeA - timeB;
+    });
+}
+
+/**
+ * 時刻文字列を分に変換
+ * @param {string} timeStr - 時刻文字列 (例: "09:00", "9:00", "放課後")
+ * @returns {number} - 分換算値（パースできない場合は9999を返す）
+ */
+function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 9999;
+
+    // HH:MM または H:MM 形式を試行
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
+    if (match) {
+        const hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        return hours * 60 + minutes;
+    }
+
+    // 特定のキーワードに対応
+    const keywords = {
+        '朝': 0,
+        '登校': 30,
+        '朝学': 60,
+        '1限': 540,
+        '2限': 600,
+        '3限': 660,
+        '4限': 720,
+        '昼': 780,
+        '5限': 840,
+        '6限': 900,
+        '放課後': 960,
+        '終日': 0
+    };
+
+    for (const [keyword, minutes] of Object.entries(keywords)) {
+        if (timeStr.includes(keyword)) {
+            return minutes;
+        }
+    }
+
+    return 9999; // パースできない場合は最後に配置
+}
+
+/**
+ * 予定リストのHTMLを生成（3行分確保、不足分は空欄）
+ * @param {Array} schedules - 予定データ配列
+ * @returns {string} - HTML文字列
+ */
+function generateScheduleRowsHtml(schedules) {
+    const rows = [];
+
+    // 実際の予定を追加
+    for (let i = 0; i < schedules.length; i++) {
+        const item = schedules[i];
+        rows.push(`
+            <div class="schedule-list-item">
+                <span class="schedule-time">${item.time}</span>
+                <span class="schedule-content">${item.content}</span>
+            </div>
+        `);
+    }
+
+    // 3行に満たない場合は空欄のプレースホルダーを追加
+    const emptyRowsNeeded = MIN_SCHEDULE_ROWS - schedules.length;
+    for (let i = 0; i < emptyRowsNeeded; i++) {
+        rows.push(`
+            <div class="schedule-list-item schedule-placeholder">
+                <span class="schedule-time">&nbsp;</span>
+                <span class="schedule-content">&nbsp;</span>
+            </div>
+        `);
+    }
+
+    return rows.join('');
 }
 
 /**
@@ -648,44 +951,54 @@ function renderSchedules() {
  */
 function renderNotices() {
     const list = document.getElementById('notice-list');
-    
+    const MIN_NOTICE_ROWS = 3;
+
     if (appData.notices.length === 0) {
-        list.innerHTML = '<li class="no-notice">連絡事項はありません</li>';
+        // 「連絡事項はありません」メッセージ + プレースホルダー行
+        let html = '<li class="no-notice">連絡事項はありません</li>';
+        for (let i = 0; i < MIN_NOTICE_ROWS - 1; i++) {
+            html += '<li class="notice-placeholder">&nbsp;</li>';
+        }
+        list.innerHTML = html;
         return;
     }
 
-    list.innerHTML = appData.notices.map(item => `
+    let html = appData.notices.map(item => `
         <li class="${item.is_highlight ? 'highlight' : ''}">
             ${item.is_highlight ? '【重要】' : ''} ${item.text}
         </li>
     `).join('');
+
+    // 3行に満たない場合はプレースホルダー行を追加
+    const emptyRowsNeeded = MIN_NOTICE_ROWS - appData.notices.length;
+    for (let i = 0; i < emptyRowsNeeded; i++) {
+        html += '<li class="notice-placeholder">&nbsp;</li>';
+    }
+
+    list.innerHTML = html;
 }
 
 /**
  * 提出物セクションを描画
- * 期限が5日前以降のものを表示
  */
 function renderAssignments() {
     const list = document.getElementById('assignment-list');
-    
-    // 5日前の日付
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    const fiveDaysAgoStr = formatDateKey(fiveDaysAgo);
-    
-    // 期限が5日前以降の提出物をフィルタ
-    const filteredAssignments = appData.assignments.filter(item => {
-        return item.deadline >= fiveDaysAgoStr;
-    });
+    const MIN_ASSIGNMENT_ROWS = 3;
+
+    const filteredAssignments = filterRecentAssignments(appData.assignments, 5);
 
     if (filteredAssignments.length === 0) {
-        list.innerHTML = '<tr><td colspan="3" class="no-assignment">提出物はありません</td></tr>';
+        // 「提出物はありません」メッセージ + プレースホルダー行
+        let html = '<tr><td colspan="3" class="no-assignment">提出物はありません</td></tr>';
+        for (let i = 0; i < MIN_ASSIGNMENT_ROWS - 1; i++) {
+            html += '<tr class="assignment-placeholder"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+        }
+        list.innerHTML = html;
         return;
     }
 
-    list.innerHTML = filteredAssignments.map(item => {
+    let html = filteredAssignments.map(item => {
         const { text, cssClass, days } = calculateDaysLeft(item.deadline);
-        // 期限切れの場合は行に特別なクラスを追加
         const rowClass = days < 0 ? 'overdue-row' : '';
         return `
             <tr class="${rowClass}">
@@ -698,7 +1011,61 @@ function renderAssignments() {
             </tr>
         `;
     }).join('');
+
+    // 3行に満たない場合はプレースホルダー行を追加
+    const emptyRowsNeeded = MIN_ASSIGNMENT_ROWS - filteredAssignments.length;
+    for (let i = 0; i < emptyRowsNeeded; i++) {
+        html += '<tr class="assignment-placeholder"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+    }
+
+    list.innerHTML = html;
 }
+
+/**
+ * スクロール領域の高さを調整
+ */
+function adjustScrollAreas() {
+    const noticeSection = document.querySelector('.notice-section');
+    const noticeList = document.getElementById('notice-list');
+    if (noticeSection && noticeList) {
+        const header = noticeSection.querySelector('h2');
+        const headerHeight = header ? header.offsetHeight : 0;
+        const padding = 20;
+        const availableHeight = noticeSection.offsetHeight - headerHeight - padding;
+        if (availableHeight > 50) {
+            noticeList.style.maxHeight = availableHeight + 'px';
+        }
+    }
+
+    const assignmentSection = document.querySelector('.assignment-section');
+    const tableWrapper = document.querySelector('.table-wrapper');
+    if (assignmentSection && tableWrapper) {
+        const header = assignmentSection.querySelector('h2');
+        const headerHeight = header ? header.offsetHeight : 0;
+        const padding = 20;
+        const availableHeight = assignmentSection.offsetHeight - headerHeight - padding;
+        if (availableHeight > 50) {
+            tableWrapper.style.maxHeight = availableHeight + 'px';
+        }
+    }
+
+    document.querySelectorAll('.schedule-day-column').forEach(column => {
+        const scrollArea = column.querySelector('.schedule-scroll-area');
+        const dateHeader = column.querySelector('.schedule-date-header');
+        if (scrollArea && dateHeader) {
+            const headerHeight = dateHeader.offsetHeight;
+            const padding = 15;
+            const availableHeight = column.offsetHeight - headerHeight - padding;
+            if (availableHeight > 30) {
+                scrollArea.style.maxHeight = availableHeight + 'px';
+            }
+        }
+    });
+}
+
+// ========================================
+// 広告管理
+// ========================================
 
 /**
  * 広告ローテーションを再開始
@@ -707,45 +1074,245 @@ function restartAdRotation() {
     if (adTimer) {
         clearTimeout(adTimer);
     }
-    
+
     if (!appData.ads || appData.ads.length === 0) {
+        updateAdIndicator();
         return;
     }
-    
+
     currentAdIndex = 0;
+    updateAdIndicator();
     showAd();
 }
 
 /**
- * 広告を表示
+ * 広告インジケーター（ドット）を更新
+ * @param {number} activeIndex - 現在表示中の広告インデックス
  */
-function showAd() {
-    const imgEl = document.getElementById('ad-image');
-    const adArea = document.querySelector('.ad-area');
-    
-    // 授業時間中は広告を非表示
-    if (isQuietTime()) {
-        if (imgEl) imgEl.style.display = 'none';
-        if (adArea) adArea.classList.add('quiet-mode');
-        // 次のチェックのためにタイマーを設定
-        adTimer = setTimeout(showAd, 60000); // 1分ごとにチェック
+function updateAdIndicator(activeIndex = 0) {
+    const indicator = document.getElementById('mobile-ad-indicator');
+    if (!indicator) return;
+
+    if (!appData.ads || appData.ads.length <= 1) {
+        indicator.innerHTML = '';
         return;
     }
-    
-    // 通常表示
-    if (imgEl) imgEl.style.display = '';
+
+    const dots = appData.ads.map((_, index) => {
+        const isActive = index === activeIndex ? 'active' : '';
+        return `<span class="indicator-dot ${isActive}"></span>`;
+    }).join('');
+
+    indicator.innerHTML = dots;
+}
+
+/**
+ * 広告を表示（画像/動画対応）
+ */
+async function showAd() {
+    forceLayout();
+
+    const imgEl = document.getElementById('ad-image');
+    const videoEl = document.getElementById('ad-video');
+    const mobileImgEl = document.getElementById('mobile-ad-image');
+    const mobileVideoEl = document.getElementById('mobile-ad-video');
+    const adLink = document.getElementById('ad-link');
+    const adArea = document.querySelector('.ad-area');
+    const mobileAdArea = document.querySelector('.mobile-ad-area');
+
+    // 前の動画を停止
+    if (videoEl) {
+        videoEl.pause();
+        videoEl.removeAttribute('src');
+    }
+    if (mobileVideoEl) {
+        mobileVideoEl.pause();
+        mobileVideoEl.removeAttribute('src');
+    }
+
+    if (isQuietTime()) {
+        if (imgEl) imgEl.style.display = 'none';
+        if (videoEl) videoEl.style.display = 'none';
+        if (mobileImgEl) mobileImgEl.style.display = 'none';
+        if (mobileVideoEl) mobileVideoEl.style.display = 'none';
+        if (adArea) adArea.classList.add('quiet-mode');
+        if (mobileAdArea) mobileAdArea.classList.add('quiet-mode');
+        adTimer = setTimeout(showAd, 60000);
+        return;
+    }
+
     if (adArea) adArea.classList.remove('quiet-mode');
-    
+    if (mobileAdArea) mobileAdArea.classList.remove('quiet-mode');
+
     if (appData.ads.length === 0) {
         return;
     }
 
     const ad = appData.ads[currentAdIndex];
-    imgEl.src = ad.url;
-    
+    const isVideo = ad.type === 'video';
+
+    let mediaUrl = ad.url;
+
+    // 画像の場合のみキャッシュを試行
+    if (!isVideo) {
+        try {
+            const cachePromise = ImageCache.getImage(ad.id);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Cache timeout')), 500)
+            );
+
+            const cachedUrl = await Promise.race([cachePromise, timeoutPromise]);
+            if (cachedUrl) {
+                mediaUrl = cachedUrl;
+            }
+        } catch (error) {
+            // キャッシュ取得失敗時は直接URLを使用
+        }
+    }
+
+    // 音声設定（デフォルトはミュート）
+    const isMuted = ad.muted !== false;
+
+    // デスクトップ用広告
+    if (isVideo) {
+        // 動画表示
+        if (imgEl) imgEl.style.display = 'none';
+        if (videoEl) {
+            videoEl.src = mediaUrl;
+            videoEl.style.display = 'block';
+            videoEl.style.visibility = 'visible';
+            videoEl.style.opacity = '1';
+            videoEl.style.width = '100%';
+            videoEl.style.height = 'auto';
+            videoEl.style.maxHeight = '100vh';
+            videoEl.style.objectFit = 'contain';
+            videoEl.muted = isMuted;
+            videoEl.play().catch(e => console.warn('動画再生エラー:', e));
+        }
+    } else {
+        // 画像表示
+        if (videoEl) videoEl.style.display = 'none';
+        if (imgEl) {
+            imgEl.src = mediaUrl;
+            imgEl.style.display = 'block';
+            imgEl.style.visibility = 'visible';
+            imgEl.style.opacity = '1';
+
+            // 1枚目の広告画像ロード時にグリッド幅を調整（サイネージモードのみ）
+            if (currentAdIndex === 0 && !window._adGridAdjusted) {
+                const adjustGrid = () => {
+                    const container = document.querySelector('.container');
+                    if (!container || document.body.classList.contains('vertical-mode')) return;
+                    const imgW = imgEl.naturalWidth;
+                    const imgH = imgEl.naturalHeight;
+                    if (imgW && imgH) {
+                        const adHeader = document.querySelector('.ad-header');
+                        const headerH = adHeader ? adHeader.getBoundingClientRect().height : 32;
+                        const imageAreaH = window.innerHeight - headerH;
+                        const adNeededW = Math.ceil(imageAreaH * (imgW / imgH));
+                        container.style.gridTemplateColumns = `1fr ${adNeededW}px`;
+                        window._adGridAdjusted = true;
+                    }
+                };
+                if (imgEl.complete && imgEl.naturalWidth) {
+                    adjustGrid();
+                } else {
+                    imgEl.onload = adjustGrid;
+                }
+            }
+
+            imgEl.onerror = () => {
+                if (imgEl.src !== ad.url) {
+                    imgEl.src = ad.url;
+                }
+            };
+        }
+    }
+
+    // モバイル用広告
+    if (isVideo) {
+        if (mobileImgEl) mobileImgEl.style.display = 'none';
+        if (mobileVideoEl) {
+            mobileVideoEl.src = mediaUrl;
+            mobileVideoEl.style.display = 'block';
+            mobileVideoEl.muted = isMuted;
+            mobileVideoEl.play().catch(e => console.warn('モバイル動画再生エラー:', e));
+        }
+    } else {
+        if (mobileVideoEl) mobileVideoEl.style.display = 'none';
+        if (mobileImgEl) {
+            mobileImgEl.src = mediaUrl;
+            mobileImgEl.style.display = 'block';
+
+            mobileImgEl.onerror = () => {
+                if (mobileImgEl.src !== ad.url) {
+                    mobileImgEl.src = ad.url;
+                }
+            };
+        }
+    }
+
+    // リンク先の設定（デスクトップ）
+    const activeEl = isVideo ? videoEl : imgEl;
+    if (adLink) {
+        if (ad.link_url && ad.link_url.trim()) {
+            adLink.href = ad.link_url;
+            adLink.style.cursor = 'pointer';
+            if (activeEl) activeEl.style.cursor = 'pointer';
+        } else {
+            adLink.href = '#';
+            adLink.onclick = (e) => e.preventDefault();
+            adLink.style.cursor = 'default';
+            if (activeEl) activeEl.style.cursor = 'default';
+        }
+    }
+
+    // リンク先の設定（モバイル）
+    const mobileAdLink = document.getElementById('mobile-ad-link');
+    const mobileActiveEl = isVideo ? mobileVideoEl : mobileImgEl;
+    if (mobileAdLink) {
+        if (ad.link_url && ad.link_url.trim()) {
+            mobileAdLink.href = ad.link_url;
+            mobileAdLink.style.cursor = 'pointer';
+            if (mobileActiveEl) mobileActiveEl.style.cursor = 'pointer';
+        } else {
+            mobileAdLink.href = '#';
+            mobileAdLink.onclick = (e) => e.preventDefault();
+            mobileAdLink.style.cursor = 'default';
+            if (mobileActiveEl) mobileActiveEl.style.cursor = 'default';
+        }
+    }
+
+    const container = activeEl ? activeEl.parentElement : null;
+    if (container) {
+        container.style.width = '100%';
+        container.style.height = '100vh';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
+    }
+
+    // 現在表示中の広告インデックスを記録してから次へ進める
+    const displayedAdIndex = currentAdIndex;
     currentAdIndex = (currentAdIndex + 1) % appData.ads.length;
-    const duration = (ad.duration_sec || 5) * 1000;
-    adTimer = setTimeout(showAd, duration);
+
+    // インジケーター更新（表示中の広告のインデックスを渡す）
+    updateAdIndicator(displayedAdIndex);
+
+    // 動画の場合は動画終了時に次へ、画像の場合は設定秒数後に次へ
+    if (isVideo && videoEl) {
+        videoEl.onended = () => {
+            adTimer = setTimeout(showAd, 500);
+        };
+        // フォールバック: 動画が長すぎる場合のタイムアウト（3分）
+        adTimer = setTimeout(() => {
+            if (videoEl) videoEl.pause();
+            showAd();
+        }, 180000);
+    } else {
+        const duration = (ad.duration_sec || 5) * 1000;
+        adTimer = setTimeout(showAd, duration);
+    }
 }
 
 /**
@@ -754,7 +1321,7 @@ function showAd() {
 function updateAdAreaVisibility() {
     const adArea = document.querySelector('.ad-area');
     const imgEl = document.getElementById('ad-image');
-    
+
     if (isQuietTime()) {
         if (imgEl) imgEl.style.display = 'none';
         if (adArea) adArea.classList.add('quiet-mode');
@@ -765,174 +1332,151 @@ function updateAdAreaVisibility() {
 }
 
 // ========================================
-// 自動スクロール機能
+// 詳細表示モード (#3: タップで詳細切替)
 // ========================================
-const autoScrollers = new Map();
-const USER_PAUSE_DURATION = 5000;
+
+let detailModeActive = false;
+let detailModeTimer = null;
+const DETAIL_MODE_DURATION = 20000; // 20秒
 
 /**
- * 自動スクロールを開始
+ * 詳細表示モードの初期化
+ * 画面タップでinfo-areaを全画面表示し、20秒後に戻る
  */
-function startAutoScroll() {
-    // 既存のスクローラーを停止
-    stopAutoScroll();
-    
-    // スクロール対象の要素を収集
-    const scrollTargets = [
-        ...document.querySelectorAll('.schedule-scroll-area'),
-        document.getElementById('notice-list'),
-        document.querySelector('.table-wrapper')
-    ].filter(el => el);
-    
-    console.log('自動スクロール対象:', scrollTargets.length, '個');
-    
-    scrollTargets.forEach((el, i) => {
-        const overflow = el.scrollHeight - el.clientHeight;
-        console.log(`要素${i}: scrollHeight=${el.scrollHeight}, clientHeight=${el.clientHeight}, overflow=${overflow}`);
-        
-        const scroller = new AutoScroller(el, 25);
-        autoScrollers.set(el, scroller);
-        scroller.start();
+function initDetailMode() {
+    const infoArea = document.querySelector('.info-area');
+    if (!infoArea) return;
+
+    infoArea.addEventListener('click', (e) => {
+        // ダッシュボードではなくサイネージ表示画面でのみ有効
+        if (document.getElementById('appContainer')) return;
+        // リンクやボタンクリック時は無視
+        if (e.target.closest('a') || e.target.closest('button')) return;
+
+        toggleDetailMode();
     });
+
+    infoArea.addEventListener('touchstart', (e) => {
+        if (document.getElementById('appContainer')) return;
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        // ダブルタップ防止
+    }, { passive: true });
 }
 
+function toggleDetailMode() {
+    if (detailModeActive) {
+        exitDetailMode();
+    } else {
+        enterDetailMode();
+    }
+}
+
+function enterDetailMode() {
+    detailModeActive = true;
+    document.body.classList.add('detail-mode');
+
+    // ヒントバナーを表示
+    let hint = document.getElementById('detail-mode-hint');
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'detail-mode-hint';
+        hint.innerHTML = '📖 詳細表示中（20秒後に自動で戻ります）<br>タップで戻る';
+        hint.style.cssText = 'position:fixed;top:0;left:0;right:0;background:rgba(102,126,234,0.95);color:white;text-align:center;padding:8px;font-size:14px;z-index:9999;cursor:pointer;';
+        hint.addEventListener('click', exitDetailMode);
+        document.body.appendChild(hint);
+    }
+    hint.style.display = 'block';
+
+    // 20秒後に自動で戻る
+    if (detailModeTimer) clearTimeout(detailModeTimer);
+    detailModeTimer = setTimeout(exitDetailMode, DETAIL_MODE_DURATION);
+}
+
+function exitDetailMode() {
+    detailModeActive = false;
+    document.body.classList.remove('detail-mode');
+
+    const hint = document.getElementById('detail-mode-hint');
+    if (hint) hint.style.display = 'none';
+
+    if (detailModeTimer) {
+        clearTimeout(detailModeTimer);
+        detailModeTimer = null;
+    }
+}
+
+// DOMContentLoadedで詳細モードを初期化
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initDetailMode, 500);
+});
+
+// ========================================
+// 画像キャッシュ
+// ========================================
+
 /**
- * 自動スクロールを停止
+ * 画像をIndexedDBキャッシュに同期
  */
+async function syncImageCache(ads) {
+    if (!ads || ads.length === 0) {
+        return;
+    }
+
+    try {
+        await ImageCache.init();
+
+        for (const ad of ads) {
+            if (!ad.id || !ad.url) continue;
+
+            const isCached = await ImageCache.hasImage(ad.id);
+            if (!isCached) {
+                await ImageCache.cacheImage(ad.id, ad.url);
+            }
+        }
+
+        const currentIds = ads.map(ad => ad.id).filter(Boolean);
+        await ImageCache.cleanup(currentIds);
+
+    } catch (error) {
+        console.error('syncImageCache: Error:', error);
+    }
+}
+
+// ========================================
+// 自動スクロール（auto-scroller.js に移動済み）
+// ========================================
+
+function startAutoScroll() {
+    _startAutoScroll(autoScrollers);
+}
+
 function stopAutoScroll() {
-    autoScrollers.forEach(scroller => scroller.destroy());
-    autoScrollers.clear();
+    _stopAutoScroll(autoScrollers);
 }
 
-/**
- * 自動スクローラークラス
- */
-class AutoScroller {
-    constructor(element, pixelsPerSecond = 25) {
-        this.element = element;
-        this.speed = pixelsPerSecond;
-        this.animationId = null;
-        this.timeoutId = null;
-        this.direction = 1;
-        this.isPaused = false;
-        this.isUserPaused = false;
-        this.lastTime = 0;
-        this.pauseAtEnds = 2500;
-        this.startDelay = 2000;
-        
-        this.handleUserInteraction = this.handleUserInteraction.bind(this);
-        this.element.addEventListener('mousedown', this.handleUserInteraction);
-        this.element.addEventListener('touchstart', this.handleUserInteraction, { passive: true });
-        this.element.addEventListener('wheel', this.handleUserInteraction, { passive: true });
-    }
-    
-    handleUserInteraction() {
-        console.log('ユーザー操作検出 - 一時停止');
-        this.pauseForUser();
-    }
-    
-    pauseForUser() {
-        this.isUserPaused = true;
-        this.pause();
-        
-        if (this.timeoutId) clearTimeout(this.timeoutId);
-        this.timeoutId = setTimeout(() => {
-            this.isUserPaused = false;
-            console.log('自動スクロール再開');
-            this.resume();
-        }, USER_PAUSE_DURATION);
-    }
-    
-    start() {
-        console.log('AutoScroller.start() 呼び出し');
-        this.timeoutId = setTimeout(() => {
-            this.checkAndScroll();
-        }, this.startDelay);
-    }
-    
-    pause() {
-        this.isPaused = true;
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
+// ========================================
+// Page Visibility API
+// ========================================
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        console.log('タブがアクティブになりました');
+
+        if (useStaticJson) {
+            fetchStaticJson(false);
+        }
+
+        if (autoScrollers.size === 0) {
+            startAutoScroll();
         }
     }
-    
-    resume() {
-        if (this.isUserPaused) return;
-        this.isPaused = false;
-        this.checkAndScroll();
-    }
-    
-    destroy() {
-        this.pause();
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-            this.timeoutId = null;
-        }
-        this.element.removeEventListener('mousedown', this.handleUserInteraction);
-        this.element.removeEventListener('touchstart', this.handleUserInteraction);
-        this.element.removeEventListener('wheel', this.handleUserInteraction);
-    }
-    
-    checkAndScroll() {
-        if (this.isPaused || this.isUserPaused) return;
-        
-        const el = this.element;
-        const overflow = el.scrollHeight - el.clientHeight;
-        
-        console.log('checkAndScroll: overflow =', overflow);
-        
-        if (overflow <= 3) {
-            this.timeoutId = setTimeout(() => this.checkAndScroll(), 3000);
-            return;
-        }
-        
-        console.log('スクロール開始');
-        this.animate();
-    }
-    
-    animate() {
-        if (this.isPaused || this.isUserPaused) return;
-        
-        const el = this.element;
-        const overflow = el.scrollHeight - el.clientHeight;
-        
-        if (overflow <= 3) {
-            this.timeoutId = setTimeout(() => this.checkAndScroll(), 3000);
-            return;
-        }
-        
-        this.lastTime = performance.now();
-        
-        const step = (currentTime) => {
-            if (this.isPaused || this.isUserPaused) return;
-            
-            const deltaTime = (currentTime - this.lastTime) / 1000;
-            this.lastTime = currentTime;
-            
-            const actualSpeed = this.direction === 1 ? this.speed : this.speed * 1.5;
-            el.scrollTop += actualSpeed * deltaTime * this.direction;
-            
-            if (this.direction === 1 && el.scrollTop >= overflow) {
-                el.scrollTop = overflow;
-                this.direction = -1;
-                console.log('下端到達 - 反転');
-                this.timeoutId = setTimeout(() => this.animate(), this.pauseAtEnds);
-                return;
-            }
-            
-            if (this.direction === -1 && el.scrollTop <= 0) {
-                el.scrollTop = 0;
-                this.direction = 1;
-                console.log('上端到達 - 反転');
-                this.timeoutId = setTimeout(() => this.animate(), this.pauseAtEnds);
-                return;
-            }
-            
-            this.animationId = requestAnimationFrame(step);
-        };
-        
-        this.animationId = requestAnimationFrame(step);
-    }
-}
+});
+
+// ========================================
+// カレンダーモーダル（calendar.js に移動済み）
+// ========================================
+
+// カレンダー初期化をDOMContentLoadedで実行
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => _initCalendar(appData, sortSchedulesByTime), 100);
+});

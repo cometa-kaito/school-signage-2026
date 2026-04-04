@@ -1,4 +1,4 @@
-# School Signage (Edix by Rebounder)
+# School Signage (キミテラス by Rebounder)
 
 学校・教室向けデジタルサイネージシステム。予定、連絡事項、提出物、広告をリアルタイムで表示・管理できます。
 
@@ -309,4 +309,4 @@ Rebounder Team
 
 ---
 
-**Edix by Rebounder** - 教室をスマートに。
+**キミテラス by Rebounder** - 教室をスマートに。

@@ -1,143 +1,139 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ========================================
     // ヘルパー関数
     // ========================================
-    
-    // 認証済みユーザーかどうか
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // 管理者かどうか（カスタムクレームで判定）
-    function isAdmin() {
+
+    function isSystemAdmin() {
+      return request.auth != null && request.auth.token.systemRole == 'system_admin';
+    }
+
+    function isLegacyAdmin() {
       return request.auth != null && request.auth.token.admin == true;
     }
-    
-    // メールアドレスが検証済みかどうか
-    function isEmailVerified() {
-      return request.auth != null && request.auth.token.email_verified == true;
+
+    function hasAdminAccess() {
+      return isSystemAdmin() || isLegacyAdmin();
     }
-    
-    // 管理者かつメール検証済み
-    function isVerifiedAdmin() {
-      return isAdmin() && isEmailVerified();
+
+    function getMembership(schoolId) {
+      return get(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + schoolId));
     }
-    
+
+    function isSchoolAdmin(schoolId) {
+      return hasAdminAccess()
+        || (isAuthenticated()
+            && getMembership(schoolId).data.role == 'school_admin');
+    }
+
+    function hasClassAccess(schoolId, classId) {
+      return isSchoolAdmin(schoolId)
+        || (isAuthenticated()
+            && getMembership(schoolId).data.role in ['teacher', 'editor']
+            && classId in getMembership(schoolId).data.classIds);
+    }
+
     // ========================================
-    // サイネージコンテンツ（公開データ）
+    // 学校データ
     // ========================================
-    
-    // お知らせ・ニュース
-    match /announcements/{announcementId} {
-      // サイネージ表示用なので誰でも読み取り可能
-      allow read: if true;
-      // 管理者のみ作成・更新・削除可能
-      allow create, update, delete: if isVerifiedAdmin();
-    }
-    
-    // スケジュール・時間割
-    match /schedules/{scheduleId} {
-      allow read: if true;
-      allow write: if isVerifiedAdmin();
-    }
-    
-    // メディアコンテンツ情報
-    match /contents/{contentId} {
-      allow read: if true;
-      allow write: if isVerifiedAdmin();
-    }
-    
-    // スライドショー設定
-    match /slideshows/{slideshowId} {
-      allow read: if true;
-      allow write: if isVerifiedAdmin();
-    }
-    
-    // ========================================
-    // 学校別データ（SCHOOL_IDでフィルタリング）
-    // ========================================
-    
+
     match /schools/{schoolId} {
-      // 学校情報の読み取りは認証済みユーザーのみ
-      allow read: if isAuthenticated();
-      allow write: if isVerifiedAdmin();
-      
-      // 表示設定（config/display_settings）
+      allow read: if hasAdminAccess()
+        || (isAuthenticated() && exists(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + schoolId)));
+      allow write: if hasAdminAccess();
+
+      // 学年
+      match /grades/{gradeId} {
+        allow read: if true;
+        allow write: if isSchoolAdmin(schoolId);
+
+        // クラス
+        match /classes/{classId} {
+          allow read: if true;
+          allow write: if isSchoolAdmin(schoolId);
+
+          // 日次データ
+          match /daily_data/{dateId} {
+            allow read: if true;
+            allow write: if hasClassAccess(schoolId, classId);
+          }
+        }
+      }
+
+      // デバイス管理
+      match /devices/{deviceId} {
+        allow read: if isSchoolAdmin(schoolId);
+        allow write: if isSchoolAdmin(schoolId);
+      }
+
+      // エディター認証設定
       match /config/{configId} {
-        // サイネージ表示用なので誰でも読み取り可能
         allow read: if true;
-        // 管理者のみ書き込み可能
-        allow write: if isVerifiedAdmin();
+        allow write: if hasAdminAccess() || isSchoolAdmin(schoolId);
       }
-      
-      // 日次データ（daily_data）- 予定、連絡、提出物
+
+      // 旧classes（読み取り専用、移行用）
+      match /classes/{classId} {
+        allow read: if true;
+        allow write: if false;
+        match /daily_data/{dateId} {
+          allow read: if true;
+          allow write: if false;
+        }
+      }
+
+      // 旧daily_data（読み取り専用、移行用）
       match /daily_data/{dateId} {
-        // サイネージ表示用なので誰でも読み取り可能
         allow read: if true;
-        // 管理者のみ書き込み可能
-        allow write: if isVerifiedAdmin();
-      }
-      
-      // 学校配下のサブコレクション
-      match /announcements/{announcementId} {
-        allow read: if true;
-        allow write: if isVerifiedAdmin();
-      }
-      
-      match /schedules/{scheduleId} {
-        allow read: if true;
-        allow write: if isVerifiedAdmin();
-      }
-      
-      match /contents/{contentId} {
-        allow read: if true;
-        allow write: if isVerifiedAdmin();
+        allow write: if false;
       }
     }
-    
+
     // ========================================
-    // 管理者専用データ（非公開）
+    // メンバーシップ
     // ========================================
-    
-    // システム設定
+
+    match /memberships/{membershipId} {
+      allow read: if hasAdminAccess()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if hasAdminAccess();
+      allow update, delete: if hasAdminAccess()
+        || isSchoolAdmin(resource.data.schoolId);
+    }
+
+    // ========================================
+    // 管理者専用データ
+    // ========================================
+
     match /settings/{settingId} {
-      allow read, write: if isVerifiedAdmin();
+      allow read, write: if hasAdminAccess();
     }
-    
-    // ユーザー管理
+
     match /users/{userId} {
-      // 自分のデータは読み取り可能
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      // 管理者は全ユーザーのデータにアクセス可能
-      allow read, write: if isVerifiedAdmin();
+      allow read, write: if hasAdminAccess();
     }
-    
-    // 管理者一覧
+
     match /admins/{adminId} {
       allow read: if isAuthenticated();
-      allow write: if isVerifiedAdmin();
+      allow write: if hasAdminAccess();
     }
-    
-    // 操作ログ（監査用）
+
     match /logs/{logId} {
-      // ログの読み取りは管理者のみ
-      allow read: if isVerifiedAdmin();
-      // ログの作成は認証済みユーザー（自動記録用）
+      allow read: if hasAdminAccess();
       allow create: if isAuthenticated();
-      // ログの更新・削除は禁止
       allow update, delete: if false;
     }
-    
-    // ========================================
-    // デフォルト：その他すべて拒否
-    // ========================================
-    
+
+    // デフォルト
     match /{document=**} {
       allow read, write: if false;
     }
-    
   }
 }

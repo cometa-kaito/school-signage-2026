@@ -1,22 +1,16 @@
-// config.js - Firebase設定と認証ヘルパー
+// config.js - Firebase設定と認証ヘルパー（学校 > 学年 > クラス対応）
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { 
-    getAuth, 
-    signInWithEmailAndPassword,
-    signInWithPopup,
-    GoogleAuthProvider,
-    signOut, 
-    onAuthStateChanged,
-    setPersistence,
-    browserLocalPersistence
+import {
+    getAuth, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken,
+    GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
 // ========================================
-// Firebase設定
+// 定数
 // ========================================
 
 export const firebaseConfig = {
@@ -28,23 +22,58 @@ export const firebaseConfig = {
     appId: "1:1068967206228:web:14d24f8881a5cd1a0b3cc1"
 };
 
+export const DEFAULT_SCHOOL_ID = "gn_tech";
+
+// ========================================
+// コンテキスト管理（学校 > 学年 > クラス）
+// ========================================
+
+function resolveContext() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        schoolId: params.get('school') || localStorage.getItem('selectedSchoolId') || DEFAULT_SCHOOL_ID,
+        gradeId: params.get('grade') || localStorage.getItem('selectedGradeId') || null,
+        classId: params.get('class') || localStorage.getItem('selectedClassId') || null
+    };
+}
+
+const ctx = resolveContext();
+export let SCHOOL_ID = ctx.schoolId;
+export let GRADE_ID = ctx.gradeId;
+export let CLASS_ID = ctx.classId;
+
+export function setSchoolContext(schoolId, gradeId, classId) {
+    SCHOOL_ID = schoolId;
+    GRADE_ID = gradeId;
+    CLASS_ID = classId;
+    localStorage.setItem('selectedSchoolId', schoolId);
+    if (gradeId) { localStorage.setItem('selectedGradeId', gradeId); }
+    else { localStorage.removeItem('selectedGradeId'); }
+    if (classId) { localStorage.setItem('selectedClassId', classId); }
+    else { localStorage.removeItem('selectedClassId'); }
+}
+
+export function getStaticJsonUrl(schoolId, gradeId, classId) {
+    return `https://storage.googleapis.com/${firebaseConfig.storageBucket}/signage-data/${schoolId}/${gradeId}/${classId}/data.json`;
+}
+
+// ========================================
 // Firebase初期化
+// ========================================
+
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const functions = getFunctions(app);
 
-// 認証プロバイダ
 const googleProvider = new GoogleAuthProvider();
-
-// 定数
-export const SCHOOL_ID = "gn_tech";
 
 // ========================================
 // Cloud Functions参照
 // ========================================
 
+// ユーザー管理
 export const listUsersFn = httpsCallable(functions, 'listUsers');
 export const createAdminUserFn = httpsCallable(functions, 'createAdminUser');
 export const setAdminRoleFn = httpsCallable(functions, 'setAdminRole');
@@ -52,9 +81,47 @@ export const updateUserFn = httpsCallable(functions, 'updateUser');
 export const deleteUserFn = httpsCallable(functions, 'deleteUser');
 export const toggleUserStatusFn = httpsCallable(functions, 'toggleUserStatus');
 export const setEmailVerifiedFn = httpsCallable(functions, 'setEmailVerified');
+export const loginAsEditorFn = httpsCallable(functions, 'loginAsEditor');
+export const setEditorPasswordFn = httpsCallable(functions, 'setEditorPassword');
+
+// 学校管理
+export const createSchoolFn = httpsCallable(functions, 'createSchool');
+export const listSchoolsFn = httpsCallable(functions, 'listSchools');
+export const updateSchoolFn = httpsCallable(functions, 'updateSchool');
+export const deleteSchoolFn = httpsCallable(functions, 'deleteSchool');
+
+// 学年管理
+export const createGradeFn = httpsCallable(functions, 'createGrade');
+export const listGradesFn = httpsCallable(functions, 'listGrades');
+export const updateGradeFn = httpsCallable(functions, 'updateGrade');
+export const deleteGradeFn = httpsCallable(functions, 'deleteGrade');
+
+// クラス管理
+export const createClassFn = httpsCallable(functions, 'createClass');
+export const listClassesFn = httpsCallable(functions, 'listClasses');
+export const updateClassFn = httpsCallable(functions, 'updateClass');
+export const deleteClassFn = httpsCallable(functions, 'deleteClass');
+
+// メンバーシップ管理
+export const inviteMemberFn = httpsCallable(functions, 'inviteMember');
+export const updateMembershipFn = httpsCallable(functions, 'updateMembership');
+export const removeMemberFn = httpsCallable(functions, 'removeMember');
+export const listMembersFn = httpsCallable(functions, 'listMembers');
+export const getMyMembershipsFn = httpsCallable(functions, 'getMyMemberships');
+
+// デバイス管理
+export const registerDeviceFn = httpsCallable(functions, 'registerDevice');
+export const authenticateDeviceFn = httpsCallable(functions, 'authenticateDevice');
+export const listDevicesFn = httpsCallable(functions, 'listDevices');
+export const revokeDeviceTokenFn = httpsCallable(functions, 'revokeDeviceToken');
+export const removeDeviceFn = httpsCallable(functions, 'removeDevice');
+
+// JSON再生成・マイグレーション
+export const regenerateSignageJsonFn = httpsCallable(functions, 'regenerateSignageJson');
+export const migrateToGradeStructureFn = httpsCallable(functions, 'migrateToGradeStructure');
 
 // ========================================
-// エラーメッセージ定義
+// エラーメッセージ
 // ========================================
 
 const AUTH_ERROR_MESSAGES = {
@@ -73,11 +140,6 @@ const AUTH_ERROR_MESSAGES = {
     'auth/account-exists-with-different-credential': 'このメールは別の方法で登録済みです',
 };
 
-/**
- * エラーコードを日本語メッセージに変換
- * @param {string} errorCode 
- * @returns {string}
- */
 function getAuthErrorMessage(errorCode) {
     return AUTH_ERROR_MESSAGES[errorCode] || `認証エラー: ${errorCode}`;
 }
@@ -86,98 +148,93 @@ function getAuthErrorMessage(errorCode) {
 // 認証関数
 // ========================================
 
-/**
- * メールとパスワードでログイン
- * @param {string} email 
- * @param {string} password 
- * @returns {Promise<{success: boolean, user?: object, error?: string}>}
- */
 export async function login(email, password) {
     try {
         await setPersistence(auth, browserLocalPersistence);
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return { success: true, user: userCredential.user };
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        return { success: true, user: cred.user };
     } catch (error) {
-        console.error("ログインエラー:", error);
         return { success: false, error: getAuthErrorMessage(error.code) };
     }
 }
 
-/**
- * Googleアカウントでログイン
- * @returns {Promise<{success: boolean, user?: object, error?: string}>}
- */
 export async function loginWithGoogle() {
     try {
         await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithPopup(auth, googleProvider);
         return { success: true, user: result.user };
     } catch (error) {
-        console.error("Googleログインエラー:", error);
         return { success: false, error: getAuthErrorMessage(error.code) };
     }
 }
 
-/**
- * ログアウト
- * @returns {Promise<{success: boolean, error?: string}>}
- */
 export async function logout() {
-    try {
-        await signOut(auth);
-        return { success: true };
-    } catch (error) {
-        console.error("ログアウトエラー:", error);
-        return { success: false, error: error.message };
-    }
+    try { await signOut(auth); return { success: true }; }
+    catch (error) { return { success: false, error: error.message }; }
 }
 
-/**
- * 現在のユーザーを取得
- * @returns {object|null}
- */
-export function getCurrentUser() {
-    return auth.currentUser;
-}
+export function getCurrentUser() { return auth.currentUser; }
+export function onAuthChange(callback) { return onAuthStateChanged(auth, callback); }
 
-/**
- * 認証状態の監視
- * @param {Function} callback 
- * @returns {Function} unsubscribe関数
- */
-export function onAuthChange(callback) {
-    return onAuthStateChanged(auth, callback);
-}
-
-/**
- * ユーザーが管理者かどうかを確認
- * @param {object} user 
- * @returns {Promise<boolean>}
- */
 export async function isUserAdmin(user) {
     if (!user) return false;
-    
     try {
-        const idTokenResult = await user.getIdTokenResult();
-        return idTokenResult.claims.admin === true;
+        const result = await user.getIdTokenResult();
+        return result.claims.admin === true || result.claims.systemRole === 'system_admin';
+    } catch { return false; }
+}
+
+export async function isUserEditor(user) {
+    if (!user) return false;
+    try {
+        const result = await user.getIdTokenResult();
+        return result.claims.editor === true || result.claims.admin === true || result.claims.systemRole === 'system_admin';
+    } catch { return false; }
+}
+
+export async function getUserClaims(user) {
+    if (!user) return {};
+    try { return (await user.getIdTokenResult()).claims; }
+    catch { return {}; }
+}
+
+export async function loginAsEditor(password, schoolId) {
+    try {
+        const result = await loginAsEditorFn({ password, schoolId: schoolId || SCHOOL_ID });
+        if (result.data.success && result.data.customToken) {
+            await setPersistence(auth, browserLocalPersistence);
+            const cred = await signInWithCustomToken(auth, result.data.customToken);
+            if (result.data.schoolId) setSchoolContext(result.data.schoolId, GRADE_ID, CLASS_ID);
+            return { success: true, user: cred.user };
+        }
+        return { success: false, error: 'ログインに失敗しました' };
     } catch (error) {
-        console.error("管理者確認エラー:", error);
-        return false;
+        return { success: false, error: error.message || 'パスワードが間違っています' };
     }
 }
 
-/**
- * IDトークンを取得
- * @returns {Promise<string|null>}
- */
+export async function loginAsDevice(deviceToken) {
+    try {
+        const result = await authenticateDeviceFn({ deviceToken });
+        if (result.data.success && result.data.customToken) {
+            await setPersistence(auth, browserLocalPersistence);
+            await signInWithCustomToken(auth, result.data.customToken);
+            setSchoolContext(result.data.schoolId, result.data.gradeId, result.data.classId);
+            return {
+                success: true, schoolId: result.data.schoolId,
+                gradeId: result.data.gradeId, classId: result.data.classId,
+                deviceName: result.data.deviceName
+            };
+        }
+        return { success: false, error: 'デバイス認証に失敗しました' };
+    } catch (error) {
+        return { success: false, error: error.message || 'デバイストークンが無効です' };
+    }
+}
+
 export async function getIdToken() {
     const user = auth.currentUser;
     if (!user) return null;
-    
-    try {
-        return await user.getIdToken();
-    } catch (error) {
-        console.error("トークン取得エラー:", error);
-        return null;
-    }
+    try { return await user.getIdToken(); }
+    catch { return null; }
 }

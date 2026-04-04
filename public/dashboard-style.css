@@ -1,4 +1,21 @@
-/* dashboard-style.css - ダッシュボード固有スタイル */
+/**
+ * dashboard-style.css - ダッシュボード固有スタイル
+ *
+ * 目次:
+ * 1. スクロールバー表示
+ * 2. コンテナレイアウト
+ * 3. ローディングオーバーレイ
+ * 4. ユーザー情報バー
+ * 5. 編集可能エリア
+ * 6. 削除・追加ボタン
+ * 7. 広告管理オーバーレイ
+ * 8. モーダル
+ * 9. 入力グループ
+ * 10. ボタン
+ * 11. 広告アイテム
+ * 12. カレンダー
+ * 13. スマホ対応
+ */
 
 /* ダッシュボードではスクロールバーを表示 */
 #appContainer ::-webkit-scrollbar {
@@ -71,6 +88,15 @@
     height: auto;
 }
 
+/* ダッシュボード用セクションタイトル（細く、でも色は維持） */
+#appContainer .card h2 {
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    font-weight: 700;
+    color: var(--primary-color);
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.5rem;
+}
+
 #appContainer .schedule-grid-container {
     height: auto;
     overflow: visible;
@@ -130,19 +156,7 @@
     align-items: center;
 }
 
-.loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #667eea;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+/* スピナー（共通スタイルは common.css） */
 
 /* ユーザー情報バー */
 .user-bar-fixed {
@@ -157,6 +171,60 @@
     display: flex;
     align-items: center;
     gap: 15px;
+}
+
+/* ========================================
+   ダッシュボード専用ヘッダー
+   ======================================== */
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    color: white;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dashboard-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.dashboard-date {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.dashboard-day {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.2em 0.5em;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.dashboard-time {
+    font-size: 1rem;
+    font-weight: 500;
+    padding-left: 0.8rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.4);
+    font-family: "Roboto", monospace;
+}
+
+.dashboard-class-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.dashboard-class-title.editable:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* 編集可能エリア */
@@ -261,113 +329,20 @@
     opacity: 0.8;
 }
 
-/* モーダル */
+/* モーダル（共通スタイルは common.css、dashboard固有の上書きのみ） */
 .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
     z-index: 2000;
-    justify-content: center;
-    align-items: center;
 }
 
-.modal-content {
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-}
+/* 入力グループ（共通スタイルは common.css） */
 
-.modal-header {
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.modal-description {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 15px;
-}
-
-.modal-footer {
-    text-align: right;
-    margin-top: 25px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-/* 入力グループ */
-.input-group {
-    margin-bottom: 15px;
-}
-
-.input-group label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 6px;
-    font-size: 0.9rem;
-    color: #555;
-}
-
-.input-group input,
-.input-group textarea {
-    width: 100%;
-    padding: 10px;
-    box-sizing: border-box;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 16px;
-}
-
-.input-group input:focus,
-.input-group textarea:focus {
-    outline: none;
-    border-color: #007bff;
-}
-
-/* ボタン */
-.btn {
-    padding: 8px 20px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.2s;
-}
-
-.btn-secondary {
-    background: #e9ecef;
-    color: #495057;
-}
-
-.btn-secondary:hover {
-    background: #dee2e6;
-}
-
+/* ボタン（共通スタイルは common.css、dashboard固有の上書きのみ） */
 .btn-primary {
     background: #007bff;
-    color: white;
 }
 
 .btn-primary:hover {
     background: #0056b3;
-}
-
-.btn-sm {
-    padding: 5px 10px;
-    font-size: 0.8rem;
 }
 
 .btn-edit {
@@ -485,4 +460,335 @@
 #modal-body select:focus {
     outline: none;
     border-color: #007bff;
+}
+
+/* ========================================
+   カレンダーボタン（メイン - 予定管理用）
+   ======================================== */
+.calendar-button-container {
+    margin-bottom: 15px;
+}
+
+.btn-calendar-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-calendar-main:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-calendar-main:active {
+    transform: translateY(0);
+}
+
+.btn-calendar-main .calendar-icon {
+    font-size: 1.3rem;
+}
+
+.btn-calendar-main .calendar-text {
+    font-size: 1rem;
+}
+
+/* ========================================
+   カレンダーモーダル
+   ======================================== */
+.calendar-modal-content {
+    max-width: 800px;
+    width: 95%;
+}
+
+.calendar-modal-content .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-nav {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.btn-nav:hover {
+    background: #0056b3;
+}
+
+#calendar-month-label {
+    font-weight: bold;
+    min-width: 100px;
+    text-align: center;
+}
+
+.calendar-container {
+    margin-top: 15px;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    background: #ddd;
+    border: 1px solid #ddd;
+}
+
+.calendar-header {
+    background: #f8f9fa;
+    padding: 8px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.calendar-header.sunday {
+    color: #dc3545;
+}
+
+.calendar-header.saturday {
+    color: #007bff;
+}
+
+.calendar-cell {
+    background: white;
+    min-height: 80px;
+    padding: 5px;
+    cursor: pointer;
+    transition: background 0.2s;
+    overflow: hidden;
+}
+
+.calendar-cell:hover {
+    background: #f0f7ff;
+}
+
+.calendar-cell.empty {
+    background: #f8f9fa;
+    cursor: default;
+}
+
+.calendar-cell.today {
+    background: #fff3cd;
+}
+
+.calendar-cell.sunday .calendar-day-number {
+    color: #dc3545;
+}
+
+.calendar-cell.saturday .calendar-day-number {
+    color: #007bff;
+}
+
+.calendar-cell.has-events {
+    border-left: 3px solid #28a745;
+}
+
+.calendar-day-number {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 3px;
+}
+
+.calendar-events {
+    font-size: 0.7rem;
+    line-height: 1.3;
+}
+
+.calendar-event-item {
+    background: #e7f3ff;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calendar-event-more {
+    color: #666;
+    font-style: italic;
+}
+
+/* ========================================
+   スマホ対応強化
+   ======================================== */
+@media (max-width: 600px) {
+    /* スマホでのスクロール確実化 */
+    html, body {
+        overflow: auto !important;
+        overflow-x: hidden !important;
+        height: auto !important;
+        min-height: 100% !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    #appContainer {
+        overflow: visible !important;
+        min-height: 100vh;
+    }
+
+    #appContainer .container {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+
+    #appContainer .info-area {
+        overflow: visible !important;
+        height: auto !important;
+    }
+
+    /* ダッシュボードヘッダー（スマホ） */
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.6rem 0.8rem;
+        gap: 8px;
+    }
+
+    .dashboard-header-left {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 0.5rem;
+    }
+
+    .dashboard-date {
+        font-size: 0.85rem;
+    }
+
+    .dashboard-day {
+        font-size: 0.75rem;
+    }
+
+    .dashboard-time {
+        font-size: 0.85rem;
+        padding-left: 0.5rem;
+    }
+
+    .dashboard-class-title {
+        font-size: 0.95rem;
+        width: 100%;
+    }
+
+    /* カレンダーボタン（スマホ） */
+    .btn-calendar-main {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+
+    .btn-calendar-main .calendar-icon {
+        font-size: 1.1rem;
+    }
+
+    .btn-calendar-main .calendar-text {
+        font-size: 0.85rem;
+    }
+
+    .calendar-modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .calendar-cell {
+        min-height: 50px;
+        padding: 3px;
+    }
+
+    .calendar-day-number {
+        font-size: 0.75rem;
+    }
+
+    .calendar-events {
+        font-size: 0.6rem;
+    }
+
+    .calendar-event-item {
+        padding: 1px 2px;
+    }
+
+    /* セクションタイトル（スマホ） */
+    #appContainer .card h2 {
+        font-size: 0.85rem;
+    }
+}
+
+/* 履歴ボタン */
+.btn-history {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: #555;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.btn-history:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+/* 表示範囲ヒント */
+.input-hint {
+    font-size: 12px;
+    color: #888;
+    margin: 2px 0 6px 0;
+    line-height: 1.4;
+}
+
+.display-range-group {
+    background: #f8f9ff;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e4f0;
+}
+
+/* カレンダー日詳細のボタン */
+#calendar-day-detail .btn-icon {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+#calendar-day-detail .btn-icon:hover {
+    background: #f0f0f0;
+}
+#calendar-day-detail .btn-danger:hover {
+    background: #fee;
+}
+
+/* タブレット対応 */
+@media (max-width: 1024px) {
+    html, body {
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
 }

@@ -1,0 +1,176 @@
+/* admin-app-style.css - サイネージ管理（コンテンツ登録）画面固有スタイル */
+
+:root {
+    --primary: #2c3e50;
+    --accent: #3498db;
+    --bg: #f4f7f6;
+}
+
+body {
+    font-family: sans-serif;
+    background: var(--bg);
+    padding: 0;
+    margin: 0;
+    color: #333;
+}
+
+/* アプリ本体 */
+#appContainer {
+    display: none;
+    padding: 20px;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.app-header h1 {
+    font-size: 1.2rem;
+    color: var(--primary);
+    margin: 0;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* カード */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    transition: opacity 0.3s, background 0.3s;
+}
+
+.card.disabled {
+    opacity: 0.5;
+    background: #f5f5f5;
+    pointer-events: none;
+}
+
+.card.disabled label {
+    color: #999;
+}
+
+.card.disabled input {
+    background: #eee;
+    color: #999;
+    cursor: not-allowed;
+}
+
+/* フォーム */
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+/* チェックボックス行 */
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    padding: 0;
+}
+
+/* オプションセクション */
+.optional-section {
+    margin-top: 16px;
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+}
+
+.optional-header {
+    color: #666;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 8px 0;
+    user-select: none;
+}
+
+.optional-header:hover {
+    color: var(--accent);
+}
+
+.optional-fields {
+    padding-top: 8px;
+}
+
+.optional-fields.hidden {
+    display: none;
+}
+
+/* タブ */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: #ddd;
+    border-radius: 8px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.tab-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* 送信ボタン */
+.submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.submit-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+}
+
+.submit-btn:hover:not(:disabled) {
+    background: #1a252f;
+}

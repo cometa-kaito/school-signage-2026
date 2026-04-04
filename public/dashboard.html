@@ -4,9 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Signage Dashboard (管理者)</title>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RM584Q3Z41"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-RM584Q3Z41');
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="common.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="auth-style.css">
     <link rel="stylesheet" href="dashboard-style.css">
@@ -14,8 +23,11 @@
     <style>
         html, body {
             overflow: auto !important;
+            overflow-x: hidden !important;
             height: auto !important;
             min-height: 100% !important;
+            -webkit-overflow-scrolling: touch !important;
+            touch-action: pan-y !important;
         }
         .container {
             overflow: visible !important;
@@ -50,31 +62,48 @@
     <!-- ログイン画面 -->
     <div id="loginContainer" class="login-container">
         <div class="login-box">
-            <h2>🔐 管理者ログイン</h2>
+            <h2>🔐 ダッシュボードログイン</h2>
             <div id="loginError" class="error-msg"></div>
-            
-            <form id="loginForm">
+
+            <!-- タブ切り替え -->
+            <div class="login-tabs">
+                <button class="login-tab active" data-tab="editor">コンテンツ編集</button>
+                <button class="login-tab" data-tab="admin">管理者</button>
+            </div>
+
+            <!-- エディターログイン（パスワードのみ） -->
+            <form id="editorLoginForm" class="login-form-tab">
+                <div class="form-group">
+                    <label for="editorPassword">編集パスワード</label>
+                    <input type="password" id="editorPassword" required
+                           placeholder="パスワード" autocomplete="current-password">
+                </div>
+                <button type="submit" id="editorLoginBtn" class="login-btn">ログイン</button>
+            </form>
+
+            <!-- 管理者ログイン（Email + Password） -->
+            <form id="loginForm" class="login-form-tab" style="display: none;">
                 <div class="form-group">
                     <label for="loginEmail">メールアドレス</label>
-                    <input type="email" id="loginEmail" required 
+                    <input type="email" id="loginEmail"
                            placeholder="admin@example.com" autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="loginPassword">パスワード</label>
-                    <input type="password" id="loginPassword" required 
+                    <input type="password" id="loginPassword"
                            placeholder="パスワード" autocomplete="current-password">
                 </div>
                 <button type="submit" id="loginBtn" class="login-btn">ログイン</button>
+
+                <div class="divider"><span>または</span></div>
+
+                <button type="button" id="googleLoginBtn" class="google-btn">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                    Googleでログイン
+                </button>
             </form>
-            
-            <div class="divider"><span>または</span></div>
-            
-            <button type="button" id="googleLoginBtn" class="google-btn">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-                Googleでログイン
-            </button>
-            
-            <p class="login-note">※管理者のみログインできます</p>
+
+            <p class="login-note">※コンテンツ編集はパスワードのみでログインできます</p>
         </div>
     </div>
 
@@ -87,15 +116,26 @@
 
         <div class="container">
             <main class="info-area">
-                <header class="header-block">
-                    <div class="date-group">
-                        <span id="current-date" class="date-text">--月--日</span>
-                        <span id="current-day" class="day-badge">--</span>
-                        <span id="current-time" class="time-text">--:--</span>
+                <!-- 学校・クラスセレクタ -->
+                <div id="school-class-selector" style="padding: 8px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 14px;"></div>
+
+                <header class="dashboard-header">
+                    <div class="dashboard-header-left">
+                        <span id="current-date" class="dashboard-date">--月--日</span>
+                        <span id="current-day" class="dashboard-day">--</span>
+                        <span id="current-time" class="dashboard-time">--:--</span>
                     </div>
-                    <h1 id="class-name" class="class-title editable" 
+                    <h1 id="class-name" class="dashboard-class-title editable"
                         onclick="window.dashboard && window.dashboard.openConfigModal()">--</h1>
                 </header>
+
+                <!-- カレンダーボタン（予定管理用） -->
+                <div class="calendar-button-container">
+                    <button class="btn-calendar-main" onclick="window.dashboard && window.dashboard.openCalendar()">
+                        <span class="calendar-icon">📅</span>
+                        <span class="calendar-text">予定を管理する（カレンダー）</span>
+                    </button>
+                </div>
 
                 <div class="content-grid">
                     <section class="card schedule-section">
@@ -104,14 +144,18 @@
                     </section>
 
                     <section class="card notice-section">
-                        <h2><span class="icon">📢</span> 各種連絡</h2>
+                        <h2 style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><span class="icon">📢</span> 各種連絡</span>
+                            <button class="btn-history" onclick="window.dashboard && window.dashboard.showHistory('notice')" title="過去の連絡履歴を見る">📋 履歴</button>
+                        </h2>
                         <ul id="notice-list" class="list-group"></ul>
-                        <div class="btn-add-area" 
-                             onclick="window.dashboard && window.dashboard.openAddModal('notice')">+ 連絡を追加</div>
                     </section>
 
                     <section class="card assignment-section">
-                        <h2><span class="icon">⚠️</span> 提出物管理</h2>
+                        <h2 style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><span class="icon">⚠️</span> 提出物管理</span>
+                            <button class="btn-history" onclick="window.dashboard && window.dashboard.showHistory('assignment')" title="過去の提出物履歴を見る">📋 履歴</button>
+                        </h2>
                         <div class="table-wrapper">
                             <table class="task-table">
                                 <thead>
@@ -125,20 +169,17 @@
                                 <tbody id="assignment-list"></tbody>
                             </table>
                         </div>
-                        <div class="btn-add-area" 
-                             onclick="window.dashboard && window.dashboard.openAddModal('assignment')">+ 提出物を追加</div>
                     </section>
                 </div>
 
-                <footer class="branding">Edix by Rebounder (管理者モード)</footer>
+                <footer class="branding">キミテラス by Rebounder (管理者モード)</footer>
             </main>
 
             <aside class="ad-area">
-                <div class="ad-container" onclick="window.dashboard && window.dashboard.openAdManager()">
+                <div class="ad-container">
                     <img id="ad-image" src="" alt="Advertisement">
-                    <div class="img-edit-overlay">
-                        <div class="img-edit-text">画像を管理する</div>
-                        <div class="img-edit-sub">追加・変更・削除 (最大5枚)</div>
+                    <div class="ad-info-overlay">
+                        <div class="ad-info-text">広告管理はユーザー管理画面から</div>
                     </div>
                 </div>
             </aside>
@@ -157,31 +198,48 @@
             </div>
         </div>
 
-        <!-- 画像管理モーダル -->
-        <div id="ad-modal" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">画像管理設定</div>
-                <p class="modal-description">最大5枚まで登録できます。</p>
-                <div id="ad-list-container"></div>
-                <div id="ad-add-btn-wrapper">
-                    <div class="btn-add-area" 
-                         onclick="window.dashboard && window.dashboard.triggerAdUpload('add')">
-                        <span class="icon-add">+</span> 画像を追加する
+
+        <!-- カレンダーモーダル -->
+        <div id="calendar-modal" class="modal-overlay">
+            <div class="modal-content calendar-modal-content">
+                <div class="modal-header">
+                    <span>📆 予定カレンダー</span>
+                    <div class="calendar-nav">
+                        <button class="btn-nav" onclick="window.dashboard && window.dashboard.prevMonth()">◀</button>
+                        <span id="calendar-month-label">----年--月</span>
+                        <button class="btn-nav" onclick="window.dashboard && window.dashboard.nextMonth()">▶</button>
                     </div>
                 </div>
-                <p id="ad-limit-alert" class="limit-alert">※ 最大枚数(5枚)に達しています</p>
+                <div id="calendar-container" class="calendar-container"></div>
+                <!-- カレンダー日別詳細エリア -->
+                <div id="calendar-day-detail" style="display:none;border-top:2px solid #667eea;margin-top:12px;padding-top:8px;">
+                    <h3 id="calendar-day-title" style="font-size:16px;margin:0 0 8px 0;"></h3>
+                    <div id="calendar-day-content" style="max-height:300px;overflow-y:auto;"></div>
+                </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" 
-                            onclick="window.dashboard && window.dashboard.closeModal('ad-modal')">閉じる</button>
+                    <button class="btn btn-secondary"
+                            onclick="window.dashboard && window.dashboard.closeModal('calendar-modal')">閉じる</button>
                 </div>
             </div>
         </div>
 
-        <input type="file" id="ad-file-input" accept="image/*" hidden>
+        <!-- 入力履歴モーダル -->
+        <div id="history-modal" class="modal-overlay">
+            <div class="modal-content" style="max-width:600px;">
+                <div class="modal-header" id="history-title">入力履歴</div>
+                <p style="font-size:13px;color:#888;margin:0 0 8px 16px;">📋ボタンで過去の内容を再利用できます</p>
+                <div id="history-content" style="max-height:400px;overflow-y:auto;"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary"
+                            onclick="window.dashboard && window.dashboard.closeModal('history-modal')">閉じる</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script type="module">
-        import { login, loginWithGoogle, logout, onAuthChange, isUserAdmin } from './config.js';
+        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserEditor } from './config.js';
 
         // Firebase SDK読み込み成功を通知
         window.firebaseLoaded = true;
@@ -194,37 +252,69 @@
 
         let dashboardInitialized = false;
 
+        // タブ切り替え
+        document.querySelectorAll('.login-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const tabName = tab.dataset.tab;
+                document.getElementById('editorLoginForm').style.display = tabName === 'editor' ? 'block' : 'none';
+                document.getElementById('loginForm').style.display = tabName === 'admin' ? 'block' : 'none';
+                loginError.style.display = 'none';
+            });
+        });
+
         // 認証状態の監視
         onAuthChange(async (user) => {
             if (user) {
                 const isAdmin = await isUserAdmin(user);
-                if (isAdmin) {
-                    showApp(user);
+                const isEditor = await isUserEditor(user);
+                if (isAdmin || isEditor) {
+                    showApp(user, isAdmin);
                 } else {
                     await logout();
-                    showLoginError('管理者権限がありません');
+                    showLoginError('アクセス権限がありません');
                 }
             } else {
                 showLogin();
             }
         });
 
-        // ログインフォーム
+        // エディターログインフォーム（パスワードのみ）
+        document.getElementById('editorLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('editorPassword').value;
+            const btn = document.getElementById('editorLoginBtn');
+
+            btn.disabled = true;
+            btn.textContent = 'ログイン中...';
+            loginError.style.display = 'none';
+
+            const result = await loginAsEditor(password);
+            if (!result.success) {
+                showLoginError(result.error);
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'ログイン';
+        });
+
+        // 管理者ログインフォーム
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const btn = document.getElementById('loginBtn');
-            
+
             btn.disabled = true;
             btn.textContent = 'ログイン中...';
             loginError.style.display = 'none';
-            
+
             const result = await login(email, password);
             if (!result.success) {
                 showLoginError(result.error);
             }
-            
+
             btn.disabled = false;
             btn.textContent = 'ログイン';
         });
@@ -245,11 +335,12 @@
         });
 
         // UI表示切替
-        function showApp(user) {
+        function showApp(user, isAdmin) {
             loadingOverlay.style.display = 'none';
             loginContainer.style.display = 'none';
             appContainer.style.display = 'block';
-            document.getElementById('userEmail').textContent = user.email;
+            const displayName = user.email || (isAdmin ? '管理者' : 'コンテンツ編集者');
+            document.getElementById('userEmail').textContent = displayName;
             initDashboard();
         }
 
@@ -269,7 +360,7 @@
 
         function initDashboard() {
             if (dashboardInitialized) return;
-            
+
             // dashboard.jsの読み込みを待つ
             if (window.dashboard && window.dashboard.init) {
                 dashboardInitialized = true;

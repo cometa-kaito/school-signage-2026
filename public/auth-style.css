@@ -185,10 +185,55 @@
     background: #c0392b;
 }
 
+/* ログインタブ切り替え */
+.login-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #667eea;
+}
+
+.login-tab {
+    flex: 1;
+    padding: 12px 8px;
+    background: white;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #667eea;
+    transition: all 0.2s;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.login-tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.login-tab:hover:not(.active) {
+    background: #f0f0ff;
+}
+
+.login-form-tab {
+    display: block;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 480px) {
     .login-box {
         padding: 30px 20px;
         margin: 10px;
+    }
+
+    .login-tabs {
+        flex-direction: column;
+    }
+
+    .login-tab {
+        padding: 12px;
     }
 }

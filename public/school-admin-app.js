@@ -36,7 +36,7 @@ const schoolParam = urlParams.get('school');
 let currentUserUid = null;
 let isSystemAdminUser = false;
 let schoolsList = [], gradesList = [];
-let activeSchoolId = null, activeGradeId = null;
+let activeSchoolId = null, activeGradeId = null, expandedClassId = null;
 let usersData = [], membersData = [];
 let quietHours = [];
 
@@ -460,16 +460,36 @@ function renderGradeClassTree() {
             ${isOpen ? `
             <div style="padding:12px 16px;background:#fff;">
                 ${classes.length === 0 ? '<p class="empty-text" style="margin:0;">クラスがありません。「+ クラス」から追加してください。</p>' :
-                `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
-                    ${classes.map(cl => `
-                        <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-weight:500;">${cl.name}</span>
-                            <div style="display:flex;gap:4px;">
-                                <button class="btn-icon" onclick="window.showClassUrls('${cl.id}','${cl.name.replace(/'/g, "\\'")}')" title="詳細・URL" style="font-size:12px;">&#128279;</button>
-                                <button class="btn-icon btn-danger" onclick="window.deleteClassInGrade('${g.id}','${cl.id}')" title="削除" style="font-size:12px;">x</button>
+                `<div style="display:flex;flex-direction:column;gap:6px;">
+                    ${classes.map(cl => {
+                        const isExpanded = expandedClassId === cl.id;
+                        const origin = window.location.origin;
+                        const signageUrl = `${origin}/?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}&kiosk=1`;
+                        const dashboardUrl = `${origin}/dashboard.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
+                        const adminUrl = `${origin}/admin.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
+                        const settingsUrl = `${origin}/class-settings.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
+                        return `
+                        <div style="border:1px solid ${isExpanded ? '#667eea' : '#e9ecef'};border-radius:8px;overflow:hidden;">
+                            <div style="background:${isExpanded ? '#eef2ff' : '#f8f9fa'};padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;"
+                                 onclick="window.toggleClass('${cl.id}')">
+                                <span style="font-weight:500;">${cl.name}</span>
+                                <button class="btn-icon btn-danger" onclick="event.stopPropagation();window.deleteClassInGrade('${g.id}','${cl.id}')" title="削除" style="font-size:12px;">x</button>
                             </div>
-                        </div>
-                    `).join('')}
+                            ${isExpanded ? `
+                            <div style="padding:10px 14px;background:#fff;border-top:1px solid #e9ecef;">
+                                <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                                    <a href="${dashboardUrl}" class="btn btn-primary btn-sm" style="text-decoration:none;">ダッシュボード</a>
+                                    <a href="${adminUrl}" class="btn btn-secondary btn-sm" style="text-decoration:none;">連絡登録</a>
+                                    <a href="${settingsUrl}" class="btn btn-secondary btn-sm" style="text-decoration:none;">クラス設定</a>
+                                </div>
+                                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+                                    <span style="font-size:11px;color:#888;white-space:nowrap;">サイネージ:</span>
+                                    <input type="text" readonly value="${signageUrl}" style="flex:1;font-size:11px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;" id="url-s-${cl.id}">
+                                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();window.copyToClipboard(document.getElementById('url-s-${cl.id}').value)" style="font-size:11px;padding:4px 8px;">コピー</button>
+                                </div>
+                            </div>` : ''}
+                        </div>`;
+                    }).join('')}
                 </div>`}
             </div>` : ''}
         </div>`;
@@ -478,6 +498,12 @@ function renderGradeClassTree() {
 
 window.toggleGrade = (gradeId) => {
     activeGradeId = (activeGradeId === gradeId) ? null : gradeId;
+    expandedClassId = null;
+    renderGradeClassTree();
+};
+
+window.toggleClass = (classId) => {
+    expandedClassId = (expandedClassId === classId) ? null : classId;
     renderGradeClassTree();
 };
 
@@ -497,10 +523,10 @@ window.addClassToGrade = (gradeId, gradeName) => {
                     const cr = await listClassesFn({ schoolId: activeSchoolId, gradeId });
                     gradeClassesCache[gradeId] = cr.data.classes || [];
                 } catch { /* ignore */ }
-                renderGradeClassTree();
-                // 作成したクラスのURLを表示
+                // 作成したクラスを展開表示
                 const newClass = (gradeClassesCache[gradeId] || []).find(c => c.name === name);
-                if (newClass) showUrlModal(newClass.id, newClass.name);
+                if (newClass) expandedClassId = newClass.id;
+                renderGradeClassTree();
             } catch (e) { showToast('エラー: ' + e.message, 'error'); }
         }
     );
@@ -547,45 +573,6 @@ document.getElementById('createGradeBtn').addEventListener('click', () => {
         }
     );
 });
-
-function showUrlModal(classId, className) {
-    const origin = window.location.origin;
-    const signageUrl = `${origin}/?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}&kiosk=1`;
-    const dashboardUrl = `${origin}/dashboard.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
-    const adminUrl = `${origin}/admin.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
-    const settingsUrl = `${origin}/class-settings.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
-
-    const grade = gradesList.find(g => g.id === activeGradeId);
-    const gradeName = grade ? grade.name : activeGradeId;
-
-    showGenericModal(`${gradeName} ${className}`,
-        `<div style="display:flex;gap:8px;margin-bottom:16px;">
-            <a href="${dashboardUrl}" class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none;">ダッシュボード</a>
-            <a href="${adminUrl}" class="btn btn-secondary" style="flex:1;text-align:center;text-decoration:none;">連絡登録</a>
-            <a href="${settingsUrl}" class="btn btn-secondary" style="flex:1;text-align:center;text-decoration:none;">クラス設定</a>
-        </div>
-        <div class="form-group">
-            <label>サイネージURL</label>
-            <div style="display:flex;gap:8px;">
-                <input type="text" readonly value="${signageUrl}" style="flex:1;font-size:12px;" id="url-signage">
-                <button class="btn btn-secondary btn-sm" onclick="window.copyToClipboard(document.getElementById('url-signage').value)">コピー</button>
-            </div>
-        </div>
-        <div class="form-group">
-            <label>ダッシュボードURL</label>
-            <div style="display:flex;gap:8px;">
-                <input type="text" readonly value="${dashboardUrl}" style="flex:1;font-size:12px;" id="url-dashboard">
-                <button class="btn btn-secondary btn-sm" onclick="window.copyToClipboard(document.getElementById('url-dashboard').value)">コピー</button>
-            </div>
-        </div>`,
-        () => { document.getElementById('genericModal').style.display = 'none'; }
-    );
-    document.getElementById('genericModalSave').textContent = '閉じる';
-}
-
-window.showClassUrls = (classId, className) => {
-    showUrlModal(classId, className);
-};
 
 // ========================================
 // ユーザー・メンバー統合管理

@@ -13,6 +13,14 @@
  */
 
 /* =====================
+   0. グローバルリセット
+   ===================== */
+*, *::before, *::after {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+}
+
+/* =====================
    1. CSS変数（共通カラーパレット）
    ===================== */
 :root {
@@ -110,6 +118,7 @@
     font-weight: 600;
     font-size: 0.9rem;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .btn-primary {
@@ -222,6 +231,7 @@
     border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .badge-admin {

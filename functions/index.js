@@ -15,7 +15,6 @@ const schools = require('./handlers/schools');
 const grades = require('./handlers/grades');
 const classes = require('./handlers/classes');
 const members = require('./handlers/members');
-const devices = require('./handlers/devices');
 const users = require('./handlers/users');
 const editorAuth = require('./handlers/editor-auth');
 const signageJson = require('./handlers/signage-json');
@@ -45,13 +44,6 @@ exports.updateMembership = members.updateMembership;
 exports.removeMember = members.removeMember;
 exports.listMembers = members.listMembers;
 exports.getMyMemberships = members.getMyMemberships;
-
-// デバイス認証
-exports.registerDevice = devices.registerDevice;
-exports.authenticateDevice = devices.authenticateDevice;
-exports.listDevices = devices.listDevices;
-exports.revokeDeviceToken = devices.revokeDeviceToken;
-exports.removeDevice = devices.removeDevice;
 
 // ユーザー管理
 exports.listUsers = users.listUsers;

@@ -66,12 +66,6 @@ service cloud.firestore {
         }
       }
 
-      // デバイス管理
-      match /devices/{deviceId} {
-        allow read: if isSchoolAdmin(schoolId);
-        allow write: if isSchoolAdmin(schoolId);
-      }
-
       // エディター認証設定
       match /config/{configId} {
         allow read: if true;

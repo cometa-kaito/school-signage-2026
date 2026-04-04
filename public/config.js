@@ -109,13 +109,6 @@ export const removeMemberFn = httpsCallable(functions, 'removeMember');
 export const listMembersFn = httpsCallable(functions, 'listMembers');
 export const getMyMembershipsFn = httpsCallable(functions, 'getMyMemberships');
 
-// デバイス管理
-export const registerDeviceFn = httpsCallable(functions, 'registerDevice');
-export const authenticateDeviceFn = httpsCallable(functions, 'authenticateDevice');
-export const listDevicesFn = httpsCallable(functions, 'listDevices');
-export const revokeDeviceTokenFn = httpsCallable(functions, 'revokeDeviceToken');
-export const removeDeviceFn = httpsCallable(functions, 'removeDevice');
-
 // JSON再生成・マイグレーション
 export const regenerateSignageJsonFn = httpsCallable(functions, 'regenerateSignageJson');
 export const migrateToGradeStructureFn = httpsCallable(functions, 'migrateToGradeStructure');
@@ -210,25 +203,6 @@ export async function loginAsEditor(password, schoolId) {
         return { success: false, error: 'ログインに失敗しました' };
     } catch (error) {
         return { success: false, error: error.message || 'パスワードが間違っています' };
-    }
-}
-
-export async function loginAsDevice(deviceToken) {
-    try {
-        const result = await authenticateDeviceFn({ deviceToken });
-        if (result.data.success && result.data.customToken) {
-            await setPersistence(auth, browserLocalPersistence);
-            await signInWithCustomToken(auth, result.data.customToken);
-            setSchoolContext(result.data.schoolId, result.data.gradeId, result.data.classId);
-            return {
-                success: true, schoolId: result.data.schoolId,
-                gradeId: result.data.gradeId, classId: result.data.classId,
-                deviceName: result.data.deviceName
-            };
-        }
-        return { success: false, error: 'デバイス認証に失敗しました' };
-    } catch (error) {
-        return { success: false, error: error.message || 'デバイストークンが無効です' };
     }
 }
 

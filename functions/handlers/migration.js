@@ -73,13 +73,6 @@ exports.migrateToGradeStructure = functions.https.onCall(withAuth(async (data, c
             }
             if (batchCount > 0) await batch.commit();
 
-            // デバイスのgradeIdを更新
-            const devicesSnap = await db.collection('schools').doc(targetSchoolId)
-                .collection('devices').where('classId', '==', oldClass.id).get();
-            for (const devDoc of devicesSnap.docs) {
-                await devDoc.ref.update({ gradeId: gradeRef.id, classId: newClassRef.id });
-            }
-
             totalClasses++;
             results.push(`${gradeName} > ${oldClass.name} (${dailySnap.size}日分)`);
         }

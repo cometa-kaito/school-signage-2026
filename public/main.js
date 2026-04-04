@@ -1,6 +1,6 @@
 // main.js - サイネージ表示用メインスクリプト
 
-import { db, firebaseConfig, SCHOOL_ID, GRADE_ID, CLASS_ID, getStaticJsonUrl, setSchoolContext, loginAsDevice } from './config.js';
+import { db, firebaseConfig, SCHOOL_ID, GRADE_ID, CLASS_ID, getStaticJsonUrl, setSchoolContext } from './config.js';
 import {
     query,
     where,
@@ -98,32 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const isKioskMode = urlParams.get('kiosk') === '1' || urlParams.get('autostart') === '1';
     const forceStaticJson = urlParams.get('static') === '1';
-    const deviceTokenParam = urlParams.get('token');
-
-    // デバイストークンがURLパラメータにある場合はlocalStorageに保存
-    if (deviceTokenParam) {
-        localStorage.setItem('deviceToken', deviceTokenParam);
-        console.log('デバイストークンをURLから取得・保存');
-        // トークンをURLから消す（セキュリティ）
-        const cleanUrl = new URL(window.location);
-        cleanUrl.searchParams.delete('token');
-        history.replaceState(null, '', cleanUrl);
-    }
-
-    // デバイストークン認証を試行
-    const storedDeviceToken = localStorage.getItem('deviceToken');
-    if (storedDeviceToken) {
-        console.log('デバイストークンで認証中...');
-        const authResult = await loginAsDevice(storedDeviceToken);
-        if (authResult.success) {
-            console.log(`デバイス認証成功: school=${authResult.schoolId}, class=${authResult.classId}`);
-        } else {
-            console.warn('デバイス認証失敗:', authResult.error);
-            // トークンが無効な場合は削除
-            localStorage.removeItem('deviceToken');
-        }
-    }
-
     if (isKioskMode) {
         console.log('キオスクモードで起動');
         startSignageKiosk();

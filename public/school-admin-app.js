@@ -1,44 +1,105 @@
-// user-management-app.js - 管理画面ロジック
+// school-admin-app.js - 学校管理ロジック（学校一覧 + 学校詳細の2ビュー）
 
 import {
     db, storage, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext,
-    login, loginWithGoogle, logout, onAuthChange, isUserAdmin,
+    login, loginWithGoogle, logout, onAuthChange, isUserAdmin, getUserClaims,
     listUsersFn, createAdminUserFn, setAdminRoleFn, updateUserFn, deleteUserFn,
     toggleUserStatusFn, setEmailVerifiedFn, setEditorPasswordFn,
-    createSchoolFn, listSchoolsFn, createGradeFn, listGradesFn, updateGradeFn, deleteGradeFn,
+    createSchoolFn, listSchoolsFn, updateSchoolFn, deleteSchoolFn,
+    createGradeFn, listGradesFn, updateGradeFn, deleteGradeFn,
     createClassFn, listClassesFn, deleteClassFn,
     inviteMemberFn, listMembersFn, removeMemberFn, updateMembershipFn,
-    registerDeviceFn, listDevicesFn, removeDeviceFn, revokeDeviceTokenFn,
-    migrateToGradeStructureFn
+    getMyMembershipsFn, migrateToGradeStructureFn
 } from './config.js';
 import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 window.firebaseLoaded = true;
 
+// ========================================
+// DOM参照
+// ========================================
+
 const loginContainer = document.getElementById('loginContainer');
 const appContainer = document.getElementById('appContainer');
 const loginError = document.getElementById('loginError');
+const schoolListView = document.getElementById('schoolListView');
+const schoolDetailView = document.getElementById('schoolDetailView');
+const breadcrumb = document.getElementById('breadcrumb');
+
+// ========================================
+// 状態管理
+// ========================================
+
+const urlParams = new URLSearchParams(window.location.search);
+const schoolParam = urlParams.get('school');
 
 let currentUserUid = null;
+let isSystemAdminUser = false;
 let schoolsList = [], gradesList = [], classesList = [];
-let activeSchoolId = SCHOOL_ID, activeGradeId = GRADE_ID;
+let activeSchoolId = null, activeGradeId = null;
 let usersData = [], membersData = [];
 let quietHours = [], adsData = [], pendingAdAction = null;
 let adGradeId = null, adClassId = null, adClassesList = [];
 
-// ========== 認証 ==========
+// ========================================
+// 認証
+// ========================================
+
 onAuthChange(async (user) => {
     if (user) {
         const isAdmin = await isUserAdmin(user);
-        if (isAdmin) {
-            currentUserUid = user.uid;
-            loginContainer.style.display = 'none';
-            appContainer.style.display = 'block';
-            document.getElementById('userEmail').textContent = user.email;
-            loadSchools();
-        } else { await logout(); showLoginError('管理者権限がありません'); }
-    } else { loginContainer.style.display = 'flex'; appContainer.style.display = 'none'; }
+        if (!isAdmin) {
+            // system_adminでない場合、school_adminかチェック
+            try {
+                const result = await getMyMembershipsFn();
+                const memberships = result.data.memberships || [];
+                const schoolAdminMembership = memberships.find(m => m.role === 'school_admin');
+                if (schoolAdminMembership) {
+                    // school_adminは自校の詳細ビューへリダイレクト
+                    currentUserUid = user.uid;
+                    isSystemAdminUser = false;
+                    loginContainer.style.display = 'none';
+                    appContainer.style.display = 'block';
+                    document.getElementById('userEmail').textContent = user.email;
+                    const targetSchool = schoolParam || schoolAdminMembership.schoolId;
+                    if (!schoolParam) {
+                        window.location.href = `school-admin.html?school=${targetSchool}`;
+                        return;
+                    }
+                    // school_adminは自校のみアクセス可
+                    if (!memberships.some(m => m.schoolId === targetSchool && m.role === 'school_admin')) {
+                        showLoginError('この学校へのアクセス権がありません');
+                        await logout();
+                        return;
+                    }
+                    activeSchoolId = targetSchool;
+                    showDetailView();
+                    return;
+                }
+            } catch (e) { console.error(e); }
+            await logout();
+            showLoginError('管理者権限がありません');
+            return;
+        }
+
+        // system_admin
+        currentUserUid = user.uid;
+        isSystemAdminUser = true;
+        loginContainer.style.display = 'none';
+        appContainer.style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+
+        if (schoolParam) {
+            activeSchoolId = schoolParam;
+            showDetailView();
+        } else {
+            showListView();
+        }
+    } else {
+        loginContainer.style.display = 'flex';
+        appContainer.style.display = 'none';
+    }
 });
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -56,7 +117,12 @@ document.getElementById('googleLoginBtn').addEventListener('click', async () => 
 });
 document.getElementById('logoutBtn').addEventListener('click', () => logout());
 
+// ========================================
+// ユーティリティ
+// ========================================
+
 function showLoginError(msg) { loginError.textContent = msg; loginError.style.display = 'block'; }
+
 function showToast(msg, type) {
     const existing = document.querySelector('.toast'); if (existing) existing.remove();
     const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg;
@@ -70,50 +136,179 @@ function showGenericModal(title, bodyHtml, onSave) {
     document.getElementById('genericModal').style.display = 'flex';
 }
 
-// ========== 学校管理 ==========
-async function loadSchools() {
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(
+        () => showToast('コピーしました', 'success'),
+        () => showToast('コピーに失敗しました', 'error')
+    );
+}
+window.copyToClipboard = copyToClipboard;
+
+// ========================================
+// ビュー切り替え
+// ========================================
+
+function showListView() {
+    document.getElementById('pageTitle').textContent = '学校管��';
+    schoolListView.style.display = 'block';
+    schoolDetailView.style.display = 'none';
+    loadSchoolList();
+}
+
+function showDetailView() {
+    document.getElementById('pageTitle').textContent = '学校管理';
+    schoolListView.style.display = 'none';
+    schoolDetailView.style.display = 'block';
+    // system_admin以外はパンくず非表示
+    breadcrumb.style.display = isSystemAdminUser ? 'block' : 'none';
+    setSchoolContext(activeSchoolId, null, null);
+    loadSchoolDetail();
+}
+
+// ========================================
+// 学校一覧ビュー（system_adminのみ）
+// ========================================
+
+async function loadSchoolList() {
+    const container = document.getElementById('schoolGridContainer');
+    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
     try {
         const r = await listSchoolsFn();
         schoolsList = r.data.schools || [];
-        renderSchoolSelect();
-        if (activeSchoolId) {
-            loadGrades(activeSchoolId);
-            loadUsersAndMembers();
-            loadDevices(activeSchoolId);
-            loadEditorPassword();
-            initAdSelectors();
-            loadQuietHours();
+        renderSchoolGrid();
+    } catch (e) {
+        container.innerHTML = `<p class="error-text">エラー: ${e.message}</p>`;
+    }
+}
+
+function renderSchoolGrid() {
+    const container = document.getElementById('schoolGridContainer');
+    if (schoolsList.length === 0) {
+        container.innerHTML = '<p class="empty-text">学校が登録されていません</p>';
+        return;
+    }
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+        ${schoolsList.map(s => `
+            <div class="school-card" style="background:#f8f9fa;border:2px solid #e9ecef;border-radius:12px;padding:20px;cursor:pointer;transition:all 0.2s;"
+                 onmouseenter="this.style.borderColor='#667eea';this.style.boxShadow='0 4px 12px rgba(102,126,234,0.15)'"
+                 onmouseleave="this.style.borderColor='#e9ecef';this.style.boxShadow='none'"
+                 onclick="window.openSchool('${s.id}')">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <h3 style="margin:0 0 4px;font-size:18px;">${s.name || s.id}</h3>
+                        <p style="margin:0;color:#888;font-size:13px;">ID: ${s.id}</p>
+                    </div>
+                    <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                        <button class="btn-icon" onclick="window.editSchool('${s.id}','${(s.name || '').replace(/'/g, "\\'")}')" title="編集">&#9998;</button>
+                        <button class="btn-icon btn-danger" onclick="window.deleteSchool('${s.id}')" title="削除">&#128465;</button>
+                    </div>
+                </div>
+            </div>
+        `).join('')}
+    </div>`;
+}
+
+window.openSchool = (schoolId) => {
+    window.location.href = `school-admin.html?school=${schoolId}`;
+};
+
+window.editSchool = (schoolId, currentName) => {
+    showGenericModal('学校名を編集',
+        `<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" value="${currentName}"></div>`,
+        async () => {
+            const name = document.getElementById('inp-school-name').value;
+            if (!name) { showToast('学校名を入力してください', 'error'); return; }
+            try {
+                await updateSchoolFn({ schoolId, name });
+                showToast('更新しました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+                loadSchoolList();
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
         }
-    } catch (e) { console.error(e); }
-}
+    );
+};
 
-function renderSchoolSelect() {
-    const sel = document.getElementById('schoolSelect');
-    sel.innerHTML = schoolsList.map(s => `<option value="${s.id}" ${s.id === activeSchoolId ? 'selected' : ''}>${s.name || s.id}</option>`).join('');
-}
-
-document.getElementById('schoolSelect').addEventListener('change', (e) => {
-    activeSchoolId = e.target.value;
-    activeGradeId = null;
-    setSchoolContext(activeSchoolId, null, null);
-    loadGrades(activeSchoolId);
-    loadUsersAndMembers();
-    loadDevices(activeSchoolId);
-    loadEditorPassword();
-    loadAds();
-    loadQuietHours();
-});
+window.deleteSchool = async (schoolId) => {
+    if (!confirm('この学校を削除しますか？関連する全データが削除されます。')) return;
+    try {
+        await deleteSchoolFn({ schoolId });
+        showToast('削除しました', 'success');
+        loadSchoolList();
+    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+};
 
 document.getElementById('createSchoolBtn').addEventListener('click', () => {
-    showGenericModal('学校を作成', '<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" placeholder="例: GNテクニカルカレッジ"></div>', async () => {
-        const name = document.getElementById('inp-school-name').value;
-        if (!name) { showToast('学校名を入力してください', 'error'); return; }
-        try { await createSchoolFn({ name }); showToast('学校を作成しました', 'success'); document.getElementById('genericModal').style.display = 'none'; loadSchools(); }
-        catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
+    showGenericModal('学校を作成',
+        '<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" placeholder="例: GNテクニカルカレッジ"></div>',
+        async () => {
+            const name = document.getElementById('inp-school-name').value;
+            if (!name) { showToast('学校名を入力してください', 'error'); return; }
+            try {
+                const result = await createSchoolFn({ name });
+                showToast('学校を作成しました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+                loadSchoolList();
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
 });
 
-// ========== 学年管理 ==========
+// ========================================
+// 学校詳細ビュー
+// ========================================
+
+async function loadSchoolDetail() {
+    // 学校名を取得して表示
+    try {
+        const r = await listSchoolsFn();
+        schoolsList = r.data.schools || [];
+        const school = schoolsList.find(s => s.id === activeSchoolId);
+        document.getElementById('schoolNameHeader').textContent = school ? school.name : activeSchoolId;
+        document.getElementById('schoolIdBadge').textContent = `学校ID: ${activeSchoolId}`;
+    } catch (e) {
+        document.getElementById('schoolNameHeader').textContent = activeSchoolId;
+        document.getElementById('schoolIdBadge').textContent = `学校ID: ${activeSchoolId}`;
+    }
+
+    // 各セクションを読み込み
+    loadGrades(activeSchoolId);
+    loadUsersAndMembers();
+    loadEditorPassword();
+    initAdSelectors();
+    loadQuietHours();
+}
+
+// 学校情報の編集・削除（詳細ビュー）
+document.getElementById('editSchoolBtn').addEventListener('click', () => {
+    const currentName = document.getElementById('schoolNameHeader').textContent;
+    showGenericModal('学校名を編集',
+        `<div class="form-group"><label>学校名</label><input type="text" id="inp-school-name" value="${currentName}"></div>`,
+        async () => {
+            const name = document.getElementById('inp-school-name').value;
+            if (!name) { showToast('学校名を入力してください', 'error'); return; }
+            try {
+                await updateSchoolFn({ schoolId: activeSchoolId, name });
+                document.getElementById('schoolNameHeader').textContent = name;
+                showToast('更新しました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
+});
+
+document.getElementById('deleteSchoolBtn').addEventListener('click', async () => {
+    if (!confirm('この学校を削除しますか？関連する全データが削除されます。')) return;
+    try {
+        await deleteSchoolFn({ schoolId: activeSchoolId });
+        showToast('削除しました', 'success');
+        window.location.href = 'school-admin.html';
+    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+});
+
+// ========================================
+// 学年管理
+// ========================================
+
 async function loadGrades(schoolId) {
     try {
         const r = await listGradesFn({ schoolId });
@@ -130,7 +325,7 @@ function renderGradeList() {
         <div style="background:${g.id === activeGradeId ? '#e3f2fd' : '#f5f5f5'};padding:8px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px;border:${g.id === activeGradeId ? '2px solid #667eea' : '2px solid transparent'};"
              onclick="window.selectGrade('${g.id}')">
             <span>${g.name}</span>
-            <button class="btn-icon btn-danger" onclick="event.stopPropagation();window.deleteGrade('${g.id}')" title="削除" style="font-size:12px;">×</button>
+            <button class="btn-icon btn-danger" onclick="event.stopPropagation();window.deleteGrade('${g.id}')" title="削除" style="font-size:12px;">x</button>
         </div>
     `).join('')}</div>`;
 }
@@ -146,20 +341,36 @@ window.selectGrade = (gradeId) => {
 
 window.deleteGrade = async (gradeId) => {
     if (!confirm('この学年を削除しますか？')) return;
-    try { await deleteGradeFn({ schoolId: activeSchoolId, gradeId }); showToast('削除しました', 'success'); if (activeGradeId === gradeId) activeGradeId = null; loadGrades(activeSchoolId); classesList = []; renderClassList(); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    try {
+        await deleteGradeFn({ schoolId: activeSchoolId, gradeId });
+        showToast('削除しました', 'success');
+        if (activeGradeId === gradeId) activeGradeId = null;
+        loadGrades(activeSchoolId);
+        classesList = [];
+        renderClassList();
+    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
 };
 
 document.getElementById('createGradeBtn').addEventListener('click', () => {
-    showGenericModal('学年を追加', '<div class="form-group"><label>学年名</label><input type="text" id="inp-grade-name" placeholder="例: 電子工学科2年"></div>', async () => {
-        const name = document.getElementById('inp-grade-name').value;
-        if (!name) { showToast('学年名を入力してください', 'error'); return; }
-        try { await createGradeFn({ schoolId: activeSchoolId, name }); showToast('学年を作成しました', 'success'); document.getElementById('genericModal').style.display = 'none'; loadGrades(activeSchoolId); }
-        catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
+    showGenericModal('学年を追加',
+        '<div class="form-group"><label>学年名</label><input type="text" id="inp-grade-name" placeholder="例: 電子工学科2年"></div>',
+        async () => {
+            const name = document.getElementById('inp-grade-name').value;
+            if (!name) { showToast('学年名を入力してください', 'error'); return; }
+            try {
+                await createGradeFn({ schoolId: activeSchoolId, name });
+                showToast('学年を作成しました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+                loadGrades(activeSchoolId);
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
 });
 
-// ========== クラス管理 ==========
+// ========================================
+// クラス管理
+// ========================================
+
 async function loadClassesForGrade(schoolId, gradeId) {
     try {
         const r = await listClassesFn({ schoolId, gradeId });
@@ -170,33 +381,87 @@ async function loadClassesForGrade(schoolId, gradeId) {
 
 function renderClassList() {
     const c = document.getElementById('classListContainer');
-    if (!activeGradeId) { c.innerHTML = '<p class="empty-text">左の学年を選択してください</p>'; return; }
+    if (!activeGradeId) { c.innerHTML = '<p class="empty-text">上の学年を選択してください</p>'; return; }
     if (classesList.length === 0) { c.innerHTML = '<p class="empty-text">クラスがありません</p>'; return; }
+
+    const origin = window.location.origin;
     c.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;">${classesList.map(cl => `
         <div style="background:#f5f5f5;padding:8px 14px;border-radius:8px;display:flex;align-items:center;gap:8px;">
             <span>${cl.name}</span>
-            <button class="btn-icon btn-danger" onclick="window.deleteClass('${cl.id}')" title="削除" style="font-size:12px;">×</button>
+            <button class="btn-icon" onclick="window.showClassUrls('${cl.id}','${cl.name.replace(/'/g, "\\'")}')" title="URL表示" style="font-size:12px;">&#128279;</button>
+            <button class="btn-icon btn-danger" onclick="window.deleteClass('${cl.id}')" title="削除" style="font-size:12px;">x</button>
         </div>
     `).join('')}</div>`;
 }
 
+function showUrlModal(classId, className) {
+    const origin = window.location.origin;
+    const signageUrl = `${origin}/?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}&kiosk=1`;
+    const dashboardUrl = `${origin}/dashboard.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
+
+    const grade = gradesList.find(g => g.id === activeGradeId);
+    const gradeName = grade ? grade.name : activeGradeId;
+
+    showGenericModal(`${gradeName} ${className} のURL`,
+        `<div class="form-group">
+            <label>サイネージURL</label>
+            <div style="display:flex;gap:8px;">
+                <input type="text" readonly value="${signageUrl}" style="flex:1;font-size:12px;" id="url-signage">
+                <button class="btn btn-secondary btn-sm" onclick="window.copyToClipboard(document.getElementById('url-signage').value)">コピー</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>ダッシュボードURL</label>
+            <div style="display:flex;gap:8px;">
+                <input type="text" readonly value="${dashboardUrl}" style="flex:1;font-size:12px;" id="url-dashboard">
+                <button class="btn btn-secondary btn-sm" onclick="window.copyToClipboard(document.getElementById('url-dashboard').value)">コピー</button>
+            </div>
+        </div>`,
+        () => { document.getElementById('genericModal').style.display = 'none'; }
+    );
+    // 保存ボタンのテキストを変更
+    document.getElementById('genericModalSave').textContent = '閉じる';
+}
+
+window.showClassUrls = (classId, className) => {
+    showUrlModal(classId, className);
+};
+
 window.deleteClass = async (classId) => {
     if (!confirm('クラスを削除しますか？')) return;
-    try { await deleteClassFn({ schoolId: activeSchoolId, gradeId: activeGradeId, classId }); showToast('削除しました', 'success'); loadClassesForGrade(activeSchoolId, activeGradeId); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    try {
+        await deleteClassFn({ schoolId: activeSchoolId, gradeId: activeGradeId, classId });
+        showToast('削除しました', 'success');
+        loadClassesForGrade(activeSchoolId, activeGradeId);
+    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
 };
 
 document.getElementById('createClassBtn').addEventListener('click', () => {
     if (!activeGradeId) { showToast('先に学年を選択してください', 'error'); return; }
-    showGenericModal('クラスを追加', '<div class="form-group"><label>クラス名</label><input type="text" id="inp-class-name" placeholder="例: A組"></div>', async () => {
-        const name = document.getElementById('inp-class-name').value;
-        if (!name) { showToast('クラス名を入力してください', 'error'); return; }
-        try { await createClassFn({ schoolId: activeSchoolId, gradeId: activeGradeId, name }); showToast('クラスを作成しました', 'success'); document.getElementById('genericModal').style.display = 'none'; loadClassesForGrade(activeSchoolId, activeGradeId); }
-        catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
+    showGenericModal('クラスを追加',
+        '<div class="form-group"><label>クラス名</label><input type="text" id="inp-class-name" placeholder="例: A組"></div>',
+        async () => {
+            const name = document.getElementById('inp-class-name').value;
+            if (!name) { showToast('クラス名を入力してください', 'error'); return; }
+            try {
+                const result = await createClassFn({ schoolId: activeSchoolId, gradeId: activeGradeId, name });
+                document.getElementById('genericModal').style.display = 'none';
+                showToast('クラスを作成しました', 'success');
+                await loadClassesForGrade(activeSchoolId, activeGradeId);
+                // 作成したクラスのURLを表示
+                const newClass = classesList.find(c => c.name === name);
+                if (newClass) {
+                    showUrlModal(newClass.id, newClass.name);
+                }
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
 });
 
-// ========== ユーザー・メンバー統合管理 ==========
+// ========================================
+// ユーザー・メンバー統合管理
+// ========================================
+
 async function loadUsersAndMembers() {
     const container = document.getElementById('userTableContainer');
     container.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
@@ -219,7 +484,6 @@ function renderUnifiedUserTable() {
     membersData.forEach(m => { memberMap[m.userId] = m; });
 
     const roleLabels = { system_admin: 'システム管理者', school_admin: '学校管理者', teacher: '教員', editor: '編集者' };
-    const roleOptions = ['school_admin', 'teacher', 'editor'].map(r => `<option value="${r}">${roleLabels[r]}</option>`).join('');
 
     const rows = usersData.map(user => {
         const member = memberMap[user.uid];
@@ -245,11 +509,11 @@ function renderUnifiedUserTable() {
             <td><span class="badge ${user.disabled ? 'badge-disabled' : 'badge-active'}">${user.disabled ? '無効' : '有効'}</span></td>
             <td class="last-signin">${lastSignIn}</td>
             <td><div class="action-buttons">
-                <button class="btn-icon" onclick="window.editUser('${user.uid}')" title="編集">✏️</button>
+                <button class="btn-icon" onclick="window.editUser('${user.uid}')" title="編集">&#9998;</button>
                 ${!isCurrent ? `
-                    <button class="btn-icon" onclick="window.toggleStatus('${user.uid}', ${!user.disabled})" title="${user.disabled ? '有効化' : '無効化'}">${user.disabled ? '✅' : '🚫'}</button>
-                    ${member ? `<button class="btn-icon" onclick="window.removeMemberFromSchool('${user.uid}')" title="メンバー除外">👤</button>` : ''}
-                    <button class="btn-icon btn-danger" onclick="window.deleteUserAction('${user.uid}')" title="削除">🗑️</button>
+                    <button class="btn-icon" onclick="window.toggleStatus('${user.uid}', ${!user.disabled})" title="${user.disabled ? '有効化' : '無効化'}">${user.disabled ? '&#9989;' : '&#128683;'}</button>
+                    ${member ? `<button class="btn-icon" onclick="window.removeMemberFromSchool('${user.uid}')" title="メンバー除外">&#128100;</button>` : ''}
+                    <button class="btn-icon btn-danger" onclick="window.deleteUserAction('${user.uid}')" title="削除">&#128465;</button>
                 ` : ''}
             </div></td>
         </tr>`;
@@ -259,7 +523,6 @@ function renderUnifiedUserTable() {
         <th>メール</th><th>名前</th><th>ロール</th><th>状態</th><th>最終ログイン</th><th>操作</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 
-    // ドロップダウン変更ハンドラ
     container.querySelectorAll('.role-dropdown').forEach(sel => {
         sel.addEventListener('change', async (e) => {
             const uid = e.target.dataset.uid;
@@ -304,15 +567,12 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
 
     try {
         if (uid) {
-            // 編集
             await updateUserFn({ uid, email, displayName, password: password || undefined });
-            // 管理者権限変更
             const user = usersData.find(u => u.uid === uid);
             if (user && user.isAdmin !== setAsAdmin) {
                 await setAdminRoleFn({ uid, isAdmin: setAsAdmin });
             }
         } else {
-            // 新規作成
             if (!email || !password) { showToast('メールとパスワードは必須です', 'error'); return; }
             await createAdminUserFn({ email, password, displayName, setAsAdmin });
         }
@@ -347,73 +607,10 @@ window.deleteUserAction = async (uid) => {
     catch (e) { showToast('エラー: ' + e.message, 'error'); }
 };
 
-// ========== デバイス管理 ==========
-let devicesList = [];
+// ========================================
+// エディターパスワード
+// ========================================
 
-async function loadDevices(schoolId) {
-    const c = document.getElementById('deviceListContainer');
-    try {
-        const r = await listDevicesFn({ schoolId });
-        devicesList = r.data.devices || [];
-        renderDeviceList();
-    } catch (e) { c.innerHTML = `<p class="error-text">${e.message}</p>`; }
-}
-
-function renderDeviceList() {
-    const c = document.getElementById('deviceListContainer');
-    if (devicesList.length === 0) { c.innerHTML = '<p class="empty-text">端末が未登録</p>'; return; }
-
-    const rows = devicesList.map(d => {
-        const grade = gradesList.find(g => g.id === d.gradeId);
-        const gradeName = grade ? grade.name : d.gradeId || '-';
-        const statusBadge = d.status === 'online' ? '<span class="badge badge-active">オンライン</span>' : '<span class="badge badge-disabled">オフライン</span>';
-        return `<tr>
-            <td>${d.name}</td><td>${gradeName}</td><td>${d.classId || '-'}</td><td>${statusBadge}</td>
-            <td><div class="action-buttons">
-                <button class="btn-icon" onclick="window.revokeDevice('${d.id}')" title="トークン再発行">🔄</button>
-                <button class="btn-icon btn-danger" onclick="window.removeDevice('${d.id}')" title="削除">🗑️</button>
-            </div></td>
-        </tr>`;
-    }).join('');
-    c.innerHTML = `<table class="user-table"><thead><tr><th>端末名</th><th>学年</th><th>クラス</th><th>状態</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-document.getElementById('registerDeviceBtn').addEventListener('click', () => {
-    const gradeOpts = gradesList.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-    showGenericModal('端末を登録',
-        `<div class="form-group"><label>端末名</label><input type="text" id="inp-device-name" placeholder="例: 1A教室モニター"></div>
-         <div class="form-group"><label>学年</label><select id="inp-device-grade">${gradeOpts}</select></div>
-         <div class="form-group"><label>クラスID</label><input type="text" id="inp-device-class" placeholder="クラスIDを入力"></div>`,
-        async () => {
-            const name = document.getElementById('inp-device-name').value;
-            const gradeId = document.getElementById('inp-device-grade').value;
-            const classId = document.getElementById('inp-device-class').value;
-            if (!name || !gradeId || !classId) { showToast('全項目を入力してください', 'error'); return; }
-            try {
-                const r = await registerDeviceFn({ schoolId: activeSchoolId, gradeId, classId, name });
-                document.getElementById('genericModal').style.display = 'none';
-                const signageUrl = `${window.location.origin}/?token=${encodeURIComponent(r.data.deviceToken)}&kiosk=1`;
-                alert(`デバイストークン:\n${r.data.deviceToken}\n\nサイネージURL:\n${signageUrl}`);
-                loadDevices(activeSchoolId);
-            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-        }
-    );
-});
-
-window.revokeDevice = async (deviceId) => {
-    if (!confirm('トークンを再発行しますか？')) return;
-    try {
-        const r = await revokeDeviceTokenFn({ schoolId: activeSchoolId, deviceId });
-        alert(`新トークン:\n${r.data.deviceToken}`);
-    } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-};
-window.removeDevice = async (deviceId) => {
-    if (!confirm('端末を削除しますか？')) return;
-    try { await removeDeviceFn({ schoolId: activeSchoolId, deviceId }); showToast('削除しました', 'success'); loadDevices(activeSchoolId); }
-    catch (e) { showToast('エラー: ' + e.message, 'error'); }
-};
-
-// ========== エディターパスワード ==========
 async function loadEditorPassword() {
     try {
         const snap = await getDoc(doc(db, "schools", activeSchoolId, "config", "editor_auth"));
@@ -427,7 +624,10 @@ document.getElementById('saveEditorPasswordBtn').addEventListener('click', async
     catch (e) { showToast('エラー: ' + e.message, 'error'); }
 });
 
-// ========== 授業時間 ==========
+// ========================================
+// 授業時間
+// ========================================
+
 async function loadQuietHours() {
     try {
         const snap = await getDoc(doc(db, "schools", activeSchoolId, "config", "display_settings"));
@@ -435,18 +635,20 @@ async function loadQuietHours() {
         renderQuietHours();
     } catch (e) { quietHours = []; renderQuietHours(); }
 }
+
 function renderQuietHours() {
     const c = document.getElementById('quietHoursList');
     if (quietHours.length === 0) { c.innerHTML = '<p class="empty-text">未設定</p>'; return; }
     c.innerHTML = quietHours.map((item, idx) => `
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-            <input type="time" value="${item.start||'08:30'}" onchange="window.updateQH(${idx},'start',this.value)">
+            <input type="time" value="${item.start || '08:30'}" onchange="window.updateQH(${idx},'start',this.value)">
             <span>〜</span>
-            <input type="time" value="${item.end||'15:30'}" onchange="window.updateQH(${idx},'end',this.value)">
-            <button class="btn-icon btn-danger" onclick="window.removeQH(${idx})">×</button>
+            <input type="time" value="${item.end || '15:30'}" onchange="window.updateQH(${idx},'end',this.value)">
+            <button class="btn-icon btn-danger" onclick="window.removeQH(${idx})">x</button>
         </div>
     `).join('');
 }
+
 window.updateQH = (i, f, v) => { if (quietHours[i]) quietHours[i][f] = v; };
 window.removeQH = (i) => { quietHours.splice(i, 1); renderQuietHours(); };
 document.getElementById('addQuietHourBtn').addEventListener('click', () => { quietHours.push({ start: '08:30', end: '15:30' }); renderQuietHours(); });
@@ -455,12 +657,14 @@ document.getElementById('saveQuietHoursBtn').addEventListener('click', async () 
     catch (e) { showToast('エラー: ' + e.message, 'error'); }
 });
 
-// ========== 広告管理（クラス単位） ==========
+// ========================================
+// 広告管理（クラス単位）
+// ========================================
 
-// 広告用の学年・クラスセレクタを初期化
 function initAdSelectors() {
     const gradeSelect = document.getElementById('adGradeSelect');
     const classSelect = document.getElementById('adClassSelect');
+    if (!gradeSelect || !classSelect) return;
     gradeSelect.innerHTML = '<option value="">-- 学年を選択 --</option>' +
         gradesList.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
     classSelect.innerHTML = '<option value="">-- クラスを選択 --</option>';
@@ -521,6 +725,7 @@ async function saveAds() {
 function renderAdList() {
     const c = document.getElementById('adListContainer');
     const addBtn = document.getElementById('addAdBtn');
+    if (!c) return;
 
     if (!adGradeId || !adClassId) {
         c.innerHTML = '<p class="empty-text">上のセレクタで学年・クラスを選択してください</p>';
@@ -534,7 +739,7 @@ function renderAdList() {
             <div class="ad-management-item" draggable="true" data-index="${idx}">
                 <div class="ad-drag-handle">☰</div>
                 ${ad.type === 'video' ? `<video src="${ad.url}" class="ad-thumbnail" muted playsinline onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>` : `<img src="${ad.url}" class="ad-thumbnail" onerror="this.src='https://placehold.jp/80x60.png?text=Error'">`}
-                <div class="ad-details"><p>${ad.type === 'video' ? '動画' : '画像'} ${idx+1}</p></div>
+                <div class="ad-details"><p>${ad.type === 'video' ? '動画' : '画像'} ${idx + 1}</p></div>
                 <div class="ad-actions-group">
                     <button class="btn btn-sm" onclick="window.replaceAd(${idx})">変更</button>
                     <button class="btn btn-sm btn-danger" onclick="window.deleteAd(${idx})">削除</button>
@@ -579,7 +784,10 @@ document.getElementById('adFileInput').addEventListener('change', async (e) => {
     e.target.value = ''; pendingAdAction = null;
 });
 
-// ========== データ移行 ==========
+// ========================================
+// データ移行
+// ========================================
+
 document.getElementById('migrateBtn').addEventListener('click', async () => {
     if (!confirm('既存データを学年構造にコピーしますか？')) return;
     const rd = document.getElementById('migrateResult');

@@ -815,7 +815,7 @@ async function loadEditorPassword() {
 }
 document.getElementById('saveEditorPasswordBtn').addEventListener('click', async () => {
     const pw = document.getElementById('editorPasswordInput').value;
-    if (pw.length < 4) { showToast('4文字以上必要です', 'error'); return; }
+    if (pw.length < 6) { showToast('6文字以上必要です', 'error'); return; }
     await withLoading(async () => {
         try { await setEditorPasswordFn({ password: pw, schoolId: activeSchoolId }); showToast('保存しました', 'success'); }
         catch (e) { showToast('エラー: ' + e.message, 'error'); }

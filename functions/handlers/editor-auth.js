@@ -72,7 +72,7 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
 exports.setEditorPassword = functions.https.onCall(withAuth(async (data, context) => {
     const { password, schoolId } = data;
     validateRequired(data, ['password']);
-    if (password.length < 4) throw new functions.https.HttpsError('invalid-argument', 'パスワードは4文字以上必要です');
+    if (password.length < 6) throw new functions.https.HttpsError('invalid-argument', 'パスワードは6文字以上必要です');
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;
 
     // Firestoreに保存

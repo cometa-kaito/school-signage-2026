@@ -372,9 +372,9 @@ window.dashboard.openEditModal = (type, dateStr, index) => {
     currentIndex = index;
 
     let data;
-    if (type === 'assignment') data = appData.assignments.find(i => i._sourceDate === dateStr && i._originalIndex === index);
-    else if (type === 'notice') data = appData.notices.find(i => i._sourceDate === dateStr && i._originalIndex === index);
-    else data = appData.weeklySchedules[dateStr]?.[index];
+    if (type === 'assignment') data = appData.allAssignments.find(i => i._sourceDate === dateStr && i._originalIndex === index);
+    else if (type === 'notice') data = appData.allNotices.find(i => i._sourceDate === dateStr && i._originalIndex === index);
+    else data = (appData.allSchedules[dateStr] || []).find(i => i._originalIndex === index);
 
     UI.generateModalForm(type, "編集", data);
     showModal('edit-modal');

@@ -322,7 +322,6 @@ function renderGlobalUserTable() {
             <td>${affiliationCell}</td>
             <td class="last-signin">${lastSignIn}</td>
             <td><div class="action-buttons">
-                ${!user.isAdmin ? `<button class="btn btn-sm btn-secondary" onclick="window.assignUserToSchool('${user.uid}','${user.email}')">学校に振り分け</button>` : ''}
                 <button class="btn-icon" onclick="window.globalEditUser('${user.uid}')" title="編集">&#9998;</button>
                 <button class="btn-icon btn-danger" onclick="window.globalDeleteUser('${user.uid}')" title="削除">&#128465;</button>
             </div></td>
@@ -333,62 +332,6 @@ function renderGlobalUserTable() {
         <th>メール</th><th>名前</th><th>所属</th><th>最終ログイン</th><th>操作</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
-
-window.assignUserToSchool = (uid, email) => {
-    const memberships = allMembershipsMap[uid] || [];
-    const currentSchools = memberships.map(m => m.schoolId);
-    const schoolOpts = schoolsList.map(s =>
-        `<option value="${s.id}" ${currentSchools.includes(s.id) ? 'disabled' : ''}>${s.name || s.id}${currentSchools.includes(s.id) ? ' (所属済み)' : ''}</option>`
-    ).join('');
-
-    const currentList = memberships.length > 0
-        ? `<div style="margin-bottom:12px;"><label style="font-weight:bold;font-size:13px;">現在の所属:</label><div style="margin-top:4px;">${memberships.map(m =>
-            `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;padding:6px 10px;background:#f5f5f5;border-radius:6px;">
-                <span style="flex:1;">${m.schoolName} (${m.role === 'school_admin' ? '学校管理者' : '教員'})</span>
-                <button class="btn-icon btn-danger" onclick="window.removeFromSchool('${uid}','${m.schoolId}')" style="font-size:11px;" title="除外">x</button>
-            </div>`
-        ).join('')}</div></div>`
-        : '';
-
-    showGenericModal(`${email} を学校に振り分け`,
-        `${currentList}
-        <div class="form-group"><label>学校</label>
-            <select id="inp-assign-school" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
-                <option value="">-- 学校を選択 --</option>
-                ${schoolOpts}
-            </select>
-        </div>
-        <div class="form-group"><label>ロール</label>
-            <select id="inp-assign-role" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
-                <option value="teacher">教員</option>
-                <option value="school_admin">学校管理者</option>
-            </select>
-        </div>`,
-        async () => {
-            const schoolId = document.getElementById('inp-assign-school').value;
-            const role = document.getElementById('inp-assign-role').value;
-            if (!schoolId) { showToast('学校を選択してください', 'error'); return; }
-            try {
-                await inviteMemberFn({ schoolId, email, role });
-                showToast('振り分けました', 'success');
-                document.getElementById('genericModal').style.display = 'none';
-                loadGlobalUsers();
-            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-        }
-    );
-};
-
-window.removeFromSchool = async (uid, schoolId) => {
-    if (!confirm('この学校から除外しますか？')) return;
-    await withLoading(async () => {
-        try {
-            await removeMemberFn({ schoolId, userId: uid });
-            showToast('除外しました', 'success');
-            document.getElementById('genericModal').style.display = 'none';
-            loadGlobalUsers();
-        } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
-};
 
 window.globalEditUser = (uid) => openUserModal(uid);
 

@@ -273,7 +273,7 @@
                 loadingOverlay.style.display = 'flex';
                 const canAccess = await hasAnyAccess(user);
                 if (canAccess) {
-                    showApp(user, isAdmin);
+                    showApp(user);
                 } else {
                     loadingOverlay.style.display = 'none';
                     await logout();

@@ -161,6 +161,7 @@ function showListView() {
     schoolListView.style.display = 'block';
     schoolDetailView.style.display = 'none';
     loadSchoolList();
+    loadGlobalUsers();
 }
 
 function showDetailView() {
@@ -260,6 +261,146 @@ document.getElementById('createSchoolBtn').addEventListener('click', () => {
         }
     );
 });
+
+// ========================================
+// 全ユーザー管理（学校一覧ビュー内、system_adminのみ）
+// ========================================
+
+let globalUsersData = [];
+let allMembershipsMap = {}; // userId -> [{schoolId, schoolName, role}]
+
+async function loadGlobalUsers() {
+    const container = document.getElementById('globalUserTableContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
+    try {
+        const usersResult = await listUsersFn();
+        globalUsersData = usersResult.data.users || [];
+
+        // 全学校のメンバーシップを取得
+        allMembershipsMap = {};
+        await Promise.all(schoolsList.map(async (school) => {
+            try {
+                const r = await listMembersFn({ schoolId: school.id });
+                const members = r.data.members || [];
+                members.forEach(m => {
+                    if (!allMembershipsMap[m.userId]) allMembershipsMap[m.userId] = [];
+                    allMembershipsMap[m.userId].push({ schoolId: school.id, schoolName: school.name || school.id, role: m.role });
+                });
+            } catch { /* ignore */ }
+        }));
+
+        renderGlobalUserTable();
+    } catch (e) { container.innerHTML = `<p class="error-text">エラー: ${e.message}</p>`; }
+}
+
+function renderGlobalUserTable() {
+    const container = document.getElementById('globalUserTableContainer');
+    if (globalUsersData.length === 0) { container.innerHTML = '<p class="empty-text">ユーザーがいません</p>'; return; }
+
+    const roleLabels = { school_admin: '学校管理者', teacher: '教員' };
+    const schoolOpts = schoolsList.map(s => `<option value="${s.id}">${s.name || s.id}</option>`).join('');
+
+    const rows = globalUsersData.map(user => {
+        const memberships = allMembershipsMap[user.uid] || [];
+        const lastSignIn = user.lastSignInTime ? new Date(user.lastSignInTime).toLocaleString('ja-JP') : '-';
+
+        let affiliationCell;
+        if (user.isAdmin) {
+            affiliationCell = `<span class="badge badge-admin">システム管理者</span>`;
+        } else if (memberships.length > 0) {
+            affiliationCell = memberships.map(m =>
+                `<span class="badge" style="background:#e3f2fd;color:#1565c0;margin:2px;">${m.schoolName} (${roleLabels[m.role] || m.role})</span>`
+            ).join(' ');
+        } else {
+            affiliationCell = `<span style="color:#999;">未所属</span>`;
+        }
+
+        return `<tr>
+            <td>${user.email}</td>
+            <td>${user.displayName || '-'}</td>
+            <td>${affiliationCell}</td>
+            <td class="last-signin">${lastSignIn}</td>
+            <td><div class="action-buttons">
+                ${!user.isAdmin ? `<button class="btn btn-sm btn-secondary" onclick="window.assignUserToSchool('${user.uid}','${user.email}')">学校に振り分け</button>` : ''}
+                <button class="btn-icon" onclick="window.globalEditUser('${user.uid}')" title="編集">&#9998;</button>
+                <button class="btn-icon btn-danger" onclick="window.globalDeleteUser('${user.uid}')" title="削除">&#128465;</button>
+            </div></td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `<table class="user-table"><thead><tr>
+        <th>メール</th><th>名前</th><th>所属</th><th>最終ログイン</th><th>操作</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+window.assignUserToSchool = (uid, email) => {
+    const memberships = allMembershipsMap[uid] || [];
+    const currentSchools = memberships.map(m => m.schoolId);
+    const schoolOpts = schoolsList.map(s =>
+        `<option value="${s.id}" ${currentSchools.includes(s.id) ? 'disabled' : ''}>${s.name || s.id}${currentSchools.includes(s.id) ? ' (所属済み)' : ''}</option>`
+    ).join('');
+
+    const currentList = memberships.length > 0
+        ? `<div style="margin-bottom:12px;"><label style="font-weight:bold;font-size:13px;">現在の所属:</label><div style="margin-top:4px;">${memberships.map(m =>
+            `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;padding:6px 10px;background:#f5f5f5;border-radius:6px;">
+                <span style="flex:1;">${m.schoolName} (${m.role === 'school_admin' ? '学校管理者' : '教員'})</span>
+                <button class="btn-icon btn-danger" onclick="window.removeFromSchool('${uid}','${m.schoolId}')" style="font-size:11px;" title="除外">x</button>
+            </div>`
+        ).join('')}</div></div>`
+        : '';
+
+    showGenericModal(`${email} を学校に振り分け`,
+        `${currentList}
+        <div class="form-group"><label>学校</label>
+            <select id="inp-assign-school" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+                <option value="">-- 学校を選択 --</option>
+                ${schoolOpts}
+            </select>
+        </div>
+        <div class="form-group"><label>ロール</label>
+            <select id="inp-assign-role" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+                <option value="teacher">教員</option>
+                <option value="school_admin">学校管理者</option>
+            </select>
+        </div>`,
+        async () => {
+            const schoolId = document.getElementById('inp-assign-school').value;
+            const role = document.getElementById('inp-assign-role').value;
+            if (!schoolId) { showToast('学校を選択してください', 'error'); return; }
+            try {
+                await inviteMemberFn({ schoolId, email, role });
+                showToast('振り分けました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+                loadGlobalUsers();
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
+};
+
+window.removeFromSchool = async (uid, schoolId) => {
+    if (!confirm('この学校から除外しますか？')) return;
+    await withLoading(async () => {
+        try {
+            await removeMemberFn({ schoolId, userId: uid });
+            showToast('除外しました', 'success');
+            document.getElementById('genericModal').style.display = 'none';
+            loadGlobalUsers();
+        } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
+};
+
+window.globalEditUser = (uid) => openUserModal(uid);
+
+window.globalDeleteUser = async (uid) => {
+    if (!confirm('ユーザーを完全に削除しますか？')) return;
+    await withLoading(async () => {
+        try { await deleteUserFn({ uid }); showToast('削除しました', 'success'); loadGlobalUsers(); }
+        catch (e) { showToast('エラー: ' + e.message, 'error'); }
+    });
+};
+
+document.getElementById('globalCreateUserBtn')?.addEventListener('click', () => openUserModal(null));
 
 // ========================================
 // 学校詳細ビュー
@@ -610,7 +751,7 @@ function openUserModal(uid) {
     roleGroup.style.display = isSystemAdminUser ? 'block' : 'none';
 
     if (uid) {
-        const user = usersData.find(u => u.uid === uid);
+        const user = usersData.find(u => u.uid === uid) || globalUsersData.find(u => u.uid === uid);
         if (!user) return;
         const member = membersData.find(m => m.userId === uid);
         document.getElementById('userModalTitle').textContent = 'ユーザー編集';

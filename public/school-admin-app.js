@@ -9,7 +9,7 @@ import {
     createGradeFn, listGradesFn, updateGradeFn, deleteGradeFn,
     createClassFn, listClassesFn, deleteClassFn,
     inviteMemberFn, listMembersFn, removeMemberFn, updateMembershipFn,
-    getMyMembershipsFn, migrateToGradeStructureFn
+    getMyMembershipsFn
 } from './config.js';
 import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
@@ -149,7 +149,7 @@ window.copyToClipboard = copyToClipboard;
 // ========================================
 
 function showListView() {
-    document.getElementById('pageTitle').textContent = '学校管��';
+    document.getElementById('pageTitle').textContent = '学校管理';
     schoolListView.style.display = 'block';
     schoolDetailView.style.display = 'none';
     loadSchoolList();
@@ -353,7 +353,7 @@ window.deleteGrade = async (gradeId) => {
 
 document.getElementById('createGradeBtn').addEventListener('click', () => {
     showGenericModal('学年を追加',
-        '<div class="form-group"><label>学年名</label><input type="text" id="inp-grade-name" placeholder="例: 電子工学科2年"></div>',
+        '<div class="form-group"><label>学年名</label><input type="text" id="inp-grade-name" placeholder="例: 2年"></div>',
         async () => {
             const name = document.getElementById('inp-grade-name').value;
             if (!name) { showToast('学年名を入力してください', 'error'); return; }
@@ -536,45 +536,92 @@ function renderUnifiedUserTable() {
 }
 
 // ユーザー作成/編集モーダル
-document.getElementById('createUserBtn').addEventListener('click', () => {
-    document.getElementById('userModalTitle').textContent = 'ユーザー作成';
-    document.getElementById('userModalUid').value = '';
-    document.getElementById('userModalEmail').value = '';
-    document.getElementById('userModalName').value = '';
-    document.getElementById('userModalPassword').value = '';
-    document.getElementById('userModalAdmin').checked = false;
-    document.getElementById('userModal').style.display = 'flex';
-});
+function openUserModal(uid) {
+    const roleGroup = document.getElementById('userModalRoleGroup');
+    const roleSelect = document.getElementById('userModalRole');
 
-window.editUser = (uid) => {
-    const user = usersData.find(u => u.uid === uid);
-    if (!user) return;
-    document.getElementById('userModalTitle').textContent = 'ユーザー編集';
-    document.getElementById('userModalUid').value = uid;
-    document.getElementById('userModalEmail').value = user.email;
-    document.getElementById('userModalName').value = user.displayName || '';
-    document.getElementById('userModalPassword').value = '';
-    document.getElementById('userModalAdmin').checked = user.isAdmin;
+    // system_adminのみ権限ドロップダウンを表示
+    roleGroup.style.display = isSystemAdminUser ? 'block' : 'none';
+
+    if (uid) {
+        const user = usersData.find(u => u.uid === uid);
+        if (!user) return;
+        const member = membersData.find(m => m.userId === uid);
+        document.getElementById('userModalTitle').textContent = 'ユーザー編集';
+        document.getElementById('userModalUid').value = uid;
+        document.getElementById('userModalEmail').value = user.email;
+        document.getElementById('userModalName').value = user.displayName || '';
+        document.getElementById('userModalPassword').value = '';
+        // 権限の現在値を設定
+        if (user.isAdmin) {
+            roleSelect.value = 'system_admin';
+        } else if (member) {
+            roleSelect.value = member.role;
+        } else {
+            roleSelect.value = '';
+        }
+    } else {
+        document.getElementById('userModalTitle').textContent = 'ユーザー作成';
+        document.getElementById('userModalUid').value = '';
+        document.getElementById('userModalEmail').value = '';
+        document.getElementById('userModalName').value = '';
+        document.getElementById('userModalPassword').value = '';
+        roleSelect.value = '';
+    }
     document.getElementById('userModal').style.display = 'flex';
-};
+}
+
+document.getElementById('createUserBtn').addEventListener('click', () => openUserModal(null));
+window.editUser = (uid) => openUserModal(uid);
 
 document.getElementById('userModalSave').addEventListener('click', async () => {
     const uid = document.getElementById('userModalUid').value;
     const email = document.getElementById('userModalEmail').value;
     const displayName = document.getElementById('userModalName').value;
     const password = document.getElementById('userModalPassword').value;
-    const setAsAdmin = document.getElementById('userModalAdmin').checked;
+    const selectedRole = isSystemAdminUser ? document.getElementById('userModalRole').value : null;
 
     try {
         if (uid) {
+            // ユーザー基本情報の更新
             await updateUserFn({ uid, email, displayName, password: password || undefined });
-            const user = usersData.find(u => u.uid === uid);
-            if (user && user.isAdmin !== setAsAdmin) {
-                await setAdminRoleFn({ uid, isAdmin: setAsAdmin });
+
+            // 権限変更（system_adminのみ）
+            if (isSystemAdminUser && selectedRole !== null) {
+                const user = usersData.find(u => u.uid === uid);
+                const member = membersData.find(m => m.userId === uid);
+                const wasAdmin = user?.isAdmin;
+                const prevRole = member?.role || '';
+
+                if (selectedRole === 'system_admin') {
+                    if (!wasAdmin) await setAdminRoleFn({ uid, isAdmin: true });
+                    if (member) await removeMemberFn({ schoolId: activeSchoolId, userId: uid });
+                } else if (selectedRole === '') {
+                    // メンバーでない
+                    if (wasAdmin) await setAdminRoleFn({ uid, isAdmin: false });
+                    if (member) await removeMemberFn({ schoolId: activeSchoolId, userId: uid });
+                } else {
+                    // school_admin / teacher / editor
+                    if (wasAdmin) await setAdminRoleFn({ uid, isAdmin: false });
+                    if (member) {
+                        if (prevRole !== selectedRole) {
+                            await updateMembershipFn({ schoolId: activeSchoolId, userId: uid, role: selectedRole });
+                        }
+                    } else {
+                        await inviteMemberFn({ schoolId: activeSchoolId, email, role: selectedRole });
+                    }
+                }
             }
         } else {
+            // 新規作成
             if (!email || !password) { showToast('メールとパスワードは必須です', 'error'); return; }
-            await createAdminUserFn({ email, password, displayName, setAsAdmin });
+            const setAsAdmin = selectedRole === 'system_admin';
+            const result = await createAdminUserFn({ email, password, displayName, setAsAdmin });
+
+            // 作成後にロールを設定
+            if (isSystemAdminUser && selectedRole && selectedRole !== 'system_admin' && result.data?.uid) {
+                await inviteMemberFn({ schoolId: activeSchoolId, email, role: selectedRole });
+            }
         }
         showToast('保存しました', 'success');
         document.getElementById('userModal').style.display = 'none';
@@ -784,17 +831,3 @@ document.getElementById('adFileInput').addEventListener('change', async (e) => {
     e.target.value = ''; pendingAdAction = null;
 });
 
-// ========================================
-// データ移行
-// ========================================
-
-document.getElementById('migrateBtn').addEventListener('click', async () => {
-    if (!confirm('既存データを学年構造にコピーしますか？')) return;
-    const rd = document.getElementById('migrateResult');
-    rd.textContent = '移行中...';
-    try {
-        const r = await migrateToGradeStructureFn({ schoolId: activeSchoolId });
-        rd.innerHTML = `<span style="color:green;">${r.data.message}</span>`;
-        loadGrades(activeSchoolId);
-    } catch (e) { rd.innerHTML = `<span style="color:red;">エラー: ${e.message}</span>`; }
-});

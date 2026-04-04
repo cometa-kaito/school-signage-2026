@@ -4,6 +4,7 @@ import {
     db, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext,
     listSchoolsFn, listGradesFn, listClassesFn
 } from "./config.js";
+import { hasFullContext, renderContextSelector, redirectWithContext } from './context-selector.js';
 import { UI } from "./ui.js";
 import {
     getTodayString, startClock, formatDateKey,
@@ -52,6 +53,17 @@ window.dashboard.init = async function () {
     if (listenersStarted) return;
     listenersStarted = true;
     startClock('current-time', 'current-date');
+
+    // URLパラメータが揃っていない場合はコンテキスト選択画面を表示
+    if (!hasFullContext()) {
+        document.getElementById('dashboardContent').style.display = 'none';
+        document.getElementById('contextSelectorView').style.display = 'block';
+        renderContextSelector('contextSelectorView', (schoolId, gradeId, classId) => {
+            redirectWithContext(schoolId, gradeId, classId);
+        });
+        return;
+    }
+
     await initSelectors();
     setupSaveButton();
 };

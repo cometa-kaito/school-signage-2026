@@ -128,7 +128,7 @@
                 <!-- エディターパスワード -->
                 <div class="card">
                     <div class="card-header"><h2>学校パスワード（エディター用）</h2></div>
-                    <p class="setting-description">このパスワードでダッシ���ボードに簡易ログインできます。</p>
+                    <p class="setting-description">このパスワードでダッシュボードに簡易ログインできます。</p>
                     <div class="form-group">
                         <input type="text" id="editorPasswordInput" placeholder="4文字以上のパスワード">
                     </div>
@@ -162,13 +162,6 @@
                     <button class="btn btn-primary" id="saveQuietHoursBtn" style="margin-top:8px;">設定保存</button>
                 </div>
 
-                <!-- データ移行 -->
-                <div class="card">
-                    <div class="card-header"><h2>データ移行</h2></div>
-                    <p class="setting-description">既存のクラスデータを学年構造にコピーします。</p>
-                    <button class="btn btn-primary" id="migrateBtn">移行実行</button>
-                    <div id="migrateResult" style="margin-top:8px;"></div>
-                </div>
             </div>
         </main>
 
@@ -189,10 +182,19 @@
             <div class="modal-content" style="max-width:480px;">
                 <div class="modal-header"><h3 id="userModalTitle">ユーザー作成</h3><button class="modal-close" onclick="document.getElementById('userModal').style.display='none'">x</button></div>
                 <input type="hidden" id="userModalUid">
-                <div class="form-group"><label>メール��ドレス</label><input type="email" id="userModalEmail"></div>
+                <div class="form-group"><label>メールアドレス</label><input type="email" id="userModalEmail"></div>
                 <div class="form-group"><label>表示名</label><input type="text" id="userModalName"></div>
                 <div class="form-group"><label>パスワード</label><input type="password" id="userModalPassword" placeholder="6文字以上"></div>
-                <div class="form-group checkbox-group"><label><input type="checkbox" id="userModalAdmin">システム管理者権限</label></div>
+                <div class="form-group" id="userModalRoleGroup" style="display:none;">
+                    <label>権限</label>
+                    <select id="userModalRole" style="padding:8px;border-radius:6px;border:1px solid #ddd;width:100%;">
+                        <option value="">-- メンバーでない --</option>
+                        <option value="system_admin">システム管理者</option>
+                        <option value="school_admin">学校管理者</option>
+                        <option value="teacher">教員</option>
+                        <option value="editor">編集者</option>
+                    </select>
+                </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="document.getElementById('userModal').style.display='none'">キャンセル</button>
                     <button class="btn btn-primary" id="userModalSave">保存</button>

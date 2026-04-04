@@ -2,7 +2,7 @@
 
 import {
     db,
-    SCHOOL_ID,
+    SCHOOL_ID, GRADE_ID, CLASS_ID,
     login,
     loginWithGoogle,
     loginAsEditor,
@@ -16,6 +16,7 @@ import {
     setDoc,
     arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { hasFullContext, renderContextSelector, redirectWithContext } from './context-selector.js';
 
 // Firebase SDK読み込み成功を通知
 window.firebaseLoaded = true;
@@ -115,6 +116,23 @@ function showApp(user) {
     loginContainer.style.display = 'none';
     appContainer.style.display = 'block';
     document.getElementById('userEmail').textContent = user.email;
+
+    // URLパラメータが揃っていない場合はコンテキスト選択画面を表示
+    if (!hasFullContext()) {
+        document.getElementById('adminContent').style.display = 'none';
+        document.getElementById('contextSelectorView').style.display = 'block';
+        renderContextSelector('contextSelectorView', (schoolId, gradeId, classId) => {
+            redirectWithContext(schoolId, gradeId, classId);
+        });
+        return;
+    }
+
+    // コンテキスト情報をヘッダーに表示
+    const label = document.getElementById('contextLabel');
+    if (label) {
+        label.textContent = `${SCHOOL_ID} / ${GRADE_ID} / ${CLASS_ID}`;
+    }
+
     initApp();
 }
 
@@ -210,7 +228,7 @@ async function submitData() {
             if (!dateStr) throw new Error("対象日を選択してください");
         }
 
-        const docRef = doc(db, "schools", SCHOOL_ID, "daily_data", dateStr);
+        const docRef = doc(db, "schools", SCHOOL_ID, "grades", GRADE_ID, "classes", CLASS_ID, "daily_data", dateStr);
         const updateData = buildUpdateData(dateStr);
 
         await setDoc(docRef, updateData, { merge: true });

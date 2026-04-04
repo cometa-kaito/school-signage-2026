@@ -168,26 +168,10 @@
                     <button class="btn btn-primary" id="saveEditorPasswordBtn">パスワードを設定</button>
                 </div>
 
-                <!-- 広告管理（クラス単位） -->
+                <!-- 授業時間設定（学校マスター） -->
                 <div class="card">
-                    <div class="card-header">
-                        <h2>広告管理</h2>
-                        <button class="btn btn-primary" id="addAdBtn">+ 広告追加</button>
-                    </div>
-                    <div id="adClassSelector" style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <label>学年:</label>
-                        <select id="adGradeSelect" style="padding:6px;border-radius:6px;border:1px solid #ddd;min-width:150px;"></select>
-                        <label>クラス:</label>
-                        <select id="adClassSelect" style="padding:6px;border-radius:6px;border:1px solid #ddd;min-width:150px;"></select>
-                    </div>
-                    <p class="setting-description">最大5枚まで。クラスごとに広告を管理できます。</p>
-                    <div id="adListContainer" class="ad-management-list"></div>
-                    <input type="file" id="adFileInput" accept="image/*,video/*" hidden>
-                </div>
-
-                <!-- 授業時間設定 -->
-                <div class="card">
-                    <div class="card-header"><h2>授業時間設定（広告非表示）</h2></div>
+                    <div class="card-header"><h2>授業時間設定（学校マスター）</h2></div>
+                    <p class="setting-description">各クラスで個別設定がない場合、このマスター設定が適用されます。クラス個別の設定はクラス設定ページで行えます。</p>
                     <div id="quietHoursContainer">
                         <div id="quietHoursList"></div>
                         <button class="btn btn-secondary" id="addQuietHourBtn">+ 時間帯追加</button>

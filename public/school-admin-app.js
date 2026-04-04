@@ -1,7 +1,7 @@
 // school-admin-app.js - 学校管理ロジック（学校一覧 + 学校詳細の2ビュー）
 
 import {
-    db, storage, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext,
+    db, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext,
     login, loginWithGoogle, logout, onAuthChange, isUserAdmin, getUserClaims,
     listUsersFn, createAdminUserFn, setAdminRoleFn, updateUserFn, deleteUserFn,
     toggleUserStatusFn, setEmailVerifiedFn, setEditorPasswordFn,
@@ -11,8 +11,7 @@ import {
     inviteMemberFn, listMembersFn, removeMemberFn, updateMembershipFn,
     getMyMembershipsFn
 } from './config.js';
-import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 window.firebaseLoaded = true;
 
@@ -39,8 +38,7 @@ let isSystemAdminUser = false;
 let schoolsList = [], gradesList = [], classesList = [];
 let activeSchoolId = null, activeGradeId = null;
 let usersData = [], membersData = [];
-let quietHours = [], adsData = [], pendingAdAction = null;
-let adGradeId = null, adClassId = null, adClassesList = [];
+let quietHours = [];
 
 // ========================================
 // 認証
@@ -284,8 +282,7 @@ async function loadSchoolDetail() {
     loadGrades(activeSchoolId);
     loadUsersAndMembers();
     loadEditorPassword();
-    initAdSelectors();
-    loadQuietHours();
+        loadQuietHours();
 }
 
 // 学校情報の編集・削除（詳細ビュー）
@@ -324,8 +321,7 @@ async function loadGrades(schoolId) {
         const r = await listGradesFn({ schoolId });
         gradesList = r.data.grades || [];
         renderGradeList();
-        initAdSelectors();
-    } catch (e) { gradesList = []; renderGradeList(); initAdSelectors(); }
+            } catch (e) { gradesList = []; renderGradeList(); initAdSelectors(); }
 }
 
 function renderGradeList() {
@@ -409,6 +405,7 @@ function showUrlModal(classId, className) {
     const signageUrl = `${origin}/?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}&kiosk=1`;
     const dashboardUrl = `${origin}/dashboard.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
     const adminUrl = `${origin}/admin.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
+    const settingsUrl = `${origin}/class-settings.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
 
     const grade = gradesList.find(g => g.id === activeGradeId);
     const gradeName = grade ? grade.name : activeGradeId;
@@ -417,6 +414,7 @@ function showUrlModal(classId, className) {
         `<div style="display:flex;gap:8px;margin-bottom:16px;">
             <a href="${dashboardUrl}" class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none;">ダッシュボード</a>
             <a href="${adminUrl}" class="btn btn-secondary" style="flex:1;text-align:center;text-decoration:none;">連絡登録</a>
+            <a href="${settingsUrl}" class="btn btn-secondary" style="flex:1;text-align:center;text-decoration:none;">クラス設定</a>
         </div>
         <div class="form-group">
             <label>サイネージURL</label>
@@ -730,130 +728,4 @@ document.getElementById('saveQuietHoursBtn').addEventListener('click', async () 
     });
 });
 
-// ========================================
-// 広告管理（クラス単位）
-// ========================================
-
-function initAdSelectors() {
-    const gradeSelect = document.getElementById('adGradeSelect');
-    const classSelect = document.getElementById('adClassSelect');
-    if (!gradeSelect || !classSelect) return;
-    gradeSelect.innerHTML = '<option value="">-- 学年を選択 --</option>' +
-        gradesList.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-    classSelect.innerHTML = '<option value="">-- クラスを選択 --</option>';
-    adGradeId = null; adClassId = null; adClassesList = [];
-    adsData = [];
-    renderAdList();
-}
-
-document.getElementById('adGradeSelect')?.addEventListener('change', async (e) => {
-    adGradeId = e.target.value || null;
-    adClassId = null;
-    const classSelect = document.getElementById('adClassSelect');
-    if (adGradeId) {
-        try {
-            const r = await listClassesFn({ schoolId: activeSchoolId, gradeId: adGradeId });
-            adClassesList = r.data.classes || [];
-        } catch (err) { adClassesList = []; }
-        classSelect.innerHTML = '<option value="">-- クラスを選択 --</option>' +
-            adClassesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    } else {
-        adClassesList = [];
-        classSelect.innerHTML = '<option value="">-- クラスを選択 --</option>';
-    }
-    adsData = []; renderAdList();
-});
-
-document.getElementById('adClassSelect')?.addEventListener('change', (e) => {
-    adClassId = e.target.value || null;
-    if (adClassId) { loadAds(); }
-    else { adsData = []; renderAdList(); }
-});
-
-function getAdClassRef() {
-    if (!adGradeId || !adClassId) return null;
-    return doc(db, "schools", activeSchoolId, "grades", adGradeId, "classes", adClassId);
-}
-
-async function loadAds() {
-    const classRef = getAdClassRef();
-    if (!classRef) { adsData = []; renderAdList(); return; }
-    try {
-        const snap = await getDoc(classRef);
-        const settings = snap.exists() ? (snap.data().displaySettings || {}) : {};
-        adsData = settings.ads || [];
-        renderAdList();
-    } catch (e) { adsData = []; renderAdList(); }
-}
-
-async function saveAds() {
-    const classRef = getAdClassRef();
-    if (!classRef) return;
-    const snap = await getDoc(classRef);
-    const current = snap.exists() ? (snap.data().displaySettings || {}) : {};
-    current.ads = adsData;
-    await updateDoc(classRef, { displaySettings: current });
-}
-
-function renderAdList() {
-    const c = document.getElementById('adListContainer');
-    const addBtn = document.getElementById('addAdBtn');
-    if (!c) return;
-
-    if (!adGradeId || !adClassId) {
-        c.innerHTML = '<p class="empty-text">上のセレクタで学年・クラスを選択してください</p>';
-        if (addBtn) addBtn.style.display = 'none';
-        return;
-    }
-
-    if (adsData.length === 0) { c.innerHTML = '<p class="empty-text">広告未登録</p>'; }
-    else {
-        c.innerHTML = adsData.map((ad, idx) => `
-            <div class="ad-management-item" draggable="true" data-index="${idx}">
-                <div class="ad-drag-handle">☰</div>
-                ${ad.type === 'video' ? `<video src="${ad.url}" class="ad-thumbnail" muted playsinline onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>` : `<img src="${ad.url}" class="ad-thumbnail" onerror="this.src='https://placehold.jp/80x60.png?text=Error'">`}
-                <div class="ad-details"><p>${ad.type === 'video' ? '動画' : '画像'} ${idx + 1}</p></div>
-                <div class="ad-actions-group">
-                    <button class="btn btn-sm" onclick="window.replaceAd(${idx})">変更</button>
-                    <button class="btn btn-sm btn-danger" onclick="window.deleteAd(${idx})">削除</button>
-                </div>
-            </div>
-        `).join('');
-    }
-    if (addBtn) addBtn.style.display = adsData.length >= 5 ? 'none' : '';
-}
-
-window.replaceAd = (idx) => {
-    if (!getAdClassRef()) { showToast('クラスを選択してください', 'error'); return; }
-    pendingAdAction = { type: 'replace', index: idx }; document.getElementById('adFileInput').click();
-};
-window.deleteAd = async (idx) => {
-    if (!confirm('削除しますか？')) return;
-    adsData.splice(idx, 1);
-    await saveAds();
-    showToast('削除しました', 'success'); renderAdList();
-};
-document.getElementById('addAdBtn').addEventListener('click', () => {
-    if (!getAdClassRef()) { showToast('学年・クラスを選択してください', 'error'); return; }
-    if (adsData.length >= 5) { showToast('最大5枚です', 'error'); return; }
-    pendingAdAction = 'add'; document.getElementById('adFileInput').click();
-});
-document.getElementById('adFileInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (!getAdClassRef()) { showToast('クラスを選択してください', 'error'); e.target.value = ''; return; }
-    const isVideo = file.type.startsWith('video/');
-    try {
-        showToast('アップロード中...', 'success');
-        const folder = isVideo ? 'videos' : 'ads';
-        const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        const newAd = { id: `ad_${Date.now()}`, type: isVideo ? 'video' : 'image', url, link_url: '', duration_sec: isVideo ? 0 : 10 };
-        if (pendingAdAction === 'add') adsData.push(newAd);
-        else if (pendingAdAction?.type === 'replace') adsData[pendingAdAction.index] = { ...adsData[pendingAdAction.index], ...newAd };
-        await saveAds();
-        showToast('アップロードしました', 'success'); renderAdList();
-    } catch (err) { showToast('エラー: ' + err.message, 'error'); }
-    e.target.value = ''; pendingAdAction = null;
-});
 

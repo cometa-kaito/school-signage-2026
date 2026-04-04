@@ -6,7 +6,9 @@ import {
     where,
     orderBy,
     limit,
-    onSnapshot
+    onSnapshot,
+    doc,
+    getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     getTodayString,
@@ -549,7 +551,15 @@ function startRealtimeListeners() {
             appData.schoolName = data.schoolName || "School Name";
             appData.className = data.name || "";
             appData.ads = settings.ads || [];
-            appData.quietHours = settings.quietHours || [];
+            // クラス個別のquiet_hours → 学校マスターにフォールバック
+            let qh = settings.quiet_hours || settings.quietHours || [];
+            if (qh.length === 0) {
+                try {
+                    const masterSnap = await getDoc(doc(db, "schools", SCHOOL_ID, "config", "display_settings"));
+                    if (masterSnap.exists()) qh = masterSnap.data().quiet_hours || [];
+                } catch (e) { /* ignore */ }
+            }
+            appData.quietHours = qh;
 
             updateUI();
             await syncImageCache(appData.ads);
@@ -677,7 +687,7 @@ async function fetchStaticJson(isInitial) {
         const config = jsonData.config || {};
         appData.schoolName = config.schoolName || 'School Name';
         appData.className = config.className || '';
-        appData.quietHours = config.quietHours || [];
+        appData.quietHours = config.quiet_hours || config.quietHours || [];
 
         const todayStr = getTodayString();
         const dailyData = jsonData.dailyData || {};

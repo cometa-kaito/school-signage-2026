@@ -299,8 +299,8 @@ export const UI = {
                        placeholder="例: 数学テスト">
             </div>
             <div class="input-group display-range-group">
-                <label>📅 サイネージに表示する期間（空欄＝この日のみ表示）</label>
-                <p class="input-hint">この予定をサイネージ画面に表示し始める日〜消す日を指定できます。</p>
+                <label>📅 表示期間（空欄＝この日のみ表示）</label>
+                <p class="input-hint">この予定を表示し始める日と表示を終える日を指定できます。例えば、前日から表示したい場合などに使います。</p>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <input type="date" id="inp-display-start" value="${data?.display_start || ''}" style="flex:1;">
                     <span>〜</span>
@@ -332,8 +332,8 @@ export const UI = {
                 </label>
             </div>
             <div class="input-group display-range-group">
-                <label>📅 サイネージに表示する期間（空欄＝この日のみ表示）</label>
-                <p class="input-hint">この連絡をサイネージ画面に表示し始める日〜消す日を指定できます。</p>
+                <label>📅 表示期間（空欄＝この日のみ表示）</label>
+                <p class="input-hint">この連絡を表示し始める日と表示を終える日を指定できます。</p>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <input type="date" id="inp-display-start" value="${data?.display_start || ''}" style="flex:1;">
                     <span>〜</span>

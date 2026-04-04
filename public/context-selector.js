@@ -1,6 +1,6 @@
 // context-selector.js - 共通コンテキスト選択コンポーネント（学校→学年→クラス）
 
-import { listSchoolsFn, listGradesFn, listClassesFn } from './config.js';
+import { listSchoolsFn, listGradesFn, listClassesFn, getMyMembershipsFn, auth, isUserAdmin } from './config.js';
 
 const HISTORY_KEY = 'contextHistory';
 const MAX_HISTORY = 10;
@@ -37,13 +37,53 @@ export async function renderContextSelector(containerId, onSelected) {
     let schools = [], grades = [], classes = [];
     let selectedSchool = null, selectedGrade = null;
 
-    // 学校一覧取得
+    // ユーザーの権限情報を取得
+    const user = auth.currentUser;
+    const isAdmin = user ? await isUserAdmin(user) : false;
+    let memberships = [];
+    let allowedSchoolIds = null; // null = 全学校許可（admin）
+    let allowedClassIds = null;  // null = 全クラス許可（admin/school_admin）
+
+    if (!isAdmin && user) {
+        try {
+            const r = await getMyMembershipsFn();
+            memberships = r.data.memberships || [];
+        } catch { memberships = []; }
+
+        // エディター（パスワードログイン）の場合、claimsからschoolIdを取得
+        if (memberships.length === 0 && user.uid.startsWith('editor_')) {
+            const token = await user.getIdTokenResult();
+            const schoolId = token.claims.schoolId;
+            if (schoolId) {
+                memberships = [{ schoolId, role: 'editor', classIds: [] }];
+            }
+        }
+
+        allowedSchoolIds = memberships.map(m => m.schoolId);
+        // teacher/editorはclassIdsで制限（school_adminは全クラス）
+        const nonAdminMemberships = memberships.filter(m => m.role !== 'school_admin');
+        if (nonAdminMemberships.length > 0 && memberships.every(m => m.role !== 'school_admin')) {
+            allowedClassIds = memberships.flatMap(m => m.classIds || []);
+        }
+    }
+
+    // 学校一覧取得（権限でフィルタ）
     try {
         const r = await listSchoolsFn();
-        schools = r.data.schools || [];
+        let allSchools = r.data.schools || [];
+        schools = allowedSchoolIds ? allSchools.filter(s => allowedSchoolIds.includes(s.id)) : allSchools;
     } catch (e) {
         container.innerHTML = '<p style="color:red;">学校一覧の取得に失敗しました</p>';
         return;
+    }
+
+    // 学校が1つだけの場合は自動選択
+    if (schools.length === 1 && !selectedSchool) {
+        selectedSchool = schools[0].id;
+        try {
+            const r = await listGradesFn({ schoolId: selectedSchool });
+            grades = r.data.grades || [];
+        } catch { grades = []; }
     }
 
     function render() {
@@ -131,7 +171,8 @@ export async function renderContextSelector(containerId, onSelected) {
             if (selectedSchool && selectedGrade) {
                 try {
                     const r = await listClassesFn({ schoolId: selectedSchool, gradeId: selectedGrade });
-                    classes = r.data.classes || [];
+                    let allClasses = r.data.classes || [];
+                    classes = allowedClassIds ? allClasses.filter(c => allowedClassIds.includes(c.id)) : allClasses;
                 } catch { classes = []; }
             }
             render();

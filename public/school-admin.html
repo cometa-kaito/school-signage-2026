@@ -51,12 +51,6 @@
             </div>
         </header>
 
-        <nav class="nav-links">
-            <a href="dashboard.html">ダッシュボード</a>
-            <a href="admin.html">連絡登録</a>
-            <a href="school-admin.html" class="active">学校管理</a>
-        </nav>
-
         <main class="main-content">
             <!-- ========================================
                  学校一覧ビュー（system_adminのみ、パラメータなし時）
@@ -68,6 +62,45 @@
                         <button class="btn btn-primary" id="createSchoolBtn">+ 学校作成</button>
                     </div>
                     <div id="schoolGridContainer"></div>
+                </div>
+
+                <!-- 権限構造ガイド -->
+                <div class="card" style="background:#f8fafc;">
+                    <div class="card-header"><h2>権限構造</h2></div>
+                    <table class="user-table" style="font-size:13px;">
+                        <thead>
+                            <tr>
+                                <th>ロール</th>
+                                <th>できること</th>
+                                <th>アクセスできるページ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge badge-admin">システム管理者</span></td>
+                                <td>全学校の作成・編集・削除、全ユーザー管理、全クラスのコンテンツ編集</td>
+                                <td>学校管理、ダッシュボード、連絡登録（全学校・全クラス）</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge" style="background:#e3f2fd;color:#1565c0;">学校管理者</span></td>
+                                <td>自校の学年・クラス管理、メンバー管理、広告・授業時間設定、コンテンツ編集</td>
+                                <td>学校管理（自校のみ）、ダッシュボード、連絡登録（自校の全クラス）</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge" style="background:#e8f5e9;color:#2e7d32;">教員</span></td>
+                                <td>担当クラスのコンテンツ編集（予定・連絡・提出物）</td>
+                                <td>ダッシュボード、連絡登録（担当クラスのみ）</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-editor" style="color:#1b5e20;">編集者</span></td>
+                                <td>担当クラスのコンテンツ編集（パスワードログイン可）</td>
+                                <td>ダッシュボード、連絡登録（担当クラスのみ）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin:12px 0 0;font-size:12px;color:#888;">
+                        サイネージ表示は認証不要です。URLにschool・grade・classパラメータを指定するだけでアクセスできます。
+                    </p>
                 </div>
             </div>
 

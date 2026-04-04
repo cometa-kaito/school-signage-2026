@@ -398,12 +398,17 @@ function showUrlModal(classId, className) {
     const origin = window.location.origin;
     const signageUrl = `${origin}/?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}&kiosk=1`;
     const dashboardUrl = `${origin}/dashboard.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
+    const adminUrl = `${origin}/admin.html?school=${activeSchoolId}&grade=${activeGradeId}&class=${classId}`;
 
     const grade = gradesList.find(g => g.id === activeGradeId);
     const gradeName = grade ? grade.name : activeGradeId;
 
-    showGenericModal(`${gradeName} ${className} のURL`,
-        `<div class="form-group">
+    showGenericModal(`${gradeName} ${className}`,
+        `<div style="display:flex;gap:8px;margin-bottom:16px;">
+            <a href="${dashboardUrl}" class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none;">ダッシュボード</a>
+            <a href="${adminUrl}" class="btn btn-secondary" style="flex:1;text-align:center;text-decoration:none;">連絡登録</a>
+        </div>
+        <div class="form-group">
             <label>サイネージURL</label>
             <div style="display:flex;gap:8px;">
                 <input type="text" readonly value="${signageUrl}" style="flex:1;font-size:12px;" id="url-signage">
@@ -419,7 +424,6 @@ function showUrlModal(classId, className) {
         </div>`,
         () => { document.getElementById('genericModal').style.display = 'none'; }
     );
-    // 保存ボタンのテキストを変更
     document.getElementById('genericModalSave').textContent = '閉じる';
 }
 

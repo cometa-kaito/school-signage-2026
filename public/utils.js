@@ -126,12 +126,24 @@ export function startClock(timeElId, dateElId = null) {
             mobileTimeEl.textContent = timeStr;
         }
 
+        const DAYS = ['日','月','火','水','木','金','土'];
+        const dateStr = `${now.getMonth() + 1}月${now.getDate()}日`;
+        const dayStr = DAYS[now.getDay()];
+
         if (dateElId) {
             const dateEl = document.getElementById(dateElId);
-            if (dateEl) {
-                dateEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日`;
-            }
+            if (dateEl) dateEl.textContent = dateStr;
         }
+
+        // モバイル用日付
+        const mobileDateEl = document.getElementById('mobile-current-date');
+        if (mobileDateEl) mobileDateEl.textContent = dateStr;
+
+        // 曜日
+        const dayEl = document.getElementById('current-day');
+        if (dayEl) dayEl.textContent = dayStr;
+        const mobileDayEl = document.getElementById('mobile-current-day');
+        if (mobileDayEl) mobileDayEl.textContent = dayStr;
     };
 
     updateTime();

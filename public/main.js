@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     forceLayout();
     updateLayoutMode(); // レイアウトモードを初期化
-    startClock('current-time');
+    startClock('current-time', 'current-date');
 
     const urlParams = new URLSearchParams(window.location.search);
     const isKioskMode = urlParams.get('kiosk') === '1' || urlParams.get('autostart') === '1';
@@ -539,6 +539,11 @@ async function testFirestoreConnection() {
  * Firestoreリアルタイム監視を開始
  */
 function startRealtimeListeners() {
+    if (!SCHOOL_ID || !GRADE_ID || !CLASS_ID) {
+        console.error('コンテキスト不足: school=', SCHOOL_ID, 'grade=', GRADE_ID, 'class=', CLASS_ID);
+        updateUI();
+        return;
+    }
     const todayStr = getTodayString();
     pendingUpdates = 2;
 

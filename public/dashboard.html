@@ -242,7 +242,7 @@
     </div>
 
     <script type="module">
-        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserTeacher } from './config.js';
+        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserTeacher, hasAnyAccess } from './config.js';
 
         // Firebase SDK読み込み成功を通知
         window.firebaseLoaded = true;
@@ -271,9 +271,8 @@
         onAuthChange(async (user) => {
             if (user) {
                 loadingOverlay.style.display = 'flex';
-                const isAdmin = await isUserAdmin(user);
-                const isEditor = await isUserTeacher(user);
-                if (isAdmin || isEditor) {
+                const canAccess = await hasAnyAccess(user);
+                if (canAccess) {
                     showApp(user, isAdmin);
                 } else {
                     loadingOverlay.style.display = 'none';

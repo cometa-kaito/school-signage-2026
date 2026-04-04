@@ -9,7 +9,8 @@ import {
     logout,
     onAuthChange,
     isUserAdmin,
-    isUserTeacher
+    isUserTeacher,
+    hasAnyAccess
 } from './config.js';
 import {
     doc,
@@ -48,9 +49,8 @@ document.querySelectorAll('.login-tab').forEach(tab => {
 onAuthChange(async (user) => {
     if (user) {
         showLoading();
-        const isAdmin = await isUserAdmin(user);
-        const isEditor = await isUserTeacher(user);
-        if (isAdmin || isEditor) {
+        const canAccess = await hasAnyAccess(user);
+        if (canAccess) {
             hideLoading();
             showApp(user);
         } else {

@@ -2,7 +2,7 @@
 
 import {
     db, storage, SCHOOL_ID, GRADE_ID, CLASS_ID,
-    login, loginWithGoogle, logout, onAuthChange, isUserAdmin, isUserTeacher
+    login, loginWithGoogle, logout, onAuthChange, isUserAdmin, isUserTeacher, hasAnyAccess
 } from './config.js';
 import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
@@ -41,9 +41,8 @@ async function withLoading(fn) { showLoading(); try { return await fn(); } final
 onAuthChange(async (user) => {
     if (user) {
         showLoading();
-        const isAdmin = await isUserAdmin(user);
-        const isEditor = await isUserTeacher(user);
-        if (isAdmin || isEditor) {
+        const canAccess = await hasAnyAccess(user);
+        if (canAccess) {
             loginContainer.style.display = 'none';
             appContainer.style.display = 'block';
             document.getElementById('userEmail').textContent = user.email;

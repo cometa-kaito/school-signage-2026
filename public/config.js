@@ -185,6 +185,17 @@ export async function isUserTeacher(user) {
     } catch { return false; }
 }
 
+export async function hasAnyAccess(user) {
+    if (!user) return false;
+    if (await isUserAdmin(user)) return true;
+    if (await isUserTeacher(user)) return true;
+    try {
+        const result = await getMyMembershipsFn();
+        const memberships = result.data.memberships || [];
+        return memberships.length > 0;
+    } catch { return false; }
+}
+
 export async function getUserClaims(user) {
     if (!user) return {};
     try { return (await user.getIdTokenResult()).claims; }

@@ -18,8 +18,8 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
     if (!editorConfigSnap.exists) throw new functions.https.HttpsError('not-found', 'エディター認証が設定されていません');
     if (editorConfigSnap.data().password !== password) throw new functions.https.HttpsError('unauthenticated', 'パスワードが間違っています');
 
-    const customToken = await admin.auth().createCustomToken(`editor_${targetSchoolId}`, {
-        editor: true, schoolId: targetSchoolId
+    const customToken = await admin.auth().createCustomToken(`teacher_${targetSchoolId}`, {
+        teacher: true, schoolId: targetSchoolId
     });
     return { success: true, customToken, schoolId: targetSchoolId, message: 'エディターとしてログインしました' };
 }, null));

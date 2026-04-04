@@ -35,8 +35,7 @@ service cloud.firestore {
     function hasClassAccess(schoolId, classId) {
       return isSchoolAdmin(schoolId)
         || (isAuthenticated()
-            && getMembership(schoolId).data.role in ['teacher', 'editor']
-            && classId in getMembership(schoolId).data.classIds);
+            && getMembership(schoolId).data.role == 'teacher');
     }
 
     // ========================================

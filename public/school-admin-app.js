@@ -514,7 +514,7 @@ function renderUnifiedUserTable() {
     const memberMap = {};
     membersData.forEach(m => { memberMap[m.userId] = m; });
 
-    const roleLabels = { system_admin: 'システム管理者', school_admin: '学校管理者', teacher: '教員', editor: '編集者' };
+    const roleLabels = { system_admin: 'システム管理者', school_admin: '学校管理者', teacher: '教員' };
 
     const rows = usersData.map(user => {
         const member = memberMap[user.uid];
@@ -527,7 +527,7 @@ function renderUnifiedUserTable() {
             roleCell = `<span class="badge badge-admin">システム管理者</span>`;
         } else if (member) {
             roleCell = `<select class="role-dropdown" data-uid="${user.uid}" data-current="${currentRole}">
-                ${['school_admin','teacher','editor'].map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${roleLabels[r]}</option>`).join('')}
+                ${['school_admin','teacher'].map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${roleLabels[r]}</option>`).join('')}
             </select>`;
         } else {
             roleCell = `<button class="btn btn-sm btn-secondary" onclick="window.addMember('${user.uid}', '${user.email}')">メンバー追加</button>`;
@@ -632,7 +632,7 @@ document.getElementById('userModalSave').addEventListener('click', () => withLoa
                     if (wasAdmin) await setAdminRoleFn({ uid, isAdmin: false });
                     if (member) await removeMemberFn({ schoolId: activeSchoolId, userId: uid });
                 } else {
-                    // school_admin / teacher / editor
+                    // school_admin / teacher
                     if (wasAdmin) await setAdminRoleFn({ uid, isAdmin: false });
                     if (member) {
                         if (prevRole !== selectedRole) {

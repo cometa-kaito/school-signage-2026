@@ -36,8 +36,7 @@ async function verifyClassAccess(context, schoolId, classId) {
     const snap = await db.collection('memberships').doc(membershipId).get();
     if (!snap.exists) throw new functions.https.HttpsError('permission-denied', 'アクセス権がありません');
     const m = snap.data();
-    if (m.role === 'school_admin') return;
-    if (['teacher', 'editor'].includes(m.role) && (m.classIds || []).includes(classId)) return;
+    if (m.role === 'school_admin' || m.role === 'teacher') return;
     throw new functions.https.HttpsError('permission-denied', 'このクラスへのアクセス権がありません');
 }
 

@@ -242,7 +242,7 @@
     </div>
 
     <script type="module">
-        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserEditor } from './config.js';
+        import { login, loginWithGoogle, loginAsEditor, logout, onAuthChange, isUserAdmin, isUserTeacher } from './config.js';
 
         // Firebase SDK読み込み成功を通知
         window.firebaseLoaded = true;
@@ -271,7 +271,7 @@
         onAuthChange(async (user) => {
             if (user) {
                 const isAdmin = await isUserAdmin(user);
-                const isEditor = await isUserEditor(user);
+                const isEditor = await isUserTeacher(user);
                 if (isAdmin || isEditor) {
                     showApp(user, isAdmin);
                 } else {

@@ -1,7 +1,7 @@
 // auth.js - 認証UIコンポーネント（マルチテナント対応）
 
 import {
-    login, logout, onAuthChange, isUserAdmin, isUserEditor,
+    login, logout, onAuthChange, isUserAdmin, isUserTeacher,
     getCurrentUser, getUserClaims
 } from './config.js';
 
@@ -158,7 +158,7 @@ export function initAuth(options) {
                 hasAccess = await isUserAdmin(user);
             } else {
                 // editor以上でアクセス可
-                hasAccess = await isUserEditor(user);
+                hasAccess = await isUserTeacher(user);
             }
 
             if (hasAccess) {

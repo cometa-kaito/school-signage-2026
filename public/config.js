@@ -177,11 +177,11 @@ export async function isUserAdmin(user) {
     } catch { return false; }
 }
 
-export async function isUserEditor(user) {
+export async function isUserTeacher(user) {
     if (!user) return false;
     try {
         const result = await user.getIdTokenResult();
-        return result.claims.editor === true || result.claims.admin === true || result.claims.systemRole === 'system_admin';
+        return result.claims.teacher === true || result.claims.editor === true || result.claims.admin === true || result.claims.systemRole === 'system_admin';
     } catch { return false; }
 }
 

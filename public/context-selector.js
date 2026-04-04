@@ -42,7 +42,6 @@ export async function renderContextSelector(containerId, onSelected) {
     const isAdmin = user ? await isUserAdmin(user) : false;
     let memberships = [];
     let allowedSchoolIds = null; // null = 全学校許可（admin）
-    let allowedClassIds = null;  // null = 全クラス許可（admin/school_admin）
 
     if (!isAdmin && user) {
         try {
@@ -51,20 +50,17 @@ export async function renderContextSelector(containerId, onSelected) {
         } catch { memberships = []; }
 
         // エディター（パスワードログイン）の場合、claimsからschoolIdを取得
-        if (memberships.length === 0 && user.uid.startsWith('editor_')) {
+        // パスワードログイン（teacher_XXX）の場合、claimsからschoolIdを取得
+        if (memberships.length === 0 && (user.uid.startsWith('teacher_') || user.uid.startsWith('editor_'))) {
             const token = await user.getIdTokenResult();
             const schoolId = token.claims.schoolId;
             if (schoolId) {
-                memberships = [{ schoolId, role: 'editor', classIds: [] }];
+                memberships = [{ schoolId, role: 'teacher', classIds: [] }];
             }
         }
 
         allowedSchoolIds = memberships.map(m => m.schoolId);
-        // teacher/editorはclassIdsで制限（school_adminは全クラス）
-        const nonAdminMemberships = memberships.filter(m => m.role !== 'school_admin');
-        if (nonAdminMemberships.length > 0 && memberships.every(m => m.role !== 'school_admin')) {
-            allowedClassIds = memberships.flatMap(m => m.classIds || []);
-        }
+        // teacherは自校の全クラスにアクセス可能（制限なし）
     }
 
     // 学校一覧取得（権限でフィルタ）
@@ -172,7 +168,7 @@ export async function renderContextSelector(containerId, onSelected) {
                 try {
                     const r = await listClassesFn({ schoolId: selectedSchool, gradeId: selectedGrade });
                     let allClasses = r.data.classes || [];
-                    classes = allowedClassIds ? allClasses.filter(c => allowedClassIds.includes(c.id)) : allClasses;
+                    classes = allClasses;
                 } catch { classes = []; }
             }
             render();

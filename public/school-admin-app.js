@@ -466,8 +466,8 @@ function renderGradeClassTree() {
                         const isExpanded = expandedClassId === cl.id;
                         const origin = window.location.origin;
                         const signageUrl = `${origin}/?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}&kiosk=1`;
-                        const dashboardUrl = `${origin}/dashboard.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
-                        const adminUrl = `${origin}/admin.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
+                        const dashboardUrl = `${origin}/editor.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
+                        const adminUrl = `${origin}/editor-mobile.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
                         const settingsUrl = `${origin}/class-settings.html?school=${activeSchoolId}&grade=${g.id}&class=${cl.id}`;
                         return `
                         <div style="border:1px solid ${isExpanded ? '#667eea' : '#e9ecef'};border-radius:8px;overflow:hidden;">
@@ -479,8 +479,8 @@ function renderGradeClassTree() {
                             ${isExpanded ? `
                             <div style="padding:10px 14px;background:#fff;border-top:1px solid #e9ecef;">
                                 <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-                                    <a href="${dashboardUrl}" class="btn btn-primary btn-sm" style="text-decoration:none;">ダッシュボード</a>
-                                    <a href="${adminUrl}" class="btn btn-secondary btn-sm" style="text-decoration:none;">連絡登録</a>
+                                    <a href="${dashboardUrl}" class="btn btn-primary btn-sm" style="text-decoration:none;">編集（PC）</a>
+                                    <a href="${adminUrl}" class="btn btn-secondary btn-sm" style="text-decoration:none;">編集（スマホ）</a>
                                     <a href="${settingsUrl}" class="btn btn-secondary btn-sm" style="text-decoration:none;">クラス設定</a>
                                 </div>
                                 <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">

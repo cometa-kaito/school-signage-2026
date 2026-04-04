@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="common.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="auth-style.css">
-    <link rel="stylesheet" href="dashboard-style.css">
+    <link rel="stylesheet" href="editor-style.css">
     <!-- ダッシュボード専用: スクロール有効化 -->
     <style>
         html, body {
@@ -62,7 +62,7 @@
     <!-- ログイン画面 -->
     <div id="loginContainer" class="login-container">
         <div class="login-box">
-            <h2>🔐 ダッシュボードログイン</h2>
+            <h2>🔐 コンテンツ編集ログイン</h2>
             <div id="loginError" class="error-msg"></div>
 
             <!-- タブ切り替え -->
@@ -182,7 +182,7 @@
                 <div class="ad-container">
                     <img id="ad-image" src="" alt="Advertisement">
                     <div class="ad-info-overlay">
-                        <div class="ad-info-text">広告管理は学校管理画面から</div>
+                        <div class="ad-info-text">広告管理はクラス設定画面から</div>
                     </div>
                 </div>
             </aside>
@@ -358,7 +358,7 @@
         function initDashboard() {
             if (dashboardInitialized) return;
 
-            // dashboard.jsの読み込みを待つ
+            // editor.jsの読み込みを待つ
             if (window.dashboard && window.dashboard.init) {
                 dashboardInitialized = true;
                 window.dashboard.init();
@@ -377,6 +377,6 @@
         </div>
     </div>
 
-    <script type="module" src="dashboard.js"></script>
+    <script type="module" src="editor.js"></script>
 </body>
 </html>

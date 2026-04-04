@@ -500,6 +500,13 @@ window.dashboard.openCalendar = () => { currentCalendarDate = new Date(); render
 window.dashboard.prevMonth = () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); renderCalendar(); };
 window.dashboard.nextMonth = () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); renderCalendar(); };
 
+function getDataForDate(dateStr) {
+    const schedules = appData.allSchedules[dateStr] || [];
+    const notices = appData.allNotices.filter(n => n._sourceDate === dateStr);
+    const assignments = appData.allAssignments.filter(a => a._sourceDate === dateStr);
+    return { schedules, notices, assignments };
+}
+
 function renderCalendar() {
     const container = document.getElementById('calendar-container');
     const label = document.getElementById('calendar-month-label');
@@ -509,9 +516,8 @@ function renderCalendar() {
     const month = currentCalendarDate.getMonth();
     label.textContent = `${year}年${month + 1}月`;
 
-    const firstDay = new Date(year, month, 1);
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const startDayOfWeek = firstDay.getDay();
+    const startDayOfWeek = new Date(year, month, 1).getDay();
     const todayStr = formatDateKey(new Date());
 
     let html = '<div class="calendar-grid">';
@@ -525,21 +531,21 @@ function renderCalendar() {
         const date = new Date(year, month, day);
         const dateStr = formatDateKey(date);
         const dow = date.getDay();
-        const schedules = appData.allSchedules[dateStr] || [];
+        const { schedules, notices, assignments } = getDataForDate(dateStr);
+        const total = schedules.length + notices.length + assignments.length;
 
         let cls = 'calendar-cell';
         if (dateStr === todayStr) cls += ' today';
         if (dow === 0) cls += ' sunday'; else if (dow === 6) cls += ' saturday';
-        if (schedules.length > 0) cls += ' has-events';
+        if (total > 0) cls += ' has-events';
 
         html += `<div class="${cls}" onclick="window.dashboard.showDayDetail('${dateStr}')">`;
         html += `<div class="calendar-day-number">${day}</div>`;
-        if (schedules.length > 0) {
+        if (total > 0) {
             html += '<div class="calendar-events">';
-            schedules.slice(0, 2).forEach(s => {
-                html += `<div class="calendar-event-item">${escapeHtml(s.time)} ${escapeHtml(s.content)}</div>`;
-            });
-            if (schedules.length > 2) html += `<div class="calendar-event-more">+${schedules.length - 2}件</div>`;
+            if (schedules.length > 0) html += `<div class="calendar-event-item">&#128197; ${schedules.length}</div>`;
+            if (notices.length > 0) html += `<div class="calendar-event-item" style="background:#fff3e0;">&#128226; ${notices.length}</div>`;
+            if (assignments.length > 0) html += `<div class="calendar-event-item" style="background:#e8f5e9;">&#128221; ${assignments.length}</div>`;
             html += '</div>';
         }
         html += '</div>';
@@ -547,13 +553,12 @@ function renderCalendar() {
     html += '</div>';
     container.innerHTML = html;
 
-    // 日詳細をリセット
     const detail = document.getElementById('calendar-day-detail');
     if (detail) detail.style.display = 'none';
 }
 
 window.dashboard.showDayDetail = (dateStr) => {
-    const schedules = appData.allSchedules[dateStr] || [];
+    const { schedules, notices, assignments } = getDataForDate(dateStr);
     const date = new Date(dateStr);
     const m = date.getMonth() + 1, d = date.getDate();
     const dow = ['日','月','火','水','木','金','土'][date.getDay()];
@@ -561,46 +566,69 @@ window.dashboard.showDayDetail = (dateStr) => {
     const detailContainer = document.getElementById('calendar-day-detail');
     const detailTitle = document.getElementById('calendar-day-title');
     const detailContent = document.getElementById('calendar-day-content');
+    if (!detailContainer) return;
 
-    if (!detailContainer) {
-        // フォールバック
-        let msg = `${m}/${d} (${dow}) の予定:\n\n`;
-        if (schedules.length === 0) msg += '予定はありません';
-        else schedules.forEach((s, i) => { msg += `${i+1}. [${s.time}] ${s.content}\n`; });
-        msg += '\n\n予定を追加しますか？';
-        if (confirm(msg)) { hideModal('calendar-modal'); window.dashboard.openAddModal('schedule', dateStr); }
-        return;
-    }
+    detailTitle.textContent = `${m}/${d} (${dow})`;
 
-    detailTitle.textContent = `${m}/${d} (${dow}) の予定`;
+    const itemRow = (content, editBtn, deleteBtn) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid #f0f0f0;gap:8px;">
+            <div style="flex:1;font-size:13px;">${content}</div>
+            <div style="display:flex;gap:4px;flex-shrink:0;">${editBtn}${deleteBtn}</div>
+        </div>`;
 
-    if (schedules.length === 0) {
-        detailContent.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">予定はありません</p>';
+    const sectionHeader = (icon, label) => `<div style="font-weight:bold;font-size:13px;color:#555;padding:8px 10px 4px;background:#fafafa;border-bottom:1px solid #eee;">${icon} ${label}</div>`;
+
+    let html = '';
+
+    // 予定セクション
+    html += sectionHeader('&#128197;', '予定');
+    if (schedules.length > 0) {
+        html += schedules.map(s => itemRow(
+            `<span style="color:#667eea;font-weight:600;">[${escapeHtml(s.time)}]</span> ${escapeHtml(s.content)}`,
+            `<button class="btn-icon" onclick="window.dashboard.calendarEdit('schedule','${dateStr}',${s._originalIndex})" title="編集">&#9998;</button>`,
+            `<button class="btn-icon btn-danger" onclick="window.dashboard.calendarDelete('schedule','${dateStr}',${s._originalIndex})" title="削除">&#128465;</button>`
+        )).join('');
     } else {
-        detailContent.innerHTML = schedules.map(s => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #eee;gap:8px;">
-                <div style="flex:1;"><span style="font-weight:600;color:#667eea;">[${escapeHtml(s.time)}]</span> <span>${escapeHtml(s.content)}</span></div>
-                <div style="display:flex;gap:4px;flex-shrink:0;">
-                    <button class="btn-icon" onclick="window.dashboard.calendarEdit('${dateStr}', ${s._originalIndex})" title="編集">✏️</button>
-                    <button class="btn-icon btn-danger" onclick="window.dashboard.calendarDelete('${dateStr}', ${s._originalIndex})" title="削除">🗑️</button>
-                </div>
-            </div>
-        `).join('');
+        html += '<div style="padding:6px 10px;color:#999;font-size:12px;">なし</div>';
     }
+    html += `<div style="padding:6px 10px;"><button class="btn btn-secondary btn-sm" onclick="window.dashboard.calendarAdd('schedule','${dateStr}')">+ 予定を追加</button></div>`;
 
-    detailContent.insertAdjacentHTML('beforeend', `
-        <div style="padding:12px;text-align:center;">
-            <button class="btn-add-area" onclick="window.dashboard.calendarAdd('${dateStr}')" style="display:inline-block;padding:8px 20px;">
-                <span class="icon-add">＋</span> 予定を追加
-            </button>
-        </div>
-    `);
+    // 連絡セクション
+    html += sectionHeader('&#128226;', '連絡');
+    if (notices.length > 0) {
+        html += notices.map(n => {
+            const highlight = n.is_highlight ? '<span style="color:#e74c3c;font-weight:bold;">[重要] </span>' : '';
+            return itemRow(
+                `${highlight}${escapeHtml(n.text)}`,
+                `<button class="btn-icon" onclick="window.dashboard.calendarEdit('notice','${dateStr}',${n._originalIndex})" title="編集">&#9998;</button>`,
+                `<button class="btn-icon btn-danger" onclick="window.dashboard.calendarDelete('notice','${dateStr}',${n._originalIndex})" title="削除">&#128465;</button>`
+            );
+        }).join('');
+    } else {
+        html += '<div style="padding:6px 10px;color:#999;font-size:12px;">なし</div>';
+    }
+    html += `<div style="padding:6px 10px;"><button class="btn btn-secondary btn-sm" onclick="window.dashboard.calendarAdd('notice','${dateStr}')">+ 連絡を追加</button></div>`;
+
+    // 提出物セクション
+    html += sectionHeader('&#128221;', '提出物');
+    if (assignments.length > 0) {
+        html += assignments.map(a => itemRow(
+            `${escapeHtml(a.subject || '')} ${escapeHtml(a.task)} <span style="color:#888;font-size:11px;">(期限: ${a.deadline})</span>`,
+            `<button class="btn-icon" onclick="window.dashboard.calendarEdit('assignment','${dateStr}',${a._originalIndex})" title="編集">&#9998;</button>`,
+            `<button class="btn-icon btn-danger" onclick="window.dashboard.calendarDelete('assignment','${dateStr}',${a._originalIndex})" title="削除">&#128465;</button>`
+        )).join('');
+    } else {
+        html += '<div style="padding:6px 10px;color:#999;font-size:12px;">なし</div>';
+    }
+    html += `<div style="padding:6px 10px;"><button class="btn btn-secondary btn-sm" onclick="window.dashboard.calendarAdd('assignment','${dateStr}')">+ 提出物を追加</button></div>`;
+
+    detailContent.innerHTML = html;
     detailContainer.style.display = 'block';
 };
 
-window.dashboard.calendarEdit = (dateStr, idx) => { hideModal('calendar-modal'); window.dashboard.openEditModal('schedule', dateStr, idx); };
-window.dashboard.calendarDelete = async (dateStr, idx) => { if (!confirm("削除しますか？")) return; await window.dashboard.deleteItem('schedule', dateStr, idx); };
-window.dashboard.calendarAdd = (dateStr) => { hideModal('calendar-modal'); window.dashboard.openAddModal('schedule', dateStr); };
+window.dashboard.calendarEdit = (type, dateStr, idx) => { hideModal('calendar-modal'); window.dashboard.openEditModal(type, dateStr, idx); };
+window.dashboard.calendarDelete = async (type, dateStr, idx) => { if (!confirm("削除しますか？")) return; await withLoading(() => window.dashboard.deleteItem(type, dateStr, idx)); };
+window.dashboard.calendarAdd = (type, dateStr) => { hideModal('calendar-modal'); window.dashboard.openAddModal(type, dateStr); };
 
 // ========================================
 // 入力履歴機能

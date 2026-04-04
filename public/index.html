@@ -17,8 +17,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="common.css">
     <link rel="stylesheet" href="style.css">
-    <!-- ページ読み込み時に最上部にスクロール -->
+    <!-- パラメータなしアクセス時はエディター画面へリダイレクト -->
     <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            if (!params.get('school') || !params.get('grade') || !params.get('class')) {
+                window.location.replace('editor.html');
+                return;
+            }
+        })();
         // 即時実行でスクロール位置をリセット
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';

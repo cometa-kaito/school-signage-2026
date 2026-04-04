@@ -4,7 +4,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import {
-    getAuth, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken,
+    getAuth, signInWithEmailAndPassword, signInWithPopup,
     GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
@@ -218,10 +218,12 @@ export async function getUserRoleLabel(user) {
 
 export async function loginAsEditor(password, schoolId) {
     try {
-        const result = await loginAsEditorFn({ password, schoolId: schoolId || SCHOOL_ID });
-        if (result.data.success && result.data.customToken) {
+        const targetSchoolId = schoolId || SCHOOL_ID;
+        // Cloud Functionでパスワード検証 + Authユーザー作成/更新
+        const result = await loginAsEditorFn({ password, schoolId: targetSchoolId });
+        if (result.data.success && result.data.email) {
             await setPersistence(auth, browserLocalPersistence);
-            const cred = await signInWithCustomToken(auth, result.data.customToken);
+            const cred = await signInWithEmailAndPassword(auth, result.data.email, password);
             if (result.data.schoolId) setSchoolContext(result.data.schoolId, GRADE_ID, CLASS_ID);
             return { success: true, user: cred.user };
         }

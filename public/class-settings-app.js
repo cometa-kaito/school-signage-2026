@@ -95,11 +95,16 @@ function initPage() {
 
 async function loadClassInfo() {
     try {
-        const classRef = getClassRef();
-        const snap = await getDoc(classRef);
-        const className = snap.exists() ? (snap.data().name || activeClassId) : activeClassId;
+        const [schoolSnap, gradeSnap, classSnap] = await Promise.all([
+            getDoc(doc(db, "schools", activeSchoolId)),
+            getDoc(doc(db, "schools", activeSchoolId, "grades", activeGradeId)),
+            getDoc(getClassRef())
+        ]);
+        const schoolName = schoolSnap.exists() ? (schoolSnap.data().name || activeSchoolId) : activeSchoolId;
+        const gradeName = gradeSnap.exists() ? (gradeSnap.data().name || activeGradeId) : activeGradeId;
+        const className = classSnap.exists() ? (classSnap.data().name || activeClassId) : activeClassId;
         document.getElementById('classHeader').textContent = `${className} の設定`;
-        document.getElementById('classSubheader').textContent = `学校: ${activeSchoolId} / 学年: ${activeGradeId} / クラス: ${activeClassId}`;
+        document.getElementById('classSubheader').textContent = `${schoolName} / ${gradeName} / ${className}`;
         document.getElementById('pageTitle').textContent = `${className} - クラス設定`;
     } catch (e) {
         document.getElementById('classHeader').textContent = 'クラス設定';

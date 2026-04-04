@@ -278,11 +278,18 @@ async function loadSchoolDetail() {
         document.getElementById('schoolIdBadge').textContent = `学校ID: ${activeSchoolId}`;
     }
 
+    // system_admin以外はユーザー作成・学校編集/削除を非表示
+    if (!isSystemAdminUser) {
+        document.getElementById('createUserBtn').style.display = 'none';
+        document.getElementById('editSchoolBtn').style.display = 'none';
+        document.getElementById('deleteSchoolBtn').style.display = 'none';
+    }
+
     // 各セクションを読み込み
     loadGrades(activeSchoolId);
     loadUsersAndMembers();
     loadEditorPassword();
-        loadQuietHours();
+    loadQuietHours();
 }
 
 // 学校情報の編集・削除（詳細ビュー）
@@ -497,19 +504,36 @@ async function loadUsersAndMembers() {
     const container = document.getElementById('userTableContainer');
     container.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
     try {
-        const [usersResult, membersResult] = await Promise.all([
-            listUsersFn(),
-            listMembersFn({ schoolId: activeSchoolId }).catch(() => ({ data: { members: [] } }))
-        ]);
-        usersData = usersResult.data.users || [];
-        membersData = membersResult.data.members || [];
+        if (isSystemAdminUser) {
+            // system_admin: 全ユーザー + この学校のメンバーを表示
+            const [usersResult, membersResult] = await Promise.all([
+                listUsersFn(),
+                listMembersFn({ schoolId: activeSchoolId }).catch(() => ({ data: { members: [] } }))
+            ]);
+            usersData = usersResult.data.users || [];
+            membersData = membersResult.data.members || [];
+        } else {
+            // school_admin: この学校のメンバーのみ表示
+            const membersResult = await listMembersFn({ schoolId: activeSchoolId });
+            membersData = membersResult.data.members || [];
+            usersData = membersData.map(m => ({
+                uid: m.userId, email: m.email, displayName: m.displayName || '',
+                disabled: m.disabled, isAdmin: m.isAdmin,
+                lastSignInTime: m.lastSignInTime
+            }));
+        }
         renderUnifiedUserTable();
     } catch (e) { container.innerHTML = `<p class="error-text">エラー: ${e.message}</p>`; }
 }
 
 function renderUnifiedUserTable() {
     const container = document.getElementById('userTableContainer');
-    if (usersData.length === 0) { container.innerHTML = '<p class="empty-text">ユーザーがいません</p>'; return; }
+    if (usersData.length === 0) {
+        container.innerHTML = isSystemAdminUser
+            ? '<p class="empty-text">ユーザーがいません</p>'
+            : '<p class="empty-text">この学校にメンバーがいません</p>';
+        return;
+    }
 
     const memberMap = {};
     membersData.forEach(m => { memberMap[m.userId] = m; });
@@ -526,12 +550,27 @@ function renderUnifiedUserTable() {
         if (user.isAdmin) {
             roleCell = `<span class="badge badge-admin">システム管理者</span>`;
         } else if (member) {
-            roleCell = `<select class="role-dropdown" data-uid="${user.uid}" data-current="${currentRole}">
-                ${['school_admin','teacher'].map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${roleLabels[r]}</option>`).join('')}
-            </select>`;
+            if (isSystemAdminUser) {
+                roleCell = `<select class="role-dropdown" data-uid="${user.uid}" data-current="${currentRole}">
+                    ${['school_admin','teacher'].map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${roleLabels[r]}</option>`).join('')}
+                </select>`;
+            } else {
+                roleCell = `<span class="badge" style="background:#e3f2fd;color:#1565c0;">${roleLabels[currentRole] || currentRole}</span>`;
+            }
         } else {
-            roleCell = `<button class="btn btn-sm btn-secondary" onclick="window.addMember('${user.uid}', '${user.email}')">メンバー追加</button>`;
+            roleCell = isSystemAdminUser
+                ? `<button class="btn btn-sm btn-secondary" onclick="window.addMember('${user.uid}', '${user.email}')">メンバー追加</button>`
+                : '';
         }
+
+        const actionsHtml = isSystemAdminUser ? `<td><div class="action-buttons">
+                <button class="btn-icon" onclick="window.editUser('${user.uid}')" title="編集">&#9998;</button>
+                ${!isCurrent ? `
+                    <button class="btn-icon" onclick="window.toggleStatus('${user.uid}', ${!user.disabled})" title="${user.disabled ? '有効化' : '無効化'}">${user.disabled ? '&#9989;' : '&#128683;'}</button>
+                    ${member ? `<button class="btn-icon" onclick="window.removeMemberFromSchool('${user.uid}')" title="メンバー除外">&#128100;</button>` : ''}
+                    <button class="btn-icon btn-danger" onclick="window.deleteUserAction('${user.uid}')" title="削除">&#128465;</button>
+                ` : ''}
+            </div></td>` : '';
 
         return `<tr>
             <td>${user.email}${isCurrent ? ' <span class="current-user-badge">(自分)</span>' : ''}</td>
@@ -539,31 +578,27 @@ function renderUnifiedUserTable() {
             <td>${roleCell}</td>
             <td><span class="badge ${user.disabled ? 'badge-disabled' : 'badge-active'}">${user.disabled ? '無効' : '有効'}</span></td>
             <td class="last-signin">${lastSignIn}</td>
-            <td><div class="action-buttons">
-                <button class="btn-icon" onclick="window.editUser('${user.uid}')" title="編集">&#9998;</button>
-                ${!isCurrent ? `
-                    <button class="btn-icon" onclick="window.toggleStatus('${user.uid}', ${!user.disabled})" title="${user.disabled ? '有効化' : '無効化'}">${user.disabled ? '&#9989;' : '&#128683;'}</button>
-                    ${member ? `<button class="btn-icon" onclick="window.removeMemberFromSchool('${user.uid}')" title="メンバー除外">&#128100;</button>` : ''}
-                    <button class="btn-icon btn-danger" onclick="window.deleteUserAction('${user.uid}')" title="削除">&#128465;</button>
-                ` : ''}
-            </div></td>
+            ${actionsHtml}
         </tr>`;
     }).join('');
 
+    const opsHeader = isSystemAdminUser ? '<th>操作</th>' : '';
     container.innerHTML = `<table class="user-table"><thead><tr>
-        <th>メール</th><th>名前</th><th>ロール</th><th>状態</th><th>最終ログイン</th><th>操作</th>
+        <th>メール</th><th>名前</th><th>ロール</th><th>状態</th><th>最終ログイン</th>${opsHeader}
     </tr></thead><tbody>${rows}</tbody></table>`;
 
-    container.querySelectorAll('.role-dropdown').forEach(sel => {
-        sel.addEventListener('change', async (e) => {
-            const uid = e.target.dataset.uid;
-            const newRole = e.target.value;
-            try {
-                await updateMembershipFn({ schoolId: activeSchoolId, userId: uid, role: newRole });
-                showToast('ロールを変更しました', 'success');
-            } catch (err) { showToast('エラー: ' + err.message, 'error'); e.target.value = e.target.dataset.current; }
+    if (isSystemAdminUser) {
+        container.querySelectorAll('.role-dropdown').forEach(sel => {
+            sel.addEventListener('change', async (e) => {
+                const uid = e.target.dataset.uid;
+                const newRole = e.target.value;
+                try {
+                    await updateMembershipFn({ schoolId: activeSchoolId, userId: uid, role: newRole });
+                    showToast('ロールを変更しました', 'success');
+                } catch (err) { showToast('エラー: ' + err.message, 'error'); e.target.value = e.target.dataset.current; }
+            });
         });
-    });
+    }
 }
 
 // ユーザー作成/編集モーダル

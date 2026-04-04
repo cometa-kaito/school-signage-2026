@@ -270,15 +270,18 @@
         // 認証状態の監視
         onAuthChange(async (user) => {
             if (user) {
+                loadingOverlay.style.display = 'flex';
                 const isAdmin = await isUserAdmin(user);
                 const isEditor = await isUserTeacher(user);
                 if (isAdmin || isEditor) {
                     showApp(user, isAdmin);
                 } else {
+                    loadingOverlay.style.display = 'none';
                     await logout();
                     showLoginError('アクセス権限がありません');
                 }
             } else {
+                loadingOverlay.style.display = 'none';
                 showLogin();
             }
         });
@@ -288,16 +291,12 @@
             e.preventDefault();
             const password = document.getElementById('editorPassword').value;
             const btn = document.getElementById('editorLoginBtn');
-
             btn.disabled = true;
             btn.textContent = 'ログイン中...';
             loginError.style.display = 'none';
-
+            loadingOverlay.style.display = 'flex';
             const result = await loginAsEditor(password);
-            if (!result.success) {
-                showLoginError(result.error);
-            }
-
+            if (!result.success) { loadingOverlay.style.display = 'none'; showLoginError(result.error); }
             btn.disabled = false;
             btn.textContent = 'ログイン';
         });
@@ -308,16 +307,12 @@
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             const btn = document.getElementById('loginBtn');
-
             btn.disabled = true;
             btn.textContent = 'ログイン中...';
             loginError.style.display = 'none';
-
+            loadingOverlay.style.display = 'flex';
             const result = await login(email, password);
-            if (!result.success) {
-                showLoginError(result.error);
-            }
-
+            if (!result.success) { loadingOverlay.style.display = 'none'; showLoginError(result.error); }
             btn.disabled = false;
             btn.textContent = 'ログイン';
         });
@@ -325,10 +320,9 @@
         // Googleログイン
         document.getElementById('googleLoginBtn').addEventListener('click', async () => {
             loginError.style.display = 'none';
+            loadingOverlay.style.display = 'flex';
             const result = await loginWithGoogle();
-            if (!result.success) {
-                showLoginError(result.error);
-            }
+            if (!result.success) { loadingOverlay.style.display = 'none'; showLoginError(result.error); }
         });
 
         // ログアウト

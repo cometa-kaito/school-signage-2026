@@ -40,29 +40,33 @@ async function withLoading(fn) { showLoading(); try { return await fn(); } final
 
 onAuthChange(async (user) => {
     if (user) {
+        showLoading();
         const isAdmin = await isUserAdmin(user);
         const isEditor = await isUserTeacher(user);
         if (isAdmin || isEditor) {
             loginContainer.style.display = 'none';
             appContainer.style.display = 'block';
             document.getElementById('userEmail').textContent = user.email;
+            hideLoading();
             initPage();
-        } else { await logout(); showLoginError('アクセス権限がありません'); }
-    } else { loginContainer.style.display = 'flex'; appContainer.style.display = 'none'; }
+        } else { hideLoading(); await logout(); showLoginError('アクセス権限がありません'); }
+    } else { hideLoading(); loginContainer.style.display = 'flex'; appContainer.style.display = 'none'; }
 });
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('loginBtn');
     btn.disabled = true; btn.textContent = 'ログイン中...'; loginError.style.display = 'none';
+    showLoading();
     const result = await login(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
-    if (!result.success) showLoginError(result.error);
+    if (!result.success) { hideLoading(); showLoginError(result.error); }
     btn.disabled = false; btn.textContent = 'ログイン';
 });
 document.getElementById('googleLoginBtn').addEventListener('click', async () => {
     loginError.style.display = 'none';
+    showLoading();
     const result = await loginWithGoogle();
-    if (!result.success) showLoginError(result.error);
+    if (!result.success) { hideLoading(); showLoginError(result.error); }
 });
 document.getElementById('logoutBtn').addEventListener('click', () => logout());
 

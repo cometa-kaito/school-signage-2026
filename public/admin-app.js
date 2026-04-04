@@ -47,15 +47,19 @@ document.querySelectorAll('.login-tab').forEach(tab => {
 // 認証状態の監視
 onAuthChange(async (user) => {
     if (user) {
+        showLoading();
         const isAdmin = await isUserAdmin(user);
         const isEditor = await isUserTeacher(user);
         if (isAdmin || isEditor) {
+            hideLoading();
             showApp(user);
         } else {
+            hideLoading();
             await logout();
             showError('アクセス権限がありません');
         }
     } else {
+        hideLoading();
         showLogin();
     }
 });
@@ -65,16 +69,12 @@ document.getElementById('editorLoginForm').addEventListener('submit', async (e) 
     e.preventDefault();
     const password = document.getElementById('editorPassword').value;
     const btn = document.getElementById('editorLoginBtn');
-
     btn.disabled = true;
     btn.textContent = 'ログイン中...';
     hideError();
-
+    showLoading();
     const result = await loginAsEditor(password);
-    if (!result.success) {
-        showError(result.error);
-    }
-
+    if (!result.success) { hideLoading(); showError(result.error); }
     btn.disabled = false;
     btn.textContent = 'ログイン';
 });
@@ -85,16 +85,12 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const btn = document.getElementById('loginBtn');
-
     btn.disabled = true;
     btn.textContent = 'ログイン中...';
     hideError();
-
+    showLoading();
     const result = await login(email, password);
-    if (!result.success) {
-        showError(result.error);
-    }
-
+    if (!result.success) { hideLoading(); showError(result.error); }
     btn.disabled = false;
     btn.textContent = 'ログイン';
 });
@@ -102,10 +98,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 // Googleログイン
 document.getElementById('googleLoginBtn').addEventListener('click', async () => {
     hideError();
+    showLoading();
     const result = await loginWithGoogle();
-    if (!result.success) {
-        showError(result.error);
-    }
+    if (!result.success) { hideLoading(); showError(result.error); }
 });
 
 // ログアウト

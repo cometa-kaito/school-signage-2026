@@ -46,6 +46,7 @@ let quietHours = [];
 
 onAuthChange(async (user) => {
     if (user) {
+        showLoading();
         const isAdmin = await isUserAdmin(user);
         if (!isAdmin) {
             // system_adminでない場合、school_adminかチェック
@@ -54,28 +55,30 @@ onAuthChange(async (user) => {
                 const memberships = result.data.memberships || [];
                 const schoolAdminMembership = memberships.find(m => m.role === 'school_admin');
                 if (schoolAdminMembership) {
-                    // school_adminは自校の詳細ビューへリダイレクト
                     currentUserUid = user.uid;
                     isSystemAdminUser = false;
-                    loginContainer.style.display = 'none';
-                    appContainer.style.display = 'block';
-                    document.getElementById('userEmail').textContent = user.email;
                     const targetSchool = schoolParam || schoolAdminMembership.schoolId;
                     if (!schoolParam) {
+                        // school_adminは自校の詳細ビューへリダイレクト
                         window.location.href = `school-admin.html?school=${targetSchool}`;
                         return;
                     }
-                    // school_adminは自校のみアクセス可
                     if (!memberships.some(m => m.schoolId === targetSchool && m.role === 'school_admin')) {
+                        hideLoading();
                         showLoginError('この学校へのアクセス権がありません');
                         await logout();
                         return;
                     }
+                    loginContainer.style.display = 'none';
+                    appContainer.style.display = 'block';
+                    document.getElementById('userEmail').textContent = user.email;
                     activeSchoolId = targetSchool;
+                    hideLoading();
                     showDetailView();
                     return;
                 }
             } catch (e) { console.error(e); }
+            hideLoading();
             await logout();
             showLoginError('管理者権限がありません');
             return;
@@ -87,6 +90,7 @@ onAuthChange(async (user) => {
         loginContainer.style.display = 'none';
         appContainer.style.display = 'block';
         document.getElementById('userEmail').textContent = user.email;
+        hideLoading();
 
         if (schoolParam) {
             activeSchoolId = schoolParam;
@@ -95,6 +99,7 @@ onAuthChange(async (user) => {
             showListView();
         }
     } else {
+        hideLoading();
         loginContainer.style.display = 'flex';
         appContainer.style.display = 'none';
     }
@@ -104,14 +109,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('loginBtn');
     btn.disabled = true; btn.textContent = 'ログイン中...'; loginError.style.display = 'none';
+    showLoading();
     const result = await login(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
-    if (!result.success) showLoginError(result.error);
+    if (!result.success) { hideLoading(); showLoginError(result.error); }
     btn.disabled = false; btn.textContent = 'ログイン';
 });
 document.getElementById('googleLoginBtn').addEventListener('click', async () => {
     loginError.style.display = 'none';
+    showLoading();
     const result = await loginWithGoogle();
-    if (!result.success) showLoginError(result.error);
+    if (!result.success) { hideLoading(); showLoginError(result.error); }
 });
 document.getElementById('logoutBtn').addEventListener('click', () => logout());
 

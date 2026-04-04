@@ -641,26 +641,15 @@ function renderUnifiedUserTable() {
         if (user.isAdmin) {
             roleCell = `<span class="badge badge-admin">システム管理者</span>`;
         } else if (member) {
-            if (isSystemAdminUser) {
-                roleCell = `<select class="role-dropdown" data-uid="${user.uid}" data-current="${currentRole}">
-                    ${['school_admin','teacher'].map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${roleLabels[r]}</option>`).join('')}
-                </select>`;
-            } else {
-                roleCell = `<span class="badge" style="background:#e3f2fd;color:#1565c0;">${roleLabels[currentRole] || currentRole}</span>`;
-            }
+            const badgeStyle = currentRole === 'school_admin' ? 'background:#e3f2fd;color:#1565c0;' : 'background:#e8f5e9;color:#2e7d32;';
+            roleCell = `<span class="badge" style="${badgeStyle}">${roleLabels[currentRole] || currentRole}</span>`;
         } else {
-            roleCell = isSystemAdminUser
-                ? `<button class="btn btn-sm btn-secondary" onclick="window.addMember('${user.uid}', '${user.email}')">メンバー追加</button>`
-                : '';
+            roleCell = `<span style="color:#999;">未所属</span>`;
         }
 
         const actionsHtml = isSystemAdminUser ? `<td><div class="action-buttons">
                 <button class="btn-icon" onclick="window.editUser('${user.uid}')" title="編集">&#9998;</button>
-                ${!isCurrent ? `
-                    <button class="btn-icon" onclick="window.toggleStatus('${user.uid}', ${!user.disabled})" title="${user.disabled ? '有効化' : '無効化'}">${user.disabled ? '&#9989;' : '&#128683;'}</button>
-                    ${member ? `<button class="btn-icon" onclick="window.removeMemberFromSchool('${user.uid}')" title="メンバー除外">&#128100;</button>` : ''}
-                    <button class="btn-icon btn-danger" onclick="window.deleteUserAction('${user.uid}')" title="削除">&#128465;</button>
-                ` : ''}
+                ${!isCurrent ? `<button class="btn-icon btn-danger" onclick="window.deleteUserAction('${user.uid}')" title="削除">&#128465;</button>` : ''}
             </div></td>` : '';
 
         return `<tr>
@@ -678,18 +667,6 @@ function renderUnifiedUserTable() {
         <th>メール</th><th>名前</th><th>ロール</th><th>状態</th><th>最終ログイン</th>${opsHeader}
     </tr></thead><tbody>${rows}</tbody></table>`;
 
-    if (isSystemAdminUser) {
-        container.querySelectorAll('.role-dropdown').forEach(sel => {
-            sel.addEventListener('change', async (e) => {
-                const uid = e.target.dataset.uid;
-                const newRole = e.target.value;
-                try {
-                    await updateMembershipFn({ schoolId: activeSchoolId, userId: uid, role: newRole });
-                    showToast('ロールを変更しました', 'success');
-                } catch (err) { showToast('エラー: ' + err.message, 'error'); e.target.value = e.target.dataset.current; }
-            });
-        });
-    }
 }
 
 // ユーザー作成/編集モーダル
@@ -822,31 +799,6 @@ document.getElementById('userModalSave').addEventListener('click', () => withLoa
         else { loadGlobalUsers(); }
     } catch (e) { showToast('エラー: ' + e.message, 'error'); }
 }));
-
-window.addMember = async (uid, email) => {
-    await withLoading(async () => {
-        try {
-            await inviteMemberFn({ schoolId: activeSchoolId, email, role: 'teacher' });
-            showToast(`${email} をメンバーに追加しました`, 'success');
-            loadUsersAndMembers();
-        } catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
-};
-
-window.removeMemberFromSchool = async (uid) => {
-    if (!confirm('この学校のメンバーから除外しますか？')) return;
-    await withLoading(async () => {
-        try { await removeMemberFn({ schoolId: activeSchoolId, userId: uid }); showToast('除外しました', 'success'); loadUsersAndMembers(); }
-        catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
-};
-
-window.toggleStatus = async (uid, disabled) => {
-    await withLoading(async () => {
-        try { await toggleUserStatusFn({ uid, disabled }); showToast(disabled ? '無効化しました' : '有効化しました', 'success'); loadUsersAndMembers(); }
-        catch (e) { showToast('エラー: ' + e.message, 'error'); }
-    });
-};
 
 window.deleteUserAction = async (uid) => {
     if (!confirm('ユーザーを完全に削除しますか？')) return;

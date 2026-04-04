@@ -286,7 +286,7 @@ async function loadGlobalUsers() {
     container.innerHTML = '<div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>';
     try {
         const usersResult = await listUsersFn();
-        globalUsersData = usersResult.data.users || [];
+        globalUsersData = (usersResult.data.users || []).filter(u => !u.email?.endsWith('@signage.local'));
 
         // 全学校のメンバーシップを取得
         allMembershipsMap = {};
@@ -596,12 +596,12 @@ async function loadUsersAndMembers() {
                 listUsersFn(),
                 listMembersFn({ schoolId: activeSchoolId }).catch(() => ({ data: { members: [] } }))
             ]);
-            usersData = usersResult.data.users || [];
-            membersData = membersResult.data.members || [];
+            usersData = (usersResult.data.users || []).filter(u => !u.email?.endsWith('@signage.local'));
+            membersData = (membersResult.data.members || []).filter(m => !m.email?.endsWith('@signage.local'));
         } else {
             // school_admin: この学校のメンバーのみ表示
             const membersResult = await listMembersFn({ schoolId: activeSchoolId });
-            membersData = membersResult.data.members || [];
+            membersData = (membersResult.data.members || []).filter(m => !m.email?.endsWith('@signage.local'));
             usersData = membersData.map(m => ({
                 uid: m.userId, email: m.email, displayName: m.displayName || '',
                 disabled: m.disabled, isAdmin: m.isAdmin,

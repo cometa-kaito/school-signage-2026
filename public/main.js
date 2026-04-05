@@ -467,34 +467,32 @@ function forceLayout() {
             object-fit: contain !important;
             margin: 0 auto !important;
         }
-        /* サイネージモード: 予定を最優先で表示 */
+        /* サイネージモード: 上下セクション均等表示 */
         .content-grid {
-            grid-template-rows: auto 1fr !important;
+            grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
         }
         .schedule-section {
-            min-height: auto !important;
-            max-height: 60vh !important;
-            overflow: visible !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
         }
         .schedule-grid-container {
-            min-height: 120px !important;
-            overflow: visible !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
         }
         .schedule-day-column {
-            min-height: 100px !important;
-            overflow: visible !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
         }
         .schedule-scroll-area {
-            min-height: 80px !important;
-            overflow: visible !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
         }
         .no-schedule {
-            min-height: 70px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
         }
-        /* 連絡・提出物は残りスペースに収める、見切れてもOK */
+        /* 連絡・提出物も均等に収める */
         .notice-section,
         .assignment-section {
             overflow: hidden !important;

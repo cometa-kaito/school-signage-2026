@@ -166,7 +166,13 @@ function initApp() {
     if (appInitialized) return;
     appInitialized = true;
 
-    document.getElementById('target-date').value = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('target-date').value = today;
+    document.getElementById('assign-deadline').value = today;
+    document.getElementById('sched-display-start').value = today;
+    document.getElementById('sched-display-end').value = today;
+    document.getElementById('notice-display-start').value = today;
+    document.getElementById('notice-display-end').value = today;
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));

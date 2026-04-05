@@ -379,7 +379,14 @@ window.dashboard.openAddModal = (type, dateStr) => {
     currentEditType = type;
     currentTargetDate = dateStr || getTodayString();
     currentIndex = null;
-    UI.generateModalForm(type, "追加", null);
+    // 新規追加時のデフォルト値を設定
+    const today = getTodayString();
+    const defaults = {
+        schedule: { display_start: currentTargetDate, display_end: currentTargetDate },
+        notice: { display_start: today, display_end: today },
+        assignment: { deadline: today }
+    };
+    UI.generateModalForm(type, "追加", defaults[type] || null);
     showModal('edit-modal');
 };
 

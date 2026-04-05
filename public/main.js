@@ -392,6 +392,9 @@ function showUpdateBanner() {
 function markInitialLoadComplete() {
     pendingUpdates--;
     if (pendingUpdates <= 0) {
+        // 初回ロード時の通知ハッシュを記録（以降の変更検知用）
+        const soundNotices = appData.notices.filter(n => n.play_sound === true);
+        previousNoticesHash = JSON.stringify(soundNotices.map(n => n.text));
         setTimeout(() => {
             isInitialLoad = false;
         }, 1000);

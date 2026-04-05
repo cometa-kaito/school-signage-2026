@@ -1177,8 +1177,8 @@ async function showAd() {
         }
     }
 
-    // 音声設定（デフォルトはミュート）
-    const isMuted = ad.muted !== false;
+    // 広告動画は常にミュート（音声は通知音のみ）
+    const isMuted = true;
 
     // デスクトップ用広告
     if (isVideo) {

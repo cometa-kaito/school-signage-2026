@@ -7,7 +7,7 @@ import {
     toggleUserStatusFn, setEmailVerifiedFn, setEditorPasswordFn,
     createSchoolFn, listSchoolsFn, updateSchoolFn, deleteSchoolFn,
     createGradeFn, listGradesFn, updateGradeFn, deleteGradeFn,
-    createClassFn, listClassesFn, deleteClassFn,
+    createClassFn, listClassesFn, updateClassFn, deleteClassFn,
     inviteMemberFn, listMembersFn, removeMemberFn, updateMembershipFn,
     getMyMembershipsFn
 } from './config.js';
@@ -448,7 +448,8 @@ function renderGradeClassTree() {
         return;
     }
 
-    c.innerHTML = gradesList.map(g => {
+    const sortedGrades = [...gradesList].sort((a, b) => (a.order || 0) - (b.order || 0));
+    c.innerHTML = sortedGrades.map(g => {
         const classes = gradeClassesCache[g.id] || [];
         const isOpen = g.id === activeGradeId;
         return `
@@ -457,10 +458,11 @@ function renderGradeClassTree() {
                  onclick="window.toggleGrade('${g.id}')">
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span style="font-size:13px;color:#888;">${isOpen ? '&#9660;' : '&#9654;'}</span>
-                    <span style="font-weight:bold;font-size:15px;">${g.name}</span>
+                    <span style="font-weight:bold;font-size:15px;">${escapeHtml(g.name)}</span>
                     <span style="font-size:12px;color:#888;">(${classes.length}クラス)</span>
                 </div>
                 <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                    <button class="btn btn-secondary btn-sm" onclick="window.editGradeName('${g.id}','${g.name.replace(/'/g, "\\'")}')">編集</button>
                     <button class="btn btn-secondary btn-sm" onclick="window.addClassToGrade('${g.id}','${g.name.replace(/'/g, "\\'")}')">+ クラス</button>
                     <button class="btn-icon btn-danger" onclick="window.deleteGrade('${g.id}')" title="学年を削除" style="font-size:12px;">x</button>
                 </div>
@@ -480,8 +482,11 @@ function renderGradeClassTree() {
                         <div style="border:1px solid ${isExpanded ? '#667eea' : '#e9ecef'};border-radius:8px;overflow:hidden;">
                             <div style="background:${isExpanded ? '#eef2ff' : '#f8f9fa'};padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;"
                                  onclick="window.toggleClass('${cl.id}')">
-                                <span style="font-weight:500;">${cl.name}</span>
-                                <button class="btn-icon btn-danger" onclick="event.stopPropagation();window.deleteClassInGrade('${g.id}','${cl.id}')" title="削除" style="font-size:12px;">x</button>
+                                <span style="font-weight:500;">${escapeHtml(cl.name)}</span>
+                                <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                                    <button class="btn btn-secondary btn-sm" onclick="window.editClassName('${g.id}','${cl.id}','${cl.name.replace(/'/g, "\\'")}')">編集</button>
+                                    <button class="btn-icon btn-danger" onclick="window.deleteClassInGrade('${g.id}','${cl.id}')" title="削除" style="font-size:12px;">x</button>
+                                </div>
                             </div>
                             ${isExpanded ? `
                             <div style="padding:10px 14px;background:#fff;border-top:1px solid #e9ecef;">
@@ -566,6 +571,42 @@ window.deleteGrade = async (gradeId) => {
     });
 };
 
+window.editGradeName = (gradeId, currentName) => {
+    showGenericModal('学年名を編集',
+        `<div class="form-group"><label>学年名</label><input type="text" id="inp-grade-name-edit" value="${currentName}"></div>`,
+        async () => {
+            const name = document.getElementById('inp-grade-name-edit').value.trim();
+            if (!name) { showToast('学年名を入力してください', 'error'); return; }
+            try {
+                await updateGradeFn({ schoolId: activeSchoolId, gradeId, name });
+                showToast('学年名を更新しました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+                const g = gradesList.find(g => g.id === gradeId);
+                if (g) g.name = name;
+                renderGradeClassTree();
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
+};
+
+window.editClassName = (gradeId, classId, currentName) => {
+    showGenericModal('クラス名を編集',
+        `<div class="form-group"><label>クラス名</label><input type="text" id="inp-class-name-edit" value="${currentName}"></div>`,
+        async () => {
+            const name = document.getElementById('inp-class-name-edit').value.trim();
+            if (!name) { showToast('クラス名を入力してください', 'error'); return; }
+            try {
+                await updateClassFn({ schoolId: activeSchoolId, gradeId, classId, name });
+                showToast('クラス名を更新しました', 'success');
+                document.getElementById('genericModal').style.display = 'none';
+                const cl = (gradeClassesCache[gradeId] || []).find(c => c.id === classId);
+                if (cl) cl.name = name;
+                renderGradeClassTree();
+            } catch (e) { showToast('エラー: ' + e.message, 'error'); }
+        }
+    );
+};
+
 document.getElementById('createGradeBtn').addEventListener('click', () => {
     showGenericModal('学年を追加',
         '<div class="form-group"><label>学年名</label><input type="text" id="inp-grade-name" placeholder="例: 2年"></div>',
@@ -573,7 +614,8 @@ document.getElementById('createGradeBtn').addEventListener('click', () => {
             const name = document.getElementById('inp-grade-name').value;
             if (!name) { showToast('学年名を入力してください', 'error'); return; }
             try {
-                await createGradeFn({ schoolId: activeSchoolId, name });
+                const maxOrder = gradesList.reduce((max, g) => Math.max(max, g.order || 0), 0);
+                await createGradeFn({ schoolId: activeSchoolId, name, order: maxOrder + 1 });
                 showToast('学年を作成しました', 'success');
                 document.getElementById('genericModal').style.display = 'none';
                 loadGrades(activeSchoolId);

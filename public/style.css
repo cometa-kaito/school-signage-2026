@@ -91,12 +91,12 @@ html, body {
     max-height: 100vh;
     overflow: hidden;
     background-color: var(--bg-color);
-    padding-top: 32px;
+    padding-top: 26px;
 }
 
 .info-area {
     grid-area: info;
-    padding: 1vmin;
+    padding: 0.3vmin 1vmin 1vmin;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -118,7 +118,7 @@ html, body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 6px 10px;
+    padding: 4px 10px;
     background: rgba(0, 0, 0, 0.85);
     white-space: nowrap;
     color: white;

@@ -369,10 +369,11 @@ html, body {
 }
 
 .task-table td {
-    padding: 0.2rem 0.4rem;
+    padding: 0.1rem 0.4rem;
     border-bottom: 1px solid var(--border-color);
-    font-size: clamp(0.85rem, 1.3vw, 1.2rem);
+    font-size: clamp(0.75rem, 1.1vw, 1rem);
     font-weight: 600;
+    line-height: 1.2;
 }
 
 .no-assignment {

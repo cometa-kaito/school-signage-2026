@@ -1009,7 +1009,10 @@ function renderAssignments() {
         const rowClass = days < 0 ? 'overdue-row' : '';
         return `
             <tr class="${rowClass}">
-                <td>${item.deadline.slice(5)} <span class="${cssClass}">${text}</span></td>
+                <td>
+                    ${item.deadline.slice(5)}
+                    <br><span class="${cssClass}">${text}</span>
+                </td>
                 <td>${item.subject}</td>
                 <td>${item.task}</td>
             </tr>

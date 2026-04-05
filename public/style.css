@@ -1391,3 +1391,14 @@ body.detail-mode #notice-list {
         padding: 0.6rem;
     }
 }
+
+/* ========================================
+   マスターデータ ソースバッジ
+   ======================================== */
+
+.source-badge {
+    font-size: 0.7em;
+    margin-right: 4px;
+    vertical-align: middle;
+    opacity: 0.8;
+}

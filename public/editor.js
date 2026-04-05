@@ -2,7 +2,8 @@
 
 import {
     db, SCHOOL_ID, GRADE_ID, CLASS_ID, setSchoolContext,
-    listSchoolsFn, listGradesFn, listClassesFn
+    listSchoolsFn, listGradesFn, listClassesFn,
+    copyMasterToClassesFn, isUserAdmin, getCurrentUser
 } from "./config.js";
 import { hasFullContext, renderContextSelector, redirectWithContext } from './context-selector.js';
 import { UI } from "./ui.js";
@@ -14,7 +15,11 @@ import {
     query, where, orderBy, limit,
     onSnapshot, updateDoc, getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { classDocRef, dailyDataCollectionRef, dailyDataDocRef } from './paths.js';
+import {
+    classDocRef, dailyDataCollectionRef, dailyDataDocRef,
+    schoolMasterDailyDataCollectionRef, schoolMasterDailyDataDocRef,
+    gradeMasterDailyDataCollectionRef, gradeMasterDailyDataDocRef
+} from './paths.js';
 import { getDaysAgoStr, filterByDisplayRange } from './data-filter.js';
 
 // ========================================
@@ -44,6 +49,10 @@ let currentIndex = null;
 let listenersStarted = false;
 let unsubscribers = [];
 let currentCalendarDate = new Date();
+
+// 編集レベル: 'class' | 'grade' | 'school'
+let editingLevel = 'class';
+let isAdmin = false;
 
 // ========================================
 // 初期化
@@ -77,6 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================================
 
 async function initSelectors() {
+    // 管理者かチェック
+    const user = getCurrentUser();
+    if (user) {
+        isAdmin = await isUserAdmin(user);
+    }
+
     // 学校名を取得
     try {
         const result = await listSchoolsFn();
@@ -85,7 +100,7 @@ async function initSelectors() {
         availableSchools = [{ id: activeSchoolId, name: activeSchoolId }];
     }
 
-    // 学年・クラスを取得
+    // 学年���クラスを取得
     if (activeSchoolId) {
         await loadGrades(activeSchoolId);
         if (activeGradeId) {
@@ -94,8 +109,13 @@ async function initSelectors() {
     }
 
     renderSelectors();
+    renderLevelSelector();
 
     if (activeSchoolId && activeGradeId && activeClassId) {
+        startRealtimeListeners();
+    } else if (editingLevel === 'school' && activeSchoolId) {
+        startRealtimeListeners();
+    } else if (editingLevel === 'grade' && activeSchoolId && activeGradeId) {
         startRealtimeListeners();
     } else {
         showSelectPrompt();
@@ -223,6 +243,86 @@ function showSelectPrompt() {
 }
 
 // ========================================
+// 編集レベル切替（学校マスター / 学年マスター / クラス）
+// ========================================
+
+function renderLevelSelector() {
+    const container = document.getElementById('editing-level-selector');
+    if (!container) return;
+
+    // 管理者のみ表示
+    if (!isAdmin) {
+        container.style.display = 'none';
+        updateLevelIndicator();
+        return;
+    }
+
+    container.style.display = 'flex';
+    const levels = [
+        { key: 'class', label: 'クラス', color: '#6c757d' },
+        { key: 'grade', label: '学年マスター', color: '#28a745' },
+        { key: 'school', label: '学校マスター', color: '#007bff' }
+    ];
+
+    container.innerHTML = levels.map(l => `
+        <button class="btn ${editingLevel === l.key ? '' : 'btn-secondary'}" data-level="${l.key}"
+            style="padding:6px 14px; font-size:13px; border-radius:20px; cursor:pointer; border:2px solid ${l.color};
+            ${editingLevel === l.key ? `background:${l.color}; color:#fff;` : `background:#fff; color:${l.color};`}">
+            ${l.label}
+        </button>
+    `).join('');
+
+    container.querySelectorAll('button[data-level]').forEach(btn => {
+        btn.addEventListener('click', () => switchEditingLevel(btn.dataset.level));
+    });
+
+    updateLevelIndicator();
+    updateSelectorVisibility();
+}
+
+function switchEditingLevel(level) {
+    editingLevel = level;
+    renderLevelSelector();
+    restartListeners();
+}
+
+function updateLevelIndicator() {
+    const indicator = document.getElementById('level-indicator');
+    if (!indicator) return;
+
+    if (editingLevel === 'class') {
+        indicator.style.display = 'none';
+        return;
+    }
+
+    indicator.style.display = 'flex';
+    indicator.style.alignItems = 'center';
+    indicator.style.justifyContent = 'space-between';
+    indicator.style.gap = '12px';
+
+    if (editingLevel === 'school') {
+        indicator.style.background = 'linear-gradient(135deg, #007bff, #0056b3)';
+        indicator.innerHTML = `
+            <span>🏫 学校マスター編集モード — 全クラスに自動反映されます</span>
+            <button onclick="window.dashboard.copyToClasses()" style="background:#fff;color:#007bff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">📋 全クラスにコピー</button>
+        `;
+    } else {
+        indicator.style.background = 'linear-gradient(135deg, #28a745, #1e7e34)';
+        indicator.innerHTML = `
+            <span>📚 学年マスター編集モード — 学年内全クラスに自動反映されます</span>
+            <button onclick="window.dashboard.copyToClasses()" style="background:#fff;color:#28a745;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">📋 全クラスにコピー</button>
+        `;
+    }
+}
+
+function updateSelectorVisibility() {
+    const gradeSelect = document.getElementById('grade-select');
+    const classSelect = document.getElementById('class-select');
+    if (gradeSelect) gradeSelect.disabled = (editingLevel === 'school');
+    if (classSelect) classSelect.disabled = (editingLevel !== 'class');
+}
+
+// ========================================
 // リスナー管理
 // ========================================
 
@@ -241,7 +341,15 @@ function getConfigPath() {
 }
 
 function getDailyDataPath() {
+    if (editingLevel === 'school') return schoolMasterDailyDataCollectionRef(activeSchoolId);
+    if (editingLevel === 'grade') return gradeMasterDailyDataCollectionRef(activeSchoolId, activeGradeId);
     return dailyDataCollectionRef(activeSchoolId, activeGradeId, activeClassId);
+}
+
+function getDailyDataDocPath(dateStr) {
+    if (editingLevel === 'school') return schoolMasterDailyDataDocRef(activeSchoolId, dateStr);
+    if (editingLevel === 'grade') return gradeMasterDailyDataDocRef(activeSchoolId, activeGradeId, dateStr);
+    return dailyDataDocRef(activeSchoolId, activeGradeId, activeClassId, dateStr);
 }
 
 // ========================================
@@ -249,28 +357,37 @@ function getDailyDataPath() {
 // ========================================
 
 function startRealtimeListeners() {
-    if (!activeSchoolId || !activeGradeId || !activeClassId) return;
+    // レベルに応じた必須コンテキストチェック
+    if (editingLevel === 'school' && !activeSchoolId) return;
+    if (editingLevel === 'grade' && (!activeSchoolId || !activeGradeId)) return;
+    if (editingLevel === 'class' && (!activeSchoolId || !activeGradeId || !activeClassId)) return;
 
     const todayStr = getTodayString();
 
-    const configRef = getConfigPath();
-    const unsubConfig = onSnapshot(configRef, (snap) => {
-        if (!snap.exists()) {
-            appData.className = "";
-            appData.ads = [];
-        } else {
-            const data = snap.data();
-            appData.className = data.name || "";
-            const settings = data.displaySettings || {};
-            appData.ads = settings.ads || [];
-        }
+    // クラスレベルの場合のみ設定を監視
+    if (editingLevel === 'class') {
+        const configRef = getConfigPath();
+        const unsubConfig = onSnapshot(configRef, (snap) => {
+            if (!snap.exists()) {
+                appData.className = "";
+                appData.ads = [];
+            } else {
+                const data = snap.data();
+                appData.className = data.name || "";
+                const settings = data.displaySettings || {};
+                appData.ads = settings.ads || [];
+            }
+            updateClassNameDisplay();
+            updateAdPreview();
+            updateAdModalIfOpen();
+        }, (error) => {
+            console.error("設定監視エラー:", error);
+        });
+        unsubscribers.push(unsubConfig);
+    } else {
+        // マスターモード時のヘッダー表示
         updateClassNameDisplay();
-        updateAdPreview();
-        updateAdModalIfOpen();
-    }, (error) => {
-        console.error("設定監視エラー:", error);
-    });
-    unsubscribers.push(unsubConfig);
+    }
 
     const dailyRef = getDailyDataPath();
     const q = query(dailyRef, where("date", ">=", getDaysAgoStr(5)), orderBy("date", "asc"), limit(30));
@@ -335,7 +452,16 @@ function processSnapshotData(snapshot, todayStr) {
 
 function updateClassNameDisplay() {
     const el = document.getElementById('class-name');
-    if (el) el.textContent = appData.className;
+    if (!el) return;
+    if (editingLevel === 'school') {
+        const school = availableSchools.find(s => s.id === activeSchoolId);
+        el.textContent = `${school ? school.name : activeSchoolId}（学校マスター）`;
+    } else if (editingLevel === 'grade') {
+        const grade = availableGrades.find(g => g.id === activeGradeId);
+        el.textContent = `${grade ? grade.name : activeGradeId}（学年マスター）`;
+    } else {
+        el.textContent = appData.className;
+    }
 }
 
 function updateAdPreview() {
@@ -427,7 +553,7 @@ async function saveConfig() {
 }
 
 async function saveData() {
-    const docRef = dailyDataDocRef(activeSchoolId, activeGradeId, activeClassId, currentTargetDate);
+    const docRef = getDailyDataDocPath(currentTargetDate);
     const snap = await getDoc(docRef);
     const docData = snap.exists() ? snap.data() : { date: currentTargetDate };
 
@@ -435,6 +561,10 @@ async function saveData() {
     const field = fieldMap[currentEditType];
     const list = docData[field] || [];
     const newItem = getFormData();
+
+    // マスターモード時はソース情報を付与
+    if (editingLevel === 'school') newItem._source = 'school';
+    else if (editingLevel === 'grade') newItem._source = 'grade';
 
     if (currentIndex !== null) list[currentIndex] = newItem;
     else list.push(newItem);
@@ -479,7 +609,7 @@ window.dashboard.deleteItem = async (type, dateStr, index) => {
     if (!confirm("削除しますか？")) return;
     const fieldMap = { schedule: 'schedules', notice: 'notices', assignment: 'assignments' };
     await withLoading(async () => { try {
-        const docRef = dailyDataDocRef(activeSchoolId, activeGradeId, activeClassId, dateStr);
+        const docRef = getDailyDataDocPath(dateStr);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             const list = snap.data()[fieldMap[type]] || [];
@@ -696,6 +826,35 @@ window.dashboard.reuseAssignment = (subject, task) => {
         const s = document.getElementById('inp-sub'); if (s) s.value = subject;
         const t = document.getElementById('inp-task'); if (t) t.value = task;
     }, 100);
+};
+
+// ========================================
+// マスターコンテンツのコピー機能
+// ========================================
+
+window.dashboard.copyToClasses = async () => {
+    if (editingLevel === 'class') return;
+
+    const levelLabel = editingLevel === 'school' ? '学校マスター' : '学年マスター';
+    const targetLabel = editingLevel === 'school' ? '全学年の全クラス' : '学年内の全クラス';
+
+    if (!confirm(`${levelLabel}の今日のデータを${targetLabel}にコピーしますか？\n\n※コピーされたデータは各クラスで個別に編集できます。`)) return;
+
+    await withLoading(async () => {
+        try {
+            const result = await copyMasterToClassesFn({
+                schoolId: activeSchoolId,
+                gradeId: activeGradeId || null,
+                sourceLevel: editingLevel,
+                dateStr: getTodayString(),
+                contentType: 'all'
+            });
+            alert(result.data.message || 'コピーが完了しました');
+        } catch (e) {
+            console.error('コピーエラー:', e);
+            alert('コピーエラー: ' + (e.message || '不明なエラー'));
+        }
+    });
 };
 
 // ========================================

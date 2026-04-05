@@ -62,6 +62,12 @@ exports.setEditorPassword = editorAuth.setEditorPassword;
 exports.onClassDataChange = signageJson.onClassDataChange;
 exports.onClassConfigChange = signageJson.onClassConfigChange;
 exports.regenerateSignageJson = signageJson.regenerateSignageJson;
+exports.onSchoolMasterDataChange = signageJson.onSchoolMasterDataChange;
+exports.onGradeMasterDataChange = signageJson.onGradeMasterDataChange;
+
+// マスターコンテンツ
+const masterContent = require('./handlers/master-content');
+exports.copyMasterToClasses = masterContent.copyMasterToClasses;
 
 // マイグレーション
 exports.migrateToGradeStructure = migration.migrateToGradeStructure;

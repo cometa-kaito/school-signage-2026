@@ -21,7 +21,7 @@ import {
     debounce
 } from './utils.js';
 import { ImageCache } from './image-cache.js';
-import { classDocRef, dailyDataCollectionRef } from './paths.js';
+import { classDocRef, dailyDataCollectionRef, schoolMasterDailyDataCollectionRef, gradeMasterDailyDataCollectionRef } from './paths.js';
 import { getDaysAgoStr, filterByDisplayRange, filterRecentAssignments } from './data-filter.js';
 import { AutoScroller, startAutoScroll as _startAutoScroll, stopAutoScroll as _stopAutoScroll } from './auto-scroller.js';
 import { initCalendar as _initCalendar } from './calendar.js';
@@ -47,7 +47,11 @@ const appData = {
     notices: [],
     assignments: [],
     ads: [],
-    quietHours: []
+    quietHours: [],
+    // マスターデータ（3階層マージ用）
+    _schoolMasterData: {},
+    _gradeMasterData: {},
+    _classRawData: {}
 };
 
 // 広告ローテーション管理
@@ -594,45 +598,93 @@ function startRealtimeListeners() {
         markInitialLoadComplete();
     });
 
-    // 日次データの監視（学年 > クラス）
-    const dailyRef = dailyDataCollectionRef(SCHOOL_ID, GRADE_ID, CLASS_ID);
+    // 日次データの監視（3階層: 学校マスター + 学年マスター + クラス）
     const fiveDaysAgoStr = getDaysAgoStr(5);
 
-    const q = query(
-        dailyRef,
-        where("date", ">=", fiveDaysAgoStr),
-        orderBy("date", "asc"),
-        limit(10)
-    );
+    function buildDailyQuery(collectionRef) {
+        return query(collectionRef, where("date", ">=", fiveDaysAgoStr), orderBy("date", "asc"), limit(10));
+    }
 
-    onSnapshot(q, (snapshot) => {
+    function snapshotToMap(snapshot) {
+        const map = {};
+        snapshot.forEach((docSnap) => { map[docSnap.data().date] = docSnap.data(); });
+        return map;
+    }
+
+    function mergeAllLevelsAndUpdate() {
         appData.weeklySchedules = {};
         appData.notices = [];
         appData.assignments = [];
 
-        snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const dateKey = data.date;
+        const allDates = new Set([
+            ...Object.keys(appData._schoolMasterData),
+            ...Object.keys(appData._gradeMasterData),
+            ...Object.keys(appData._classRawData)
+        ]);
 
-            if (dateKey >= todayStr && data.schedules) {
-                const filteredSchedules = filterByDisplayRange(data.schedules, todayStr, dateKey);
-                if (filteredSchedules.length > 0) {
-                    appData.weeklySchedules[dateKey] = filteredSchedules;
-                }
+        for (const dateKey of allDates) {
+            const school = appData._schoolMasterData[dateKey] || {};
+            const grade = appData._gradeMasterData[dateKey] || {};
+            const cls = appData._classRawData[dateKey] || {};
+
+            // スケジュールのマージ（school → grade → class）
+            const mergedSchedules = [
+                ...(school.schedules || []).map(s => ({ ...s, _source: s._source || 'school' })),
+                ...(grade.schedules || []).map(s => ({ ...s, _source: s._source || 'grade' })),
+                ...(cls.schedules || [])
+            ];
+            if (dateKey >= todayStr && mergedSchedules.length > 0) {
+                const filtered = filterByDisplayRange(mergedSchedules, todayStr, dateKey);
+                if (filtered.length > 0) appData.weeklySchedules[dateKey] = filtered;
             }
 
+            // 連絡のマージ（今日分のみ）
             if (dateKey === todayStr) {
-                appData.notices = data.notices || [];
+                appData.notices = [
+                    ...(school.notices || []).map(n => ({ ...n, _source: n._source || 'school' })),
+                    ...(grade.notices || []).map(n => ({ ...n, _source: n._source || 'grade' })),
+                    ...(cls.notices || [])
+                ];
             }
 
-            if (data.assignments && data.assignments.length > 0) {
-                appData.assignments = appData.assignments.concat(data.assignments);
+            // 提出物のマージ
+            const mergedAssignments = [
+                ...(school.assignments || []).map(a => ({ ...a, _source: a._source || 'school' })),
+                ...(grade.assignments || []).map(a => ({ ...a, _source: a._source || 'grade' })),
+                ...(cls.assignments || [])
+            ];
+            if (mergedAssignments.length > 0) {
+                appData.assignments = appData.assignments.concat(mergedAssignments);
             }
-        });
+        }
 
         appData.assignments.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-
         updateUI();
+    }
+
+    // 学校マスターデータの監視
+    const schoolMasterRef = schoolMasterDailyDataCollectionRef(SCHOOL_ID);
+    onSnapshot(buildDailyQuery(schoolMasterRef), (snapshot) => {
+        appData._schoolMasterData = snapshotToMap(snapshot);
+        mergeAllLevelsAndUpdate();
+    }, (error) => {
+        console.warn('学校マスターデータの監視エラー（無視可）:', error);
+    });
+
+    // 学年マスターデータの監視
+    const gradeMasterRef = gradeMasterDailyDataCollectionRef(SCHOOL_ID, GRADE_ID);
+    onSnapshot(buildDailyQuery(gradeMasterRef), (snapshot) => {
+        appData._gradeMasterData = snapshotToMap(snapshot);
+        mergeAllLevelsAndUpdate();
+    }, (error) => {
+        console.warn('学年マスターデータの監視エラー（無視可）:', error);
+    });
+
+    // クラスデータの監視
+    const dailyRef = dailyDataCollectionRef(SCHOOL_ID, GRADE_ID, CLASS_ID);
+    onSnapshot(buildDailyQuery(dailyRef), (snapshot) => {
+        appData._classRawData = snapshotToMap(snapshot);
+        mergeAllLevelsAndUpdate();
 
         if (!isInitialLoad) {
             checkAndPlayNotificationSound();
@@ -928,15 +980,29 @@ function parseTimeToMinutes(timeStr) {
  * @param {Array} schedules - 予定データ配列
  * @returns {string} - HTML文字列
  */
+/**
+ * マスターデータのソースバッジを生成
+ */
+function getSourceBadge(source) {
+    if (source === 'school' || source === 'school_copy') {
+        return '<span class="source-badge source-school" title="学校共通">🏫</span>';
+    }
+    if (source === 'grade' || source === 'grade_copy') {
+        return '<span class="source-badge source-grade" title="学年共通">📚</span>';
+    }
+    return '';
+}
+
 function generateScheduleRowsHtml(schedules) {
     const rows = [];
 
     // 実際の予定を追加
     for (let i = 0; i < schedules.length; i++) {
         const item = schedules[i];
+        const badge = getSourceBadge(item._source);
         rows.push(`
             <div class="schedule-list-item">
-                <span class="schedule-time">${item.time}</span>
+                <span class="schedule-time">${badge}${item.time}</span>
                 <span class="schedule-content">${item.content}</span>
             </div>
         `);
@@ -973,11 +1039,13 @@ function renderNotices() {
         return;
     }
 
-    let html = appData.notices.map(item => `
+    let html = appData.notices.map(item => {
+        const badge = getSourceBadge(item._source);
+        return `
         <li class="${item.is_highlight ? 'highlight' : ''}">
-            ${item.is_highlight ? '【重要】' : ''} ${item.text}
+            ${badge}${item.is_highlight ? '【重要】' : ''} ${item.text}
         </li>
-    `).join('');
+    `;}).join('');
 
     // 3行に満たない場合はプレースホルダー行を追加
     const emptyRowsNeeded = MIN_NOTICE_ROWS - appData.notices.length;
@@ -1010,13 +1078,14 @@ function renderAssignments() {
     let html = filteredAssignments.map(item => {
         const { text, cssClass, days } = calculateDaysLeft(item.deadline);
         const rowClass = days < 0 ? 'overdue-row' : '';
+        const badge = getSourceBadge(item._source);
         return `
             <tr class="${rowClass}">
                 <td>
                     ${item.deadline.slice(5)}
                     <br><span class="${cssClass}">${text}</span>
                 </td>
-                <td>${item.subject}</td>
+                <td>${badge}${item.subject}</td>
                 <td>${item.task}</td>
             </tr>
         `;

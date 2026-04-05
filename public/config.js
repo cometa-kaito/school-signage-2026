@@ -113,6 +113,9 @@ export const getMyMembershipsFn = httpsCallable(functions, 'getMyMemberships');
 export const regenerateSignageJsonFn = httpsCallable(functions, 'regenerateSignageJson');
 export const migrateToGradeStructureFn = httpsCallable(functions, 'migrateToGradeStructure');
 
+// マスターコンテンツ
+export const copyMasterToClassesFn = httpsCallable(functions, 'copyMasterToClasses');
+
 // ========================================
 // エラーメッセージ
 // ========================================

@@ -24,6 +24,16 @@ function dailyDataPath(schoolId, gradeId, classId) {
     return classPath(schoolId, gradeId, classId).collection('daily_data');
 }
 
+function schoolMasterDailyDataPath(schoolId) {
+    return db.collection('schools').doc(schoolId).collection('master_daily_data');
+}
+
+function gradeMasterDailyDataPath(schoolId, gradeId) {
+    return db.collection('schools').doc(schoolId)
+        .collection('grades').doc(gradeId)
+        .collection('master_daily_data');
+}
+
 module.exports = {
     admin,
     db,
@@ -32,4 +42,6 @@ module.exports = {
     formatDate,
     classPath,
     dailyDataPath,
+    schoolMasterDailyDataPath,
+    gradeMasterDailyDataPath,
 };

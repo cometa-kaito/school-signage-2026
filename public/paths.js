@@ -53,3 +53,39 @@ export function schoolDocRef(schoolId) {
 export function legacyDailyDataDocRef(schoolId, dateStr) {
     return doc(db, "schools", schoolId, "daily_data", dateStr);
 }
+
+// ========================================
+// マスター日次データ（学校・学年レベル）
+// ========================================
+
+/**
+ * 学校マスター日次データドキュメントの参照
+ * schools/{schoolId}/master_daily_data/{dateStr}
+ */
+export function schoolMasterDailyDataDocRef(schoolId, dateStr) {
+    return doc(db, "schools", schoolId, "master_daily_data", dateStr);
+}
+
+/**
+ * 学校マスター日次データコレクションの参照
+ * schools/{schoolId}/master_daily_data
+ */
+export function schoolMasterDailyDataCollectionRef(schoolId) {
+    return collection(db, "schools", schoolId, "master_daily_data");
+}
+
+/**
+ * 学年マスター日次データドキュメントの参照
+ * schools/{schoolId}/grades/{gradeId}/master_daily_data/{dateStr}
+ */
+export function gradeMasterDailyDataDocRef(schoolId, gradeId, dateStr) {
+    return doc(db, "schools", schoolId, "grades", gradeId, "master_daily_data", dateStr);
+}
+
+/**
+ * 学年マスター日次データコレクションの参照
+ * schools/{schoolId}/grades/{gradeId}/master_daily_data
+ */
+export function gradeMasterDailyDataCollectionRef(schoolId, gradeId) {
+    return collection(db, "schools", schoolId, "grades", gradeId, "master_daily_data");
+}

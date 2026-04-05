@@ -50,10 +50,22 @@ service cloud.firestore {
         || (isAuthenticated() && exists(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + schoolId)));
       allow write: if hasAdminAccess();
 
+      // 学校マスター日次データ
+      match /master_daily_data/{dateId} {
+        allow read: if true;
+        allow write: if isSchoolAdmin(schoolId);
+      }
+
       // 学年
       match /grades/{gradeId} {
         allow read: if true;
         allow write: if isSchoolAdmin(schoolId);
+
+        // 学年マスター日次データ
+        match /master_daily_data/{dateId} {
+          allow read: if true;
+          allow write: if isSchoolAdmin(schoolId);
+        }
 
         // クラス
         match /classes/{classId} {

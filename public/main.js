@@ -818,7 +818,7 @@ function renderHeader() {
 /**
  * 予定セクションの最小行数
  */
-const MIN_SCHEDULE_ROWS = 3;
+const MIN_SCHEDULE_ROWS = 5;
 
 /**
  * 予定セクションを描画
@@ -960,7 +960,7 @@ function generateScheduleRowsHtml(schedules) {
  */
 function renderNotices() {
     const list = document.getElementById('notice-list');
-    const MIN_NOTICE_ROWS = 3;
+    const MIN_NOTICE_ROWS = 5;
 
     if (appData.notices.length === 0) {
         // 「連絡事項はありません」メッセージ + プレースホルダー行
@@ -992,7 +992,7 @@ function renderNotices() {
  */
 function renderAssignments() {
     const list = document.getElementById('assignment-list');
-    const MIN_ASSIGNMENT_ROWS = 3;
+    const MIN_ASSIGNMENT_ROWS = 5;
 
     const filteredAssignments = filterRecentAssignments(appData.assignments, 5);
 

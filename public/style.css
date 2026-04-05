@@ -91,12 +91,12 @@ html, body {
     max-height: 100vh;
     overflow: hidden;
     background-color: var(--bg-color);
-    padding-top: 26px;
+    padding-top: 24px;
 }
 
 .info-area {
     grid-area: info;
-    padding: 0.3vmin 1vmin 1vmin;
+    padding: 0 1vmin 1vmin;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -403,12 +403,15 @@ html, body {
    フッター
    ===================== */
 .branding {
-    text-align: right;
-    font-size: 0.8rem;
-    color: #888;
-    font-weight: bold;
-    padding-top: 0.2rem;
-    flex-shrink: 0;
+    display: none;
+}
+
+.header-branding {
+    margin-left: auto;
+    font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 /* =====================

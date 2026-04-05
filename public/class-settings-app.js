@@ -155,7 +155,19 @@ function renderAdList() {
             <div class="ad-management-item" draggable="true" data-index="${idx}">
                 <div class="ad-drag-handle">☰</div>
                 ${ad.type === 'video' ? `<video src="${ad.url}" class="ad-thumbnail" muted playsinline onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>` : `<img src="${ad.url}" class="ad-thumbnail" onerror="this.src='https://placehold.jp/80x60.png?text=Error'">`}
-                <div class="ad-details"><p>${ad.type === 'video' ? '動画' : '画像'} ${idx + 1}</p></div>
+                <div class="ad-details" style="flex:1;min-width:0;">
+                    <p style="margin:0 0 6px 0;font-weight:500;">${ad.type === 'video' ? '動画' : '画像'} ${idx + 1}</p>
+                    <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                        <span style="font-size:11px;color:#888;white-space:nowrap;">URL:</span>
+                        <input type="text" id="ad-link-${idx}" placeholder="https://example.com" value="${ad.link_url || ''}" style="flex:1;font-size:12px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;min-width:0;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <span style="font-size:11px;color:#888;white-space:nowrap;">表示秒数:</span>
+                        <input type="number" id="ad-duration-${idx}" value="${ad.duration_sec || 10}" min="3" max="120" style="width:60px;font-size:12px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;">
+                        <span style="font-size:11px;color:#888;">秒</span>
+                        <button class="btn btn-sm" onclick="window.saveAdSettings(${idx})" style="font-size:11px;padding:3px 8px;white-space:nowrap;margin-left:auto;">設定を保存</button>
+                    </div>
+                </div>
                 <div class="ad-actions-group">
                     <button class="btn btn-sm" onclick="window.replaceAd(${idx})">変更</button>
                     <button class="btn btn-sm btn-danger" onclick="window.deleteAd(${idx})">削除</button>
@@ -177,6 +189,26 @@ window.deleteAd = async (idx) => {
         adsData.splice(idx, 1);
         await saveAds();
         showToast('削除しました', 'success');
+        renderAdList();
+    });
+};
+
+window.saveAdSettings = async (idx) => {
+    const linkInput = document.getElementById(`ad-link-${idx}`);
+    const durationInput = document.getElementById(`ad-duration-${idx}`);
+    const linkUrl = (linkInput?.value || '').trim();
+    const duration = parseInt(durationInput?.value || '10', 10);
+
+    if (linkUrl && !linkUrl.match(/^https?:\/\//)) {
+        showToast('URLは http:// または https:// で始めてください', 'error');
+        return;
+    }
+
+    await withLoading(async () => {
+        adsData[idx].link_url = linkUrl;
+        adsData[idx].duration_sec = Math.max(3, Math.min(120, duration));
+        await saveAds();
+        showToast('設定を保存しました', 'success');
         renderAdList();
     });
 };

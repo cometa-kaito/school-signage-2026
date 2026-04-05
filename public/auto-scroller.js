@@ -137,8 +137,7 @@ export function startAutoScroll(autoScrollers) {
 
     const scrollTargets = [
         document.querySelector('.schedule-scroll-area'),
-        document.getElementById('notice-list'),
-        document.querySelector('.table-wrapper')
+        document.getElementById('notice-list')
     ].filter(el => el);
 
     scrollTargets.forEach((el) => {

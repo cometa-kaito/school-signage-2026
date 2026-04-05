@@ -1052,10 +1052,31 @@ function adjustScrollAreas() {
     if (assignmentSection && tableWrapper) {
         const header = assignmentSection.querySelector('h2');
         const headerHeight = header ? header.offsetHeight : 0;
-        const padding = 20;
+        const padding = 10;
         const availableHeight = assignmentSection.offsetHeight - headerHeight - padding;
         if (availableHeight > 50) {
             tableWrapper.style.maxHeight = availableHeight + 'px';
+        }
+
+        // 提出物テーブルの行の高さを動的に計算し、必ず5行収める
+        const theadEl = tableWrapper.querySelector('thead');
+        const theadHeight = theadEl ? theadEl.offsetHeight : 0;
+        const bodyHeight = availableHeight - theadHeight;
+        if (bodyHeight > 50) {
+            const rowHeight = Math.floor(bodyHeight / MIN_ASSIGNMENT_ROWS);
+            const rows = tableWrapper.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.style.height = rowHeight + 'px';
+                row.style.maxHeight = rowHeight + 'px';
+                row.style.overflow = 'hidden';
+            });
+            // フォントサイズも動的に調整
+            const tds = tableWrapper.querySelectorAll('tbody td');
+            if (rowHeight < 35) {
+                tds.forEach(td => { td.style.fontSize = '0.65rem'; td.style.lineHeight = '1.1'; td.style.padding = '0 0.3rem'; });
+            } else if (rowHeight < 45) {
+                tds.forEach(td => { td.style.fontSize = '0.7rem'; td.style.lineHeight = '1.15'; td.style.padding = '0.05rem 0.3rem'; });
+            }
         }
     }
 

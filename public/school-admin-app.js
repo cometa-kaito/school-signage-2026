@@ -448,7 +448,10 @@ function renderGradeClassTree() {
         return;
     }
 
-    const sortedGrades = [...gradesList].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const sortedGrades = [...gradesList].sort((a, b) => {
+        if ((a.order || 0) !== (b.order || 0)) return (a.order || 0) - (b.order || 0);
+        return a.name.localeCompare(b.name, 'ja', { numeric: true });
+    });
     c.innerHTML = sortedGrades.map(g => {
         const classes = gradeClassesCache[g.id] || [];
         const isOpen = g.id === activeGradeId;

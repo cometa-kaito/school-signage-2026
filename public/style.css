@@ -188,8 +188,8 @@ html, body {
 .card h2 {
     font-size: clamp(0.75rem, 1.2vw, 1rem);
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.15rem;
-    margin-bottom: 0.2rem;
+    padding-bottom: 0.1rem;
+    margin-bottom: 0.1rem;
     flex-shrink: 0;
     font-weight: 700;
     color: var(--primary-color);

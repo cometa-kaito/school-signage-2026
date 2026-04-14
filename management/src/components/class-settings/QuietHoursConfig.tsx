@@ -1,0 +1,183 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import { getDoc, updateDoc } from "firebase/firestore";
+import { classDocRef, schoolConfigRef } from "@/lib/paths";
+import { useToast } from "@/components/ui/Toast";
+import styles from "@/styles/class-settings.module.css";
+
+interface QuietHourItem {
+  start: string;
+  end: string;
+}
+
+interface QuietHoursConfigProps {
+  schoolId: string;
+  gradeId: string;
+  classId: string;
+  quietHours: QuietHourItem[];
+  onQuietHoursChange: (qh: QuietHourItem[]) => void;
+}
+
+export function QuietHoursConfig({
+  schoolId,
+  gradeId,
+  classId,
+  quietHours,
+  onQuietHoursChange,
+}: QuietHoursConfigProps) {
+  const { showToast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [masterNote, setMasterNote] = useState("");
+  const [localHours, setLocalHours] = useState<QuietHourItem[]>(quietHours);
+
+  // マスター設定のメモを読み込み
+  useEffect(() => {
+    async function loadMasterNote() {
+      try {
+        const masterSnap = await getDoc(
+          schoolConfigRef(schoolId, "display_settings")
+        );
+        const masterQH: QuietHourItem[] = masterSnap.exists()
+          ? masterSnap.data().quiet_hours || []
+          : [];
+        if (quietHours.length === 0 && masterQH.length > 0) {
+          setMasterNote(
+            `現在、学校マスター設定（${masterQH.map((q) => q.start + "〜" + q.end).join(", ")}）が適用されています。`
+          );
+        } else if (quietHours.length === 0) {
+          setMasterNote(
+            "授業時間が未設定です。学校マスター設定も未設定のため、広告は常時表示されます。"
+          );
+        } else {
+          setMasterNote("");
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    loadMasterNote();
+  }, [schoolId, quietHours]);
+
+  const handleAdd = () => {
+    const newHours = [...localHours, { start: "08:30", end: "15:30" }];
+    setLocalHours(newHours);
+  };
+
+  const handleRemove = (index: number) => {
+    const newHours = localHours.filter((_, i) => i !== index);
+    setLocalHours(newHours);
+  };
+
+  const handleTimeChange = (
+    index: number,
+    field: "start" | "end",
+    value: string
+  ) => {
+    const newHours = [...localHours];
+    newHours[index] = { ...newHours[index], [field]: value };
+    setLocalHours(newHours);
+  };
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      const docRef = classDocRef(schoolId, gradeId, classId);
+      const snap = await getDoc(docRef);
+      const current = snap.exists()
+        ? snap.data().displaySettings || {}
+        : {};
+      current.quiet_hours = localHours;
+      await updateDoc(docRef, { displaySettings: current });
+      onQuietHoursChange(localHours);
+      showToast("保存しました", "success");
+
+      // メモ更新
+      if (localHours.length === 0) {
+        const masterSnap = await getDoc(
+          schoolConfigRef(schoolId, "display_settings")
+        );
+        const masterQH: QuietHourItem[] = masterSnap.exists()
+          ? masterSnap.data().quiet_hours || []
+          : [];
+        if (masterQH.length > 0) {
+          setMasterNote(
+            `現在、学校マスター設定（${masterQH.map((q) => q.start + "〜" + q.end).join(", ")}）が適用されています。`
+          );
+        } else {
+          setMasterNote(
+            "授業時間が未設定です。学校マスター設定も未設定のため、広告は常時表示されます。"
+          );
+        }
+      } else {
+        setMasterNote("");
+      }
+    } catch (err) {
+      showToast("エラー: " + (err as Error).message, "error");
+    }
+    setSaving(false);
+  }, [schoolId, gradeId, classId, localHours, onQuietHoursChange, showToast]);
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.cardHeader}>
+        <h2>授業時間設定（広告非表示）</h2>
+      </div>
+      <p className={styles.settingDescription}>
+        この時間帯は広告が非表示になります。未設定の場合、学校マスター設定が適用されます。
+      </p>
+
+      <div>
+        {localHours.length === 0 ? (
+          <p className="empty-text">未設定（学校マスター設定を使用）</p>
+        ) : (
+          localHours.map((item, idx) => (
+            <div key={idx} className={styles.quietHourRow}>
+              <input
+                type="time"
+                value={item.start}
+                onChange={(e) =>
+                  handleTimeChange(idx, "start", e.target.value)
+                }
+                className={styles.timeInput}
+              />
+              <span>〜</span>
+              <input
+                type="time"
+                value={item.end}
+                onChange={(e) =>
+                  handleTimeChange(idx, "end", e.target.value)
+                }
+                className={styles.timeInput}
+              />
+              <button
+                className="btn-icon"
+                onClick={() => handleRemove(idx)}
+                style={{ color: "var(--danger)" }}
+              >
+                ✕
+              </button>
+            </div>
+          ))
+        )}
+
+        <button className="btn btn-secondary" onClick={handleAdd}>
+          + 時間帯追加
+        </button>
+      </div>
+
+      <button
+        className="btn btn-primary"
+        onClick={handleSave}
+        disabled={saving}
+        style={{ marginTop: "8px" }}
+      >
+        {saving ? "保存中..." : "設定保存"}
+      </button>
+
+      {masterNote && (
+        <p className={styles.masterNote}>{masterNote}</p>
+      )}
+    </div>
+  );
+}

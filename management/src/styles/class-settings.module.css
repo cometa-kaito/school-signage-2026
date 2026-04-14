@@ -1,0 +1,187 @@
+/* class-settings.module.css */
+
+.pageContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.backLink {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.classInfo {
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.classTitle {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.classSubtitle {
+  color: #888;
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+/* カード */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 20px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cardHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.settingDescription {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+/* 広告リスト */
+.adList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adItem {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.adDragHandle {
+  cursor: grab;
+  color: #ccc;
+  font-size: 1.2rem;
+  user-select: none;
+}
+
+.adThumbnail {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #eee;
+}
+
+.adDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.adLabel {
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.adSettingRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.adSettingLabel {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+}
+
+.adSettingInput {
+  flex: 1;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.adDurationInput {
+  width: 60px;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.adActions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 授業時間 */
+.quietHourRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.timeInput {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.masterNote {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+}
+
+/* レスポンシブ */
+@media (max-width: 600px) {
+  .adItem {
+    flex-wrap: wrap;
+  }
+
+  .adDetails {
+    width: 100%;
+  }
+
+  .adActions {
+    flex-direction: row;
+    width: 100%;
+  }
+}

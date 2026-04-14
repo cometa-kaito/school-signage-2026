@@ -1,0 +1,557 @@
+/* editor.module.css */
+
+/* 2カラムレイアウト（デスクトップ: メイン + 広告プレビュー） */
+.editorLayout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.pageContainer {
+  flex: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ブランディングフッター */
+.branding {
+  text-align: center;
+  color: #999;
+  font-size: 0.8rem;
+  padding: 16px 0;
+  margin-top: 20px;
+}
+
+/* 広告プレビューパネル */
+.adPreview {
+  width: 280px;
+  min-width: 280px;
+  background: #2c3e50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.adPreviewContainer {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adPreviewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.adPreviewPlaceholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+
+.adPreviewOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  padding: 10px;
+  font-size: 0.8rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.className {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.clock {
+  font-size: 1.1rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* セレクタ */
+.selectorRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.selectorRow select {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.selectorLabel {
+  color: #888;
+}
+
+.selectorDivider {
+  color: #ccc;
+}
+
+/* 編集レベル */
+.levelSelector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.levelBtn {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 2px solid;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.levelIndicator {
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* セクション */
+.section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 20px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* スケジュールグリッド */
+.scheduleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.scheduleColumn {
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.scheduleColumn.isToday {
+  border: 2px solid #667eea;
+}
+
+.scheduleDateHeader {
+  padding: 8px 12px;
+  background: #e9ecef;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.isToday .scheduleDateHeader {
+  background: #667eea;
+  color: white;
+}
+
+.scheduleItems {
+  padding: 8px;
+  min-height: 60px;
+}
+
+.scheduleItem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 4px;
+}
+
+.scheduleItem:hover {
+  background: #e9ecef;
+}
+
+.scheduleTime {
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.scheduleContent {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.scheduleLocation {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+}
+
+/* 連絡リスト */
+.noticeList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.noticeItem {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.noticeItem:hover {
+  background: #f8f9fa;
+}
+
+.noticeItem.highlight {
+  background: #fff3e0;
+}
+
+.importantBadge {
+  color: #e74c3c;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* 提出物テーブル */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.assignmentTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.assignmentTable th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid #e9ecef;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.assignmentTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+}
+
+.assignmentRow {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.assignmentRow:hover {
+  background: #f8f9fa;
+}
+
+.assignmentRow.overdue {
+  background: #fff5f5;
+}
+
+.daysUrgent {
+  color: #e74c3c;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.daysLeft {
+  color: #27ae60;
+  font-size: 0.8rem;
+}
+
+/* 共通 */
+.deleteBtn {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.deleteBtn:hover {
+  color: #e74c3c;
+}
+
+.addButton {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: none;
+  border: 1px dashed #ccc;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.addButton:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.emptyMessage {
+  color: #999;
+  text-align: center;
+  padding: 20px;
+  font-size: 0.9rem;
+}
+
+/* レスポンシブ */
+@media (max-width: 1100px) {
+  .adPreview {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .pageContainer {
+    padding: 12px;
+  }
+
+  .scheduleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .className {
+    font-size: 1.1rem;
+  }
+
+  .section {
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+
+  .sectionHeader h2 {
+    font-size: 1rem;
+  }
+
+  .levelSelector {
+    gap: 6px;
+  }
+
+  .levelBtn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .levelIndicator {
+    padding: 8px 12px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .selectorRow {
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .selectorRow select {
+    max-width: 140px;
+    font-size: 13px;
+  }
+
+  .scheduleItem {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .scheduleTime {
+    font-size: 0.8rem;
+  }
+
+  .scheduleContent {
+    font-size: 0.85rem;
+  }
+
+  .noticeItem {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .assignmentTable th,
+  .assignmentTable td {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .addButton {
+    padding: 8px;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+
+  .emptyMessage {
+    padding: 14px;
+    font-size: 0.85rem;
+  }
+
+  /* モバイル: タッチターゲット最適化 */
+  .scheduleItem {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .noticeItem {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .assignmentTable td {
+    min-height: 44px;
+  }
+
+  /* モバイル: 提出物テーブルをカード風に */
+  .assignmentTable {
+    font-size: 0.8rem;
+  }
+
+  .assignmentTable thead {
+    display: none;
+  }
+
+  .assignmentTable tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    gap: 4px;
+  }
+
+  .assignmentTable tbody td {
+    border: none;
+    padding: 2px 4px;
+  }
+
+  .assignmentTable tbody td:first-child {
+    font-weight: 700;
+    color: #2c3e50;
+    flex-basis: 100%;
+  }
+
+  .assignmentTable tbody td:nth-child(2) {
+    color: #3498db;
+    font-weight: 600;
+  }
+
+  .assignmentTable tbody td:last-child {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .pageContainer {
+    padding: 8px;
+  }
+
+  .headerLeft {
+    gap: 8px;
+    width: 100%;
+  }
+
+  .clock {
+    font-size: 0.95rem;
+  }
+
+  .selectorRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .selectorRow select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .selectorDivider {
+    display: none;
+  }
+
+  .selectorLabel {
+    font-size: 12px;
+  }
+
+  .levelSelector {
+    flex-direction: column;
+  }
+
+  .levelBtn {
+    text-align: center;
+  }
+}

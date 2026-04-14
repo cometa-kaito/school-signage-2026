@@ -1,0 +1,111 @@
+/* context-selector.module.css */
+
+.container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: #555;
+}
+
+.historySection {
+  margin-bottom: 24px;
+}
+
+.historyGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.historyCard {
+  background: #ffffff;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 180px;
+  text-align: left;
+}
+
+.historyCard:hover {
+  border-color: #667eea;
+}
+
+.historyText {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.formGroup select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 15px;
+}
+
+.formGroup select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.classLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.classGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.classCard {
+  background: #ffffff;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.classCard:hover {
+  border-color: #667eea;
+}
+
+.className {
+  font-weight: bold;
+}
+
+.emptyText {
+  color: #888;
+  text-align: center;
+  padding: 20px;
+}

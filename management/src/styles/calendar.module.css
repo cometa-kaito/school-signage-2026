@@ -1,0 +1,221 @@
+/* calendar.module.css */
+
+.calendarNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.monthLabel {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 16px;
+}
+
+.calendarHeader {
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 6px 0;
+  color: #555;
+}
+
+.calendarHeader.sunday { color: #e74c3c; }
+.calendarHeader.saturday { color: #3498db; }
+
+.calendarCellEmpty {
+  min-height: 40px;
+}
+
+.calendarCell {
+  min-height: 40px;
+  padding: 4px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.calendarCell:hover {
+  background: #f0f0f0;
+}
+
+.calendarCell.today {
+  background: #667eea15;
+  border: 1px solid #667eea;
+}
+
+.calendarCell.selected {
+  background: #667eea;
+  color: white;
+}
+
+.calendarCell.sunday { color: #e74c3c; }
+.calendarCell.saturday { color: #3498db; }
+.calendarCell.selected.sunday,
+.calendarCell.selected.saturday { color: white; }
+
+.dayNumber {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.eventDots {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.dotSchedule {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #667eea;
+}
+
+.dotNotice {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f39c12;
+}
+
+.dotAssignment {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #27ae60;
+}
+
+/* 日付詳細 */
+.dayDetail {
+  border-top: 1px solid #e1e1e1;
+  padding-top: 12px;
+}
+
+.dayDetailTitle {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.detailSection {
+  margin-bottom: 12px;
+}
+
+.detailSectionHeader {
+  font-weight: bold;
+  font-size: 0.85rem;
+  color: #555;
+  padding: 6px 8px;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+}
+
+.detailItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.detailItem span {
+  flex: 1;
+}
+
+.detailActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.detailActions button {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.detailActions button:hover {
+  background: #f0f0f0;
+}
+
+.detailEmpty {
+  padding: 6px 8px;
+  color: #999;
+  font-size: 0.8rem;
+}
+
+.detailAdd {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+}
+
+.detailAdd:hover {
+  text-decoration: underline;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  .calendarCell {
+    min-height: 34px;
+    padding: 2px;
+  }
+
+  .dayNumber {
+    font-size: 0.8rem;
+  }
+
+  .eventDots {
+    gap: 1px;
+  }
+
+  .dotSchedule,
+  .dotNotice,
+  .dotAssignment {
+    width: 4px;
+    height: 4px;
+  }
+
+  .detailItem {
+    font-size: 0.8rem;
+    padding: 5px 6px;
+  }
+
+  .detailActions button {
+    font-size: 0.8rem;
+    padding: 2px 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendarHeader {
+    font-size: 0.7rem;
+    padding: 4px 0;
+  }
+
+  .calendarCell {
+    min-height: 30px;
+  }
+
+  .dayNumber {
+    font-size: 0.75rem;
+  }
+}

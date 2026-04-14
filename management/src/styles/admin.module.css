@@ -1,0 +1,319 @@
+/* admin.module.css */
+
+.pageContainer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.backLink {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  display: inline-block;
+}
+
+.schoolTitle {
+  font-size: 1.3rem;
+  margin: 0 0 16px;
+}
+
+/* タブ */
+.tabBar {
+  display: flex;
+  border-bottom: 2px solid #e1e1e1;
+  margin-bottom: 20px;
+  gap: 0;
+}
+
+.tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #999;
+  transition: all 0.2s;
+}
+
+.tabActive {
+  color: #667eea;
+  border-bottom: 2px solid #667eea;
+  margin-bottom: -2px;
+}
+
+/* セクション */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sectionHeader h2,
+.sectionHeader h3 {
+  margin: 0;
+}
+
+/* カードリスト */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.cardBody h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.cardSubtext {
+  margin: 0;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.cardActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 学年カード */
+.gradeCard {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.gradeHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.gradeHeader:hover {
+  background: #f8f9fa;
+}
+
+.gradeToggle {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.classBadge {
+  font-size: 0.8rem;
+  color: #888;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.classesContainer {
+  padding: 0 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.classItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+/* URL表示 */
+.urlSection {
+  padding: 8px 12px 12px;
+  background: #f0f4ff;
+  border-radius: 0 0 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.urlRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.urlLabel {
+  font-size: 0.75rem;
+  color: #888;
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+.urlInput {
+  flex: 1;
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  min-width: 0;
+}
+
+/* テーブル */
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.dataTable th {
+  text-align: left;
+  padding: 10px 14px;
+  background: #f8f9fa;
+  font-size: 0.85rem;
+  color: #666;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.dataTable td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+}
+
+/* 設定カード */
+.settingCard {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+}
+
+.settingCard h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+/* ロール選択 */
+.roleSelect {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: white;
+  cursor: pointer;
+}
+
+.roleSelect:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* 並び替えボタン */
+.orderBtn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: #666;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.orderBtn:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #aaa;
+}
+
+.orderBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  .pageContainer {
+    padding: 12px;
+  }
+
+  .card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cardActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .tabBar {
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .urlRow {
+    flex-wrap: wrap;
+  }
+
+  .urlLabel {
+    min-width: auto;
+  }
+
+  .urlInput {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dataTable th,
+  .dataTable td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .classItem {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .gradeHeader {
+    padding: 12px 14px;
+  }
+
+  .settingCard {
+    padding: 14px;
+  }
+}

@@ -1,10 +1,38 @@
 {
   "hosting": {
-    "public": "public",
+    "public": "management/out",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/manage/**",
+        "destination": "/manage.html"
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/editor.html",
+        "destination": "/manage/editor",
+        "type": 301
+      },
+      {
+        "source": "/editor-mobile.html",
+        "destination": "/manage/editor",
+        "type": 301
+      },
+      {
+        "source": "/school-admin.html",
+        "destination": "/manage/admin",
+        "type": 301
+      },
+      {
+        "source": "/class-settings.html",
+        "destination": "/manage/class-settings",
+        "type": 301
+      }
     ],
     "headers": [
       {

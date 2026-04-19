@@ -9,13 +9,10 @@ import {
   where,
   orderBy,
   limit,
-  doc,
-  getDoc,
   type QuerySnapshot,
   type DocumentData,
   type CollectionReference,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import {
   classDocRef,
   schoolDocRef,
@@ -25,6 +22,9 @@ import {
   gradeDocRef,
   departmentDocRef,
   departmentMasterDailyDataCollectionRef,
+  schoolConfigRef,
+  gradeConfigRef,
+  departmentConfigRef,
 } from "@/lib/paths";
 import { getTodayString } from "@/lib/utils";
 import { getDaysAgoStr, filterByDisplayRange } from "@/lib/data-filter";
@@ -179,6 +179,11 @@ export function useSignageData(
   const schoolAdsRef = useRef<Ad[]>([]);
   const gradeAdsRef = useRef<Ad[]>([]);
   const departmentAdsRef = useRef<Ad[]>([]);
+  // 階層の消音ストア（class > grade > department > school の優先順位で有効なものを採用）
+  const classQuietHoursRef = useRef<QuietHour[]>([]);
+  const gradeQuietHoursRef = useRef<QuietHour[]>([]);
+  const departmentQuietHoursRef = useRef<QuietHour[]>([]);
+  const schoolQuietHoursRef = useRef<QuietHour[]>([]);
 
   // 静的JSONポーリング用ハッシュ
   const lastJsonHashRef = useRef("");
@@ -285,13 +290,23 @@ export function useSignageData(
       ...classConfigRef.current.ads,
     ];
 
+    // 消音のフォールバック: class > grade > department > school で最初に見つかった非空を採用
+    const effectiveQuietHours: QuietHour[] =
+      classQuietHoursRef.current.length > 0
+        ? classQuietHoursRef.current
+        : gradeQuietHoursRef.current.length > 0
+          ? gradeQuietHoursRef.current
+          : departmentQuietHoursRef.current.length > 0
+            ? departmentQuietHoursRef.current
+            : schoolQuietHoursRef.current;
+
     setData((prev) => ({
       ...prev,
       schoolName: classConfigRef.current.schoolName,
       gradeName: gradeNameRef.current,
       className: classConfigRef.current.className,
       ads: mergedAds,
-      quietHours: classConfigRef.current.quietHours,
+      quietHours: effectiveQuietHours,
       weeklySchedules: newWeeklySchedules,
       notices: newNotices,
       assignments: newAssignments,
@@ -389,7 +404,7 @@ export function useSignageData(
     unsubscribes.push(
       onSnapshot(
         classRef,
-        async (snap) => {
+        (snap) => {
           if (snap.exists()) {
             const snapData = snap.data();
             const settings = snapData.displaySettings || {};
@@ -398,74 +413,14 @@ export function useSignageData(
               snapData.schoolName || "School Name";
             classConfigRef.current.className = snapData.name || "";
             classConfigRef.current.ads = settings.ads || [];
-
-            // quiet_hours フォールバックチェーン: クラス → 学年 → 学科 → 学校
-            let qh: QuietHour[] =
+            classQuietHoursRef.current =
               settings.quiet_hours || settings.quietHours || [];
-            const tryLoad = async (ref: ReturnType<typeof doc>) => {
-              if (qh.length > 0) return;
-              try {
-                const snap = await getDoc(ref);
-                if (snap.exists()) {
-                  qh = snap.data().quiet_hours || [];
-                }
-              } catch {
-                /* ignore */
-              }
-            };
-            if (qh.length === 0) {
-              const gradeConfigPath = departmentId
-                ? doc(
-                    db,
-                    "schools",
-                    schoolId,
-                    "departments",
-                    departmentId,
-                    "grades",
-                    gradeId,
-                    "config",
-                    "display_settings"
-                  )
-                : doc(
-                    db,
-                    "schools",
-                    schoolId,
-                    "grades",
-                    gradeId,
-                    "config",
-                    "display_settings"
-                  );
-              await tryLoad(gradeConfigPath);
-            }
-            if (qh.length === 0 && departmentId) {
-              await tryLoad(
-                doc(
-                  db,
-                  "schools",
-                  schoolId,
-                  "departments",
-                  departmentId,
-                  "config",
-                  "display_settings"
-                )
-              );
-            }
-            if (qh.length === 0) {
-              await tryLoad(
-                doc(db, "schools", schoolId, "config", "display_settings")
-              );
-            }
-            classConfigRef.current.quietHours = qh;
-
-            mergeAndUpdate();
-
-            if (isInitialLoadRef.current) {
-              markInitialLoadComplete();
-            }
           } else {
-            if (isInitialLoadRef.current) {
-              markInitialLoadComplete();
-            }
+            classQuietHoursRef.current = [];
+          }
+          mergeAndUpdate();
+          if (isInitialLoadRef.current) {
+            markInitialLoadComplete();
           }
         },
         () => {
@@ -473,6 +428,52 @@ export function useSignageData(
             markInitialLoadComplete();
           }
         }
+      )
+    );
+
+    // 2b. 学年 config の消音設定（リアルタイム）
+    unsubscribes.push(
+      onSnapshot(
+        gradeConfigRef(schoolId, gradeId, "display_settings", departmentId),
+        (snap) => {
+          gradeQuietHoursRef.current = snap.exists()
+            ? snap.data().quiet_hours || []
+            : [];
+          mergeAndUpdate();
+        },
+        (err) => console.warn("学年config監視エラー:", err)
+      )
+    );
+
+    // 2c. 学科 config の消音設定（学科モードのみ）
+    if (departmentId) {
+      unsubscribes.push(
+        onSnapshot(
+          departmentConfigRef(schoolId, departmentId, "display_settings"),
+          (snap) => {
+            departmentQuietHoursRef.current = snap.exists()
+              ? snap.data().quiet_hours || []
+              : [];
+            mergeAndUpdate();
+          },
+          (err) => console.warn("学科config監視エラー:", err)
+        )
+      );
+    } else {
+      departmentQuietHoursRef.current = [];
+    }
+
+    // 2d. 学校 config の消音設定（リアルタイム）
+    unsubscribes.push(
+      onSnapshot(
+        schoolConfigRef(schoolId, "display_settings"),
+        (snap) => {
+          schoolQuietHoursRef.current = snap.exists()
+            ? snap.data().quiet_hours || []
+            : [];
+          mergeAndUpdate();
+        },
+        (err) => console.warn("学校config監視エラー:", err)
       )
     );
 

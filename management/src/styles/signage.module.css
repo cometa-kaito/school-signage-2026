@@ -326,6 +326,15 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.listGroup > li {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  min-height: 0;
 }
 
 /* デスクトップ: 6 行目以降は非表示 */
@@ -368,6 +377,12 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+}
+
+.tableWrapper > .taskTable {
+  flex: 1;
+  height: 100%;
 }
 
 /* デスクトップ: 6 行目以降は非表示 */

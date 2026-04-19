@@ -23,7 +23,6 @@ import {
   listGradesFn,
   listClassesFn,
   listDepartmentsFn,
-  copyMasterToClassesFn,
 } from "@/lib/firebase-functions";
 import { getTodayString, escapeHtml } from "@/lib/utils";
 import type {
@@ -329,31 +328,6 @@ function EditorContent() {
     showToast("保存しました", "success");
   };
 
-  const handleCopyToClasses = async () => {
-    const levelLabel =
-      editingLevel === "school" ? "学校マスター" : "学年マスター";
-    const targetLabel =
-      editingLevel === "school" ? "全学年の全クラス" : "学年内の全クラス";
-    if (
-      !confirm(
-        `${levelLabel}の今日のデータを${targetLabel}にコピーしますか？`
-      )
-    )
-      return;
-    try {
-      await copyMasterToClassesFn({
-        schoolId: schoolId!,
-        gradeId: gradeId || undefined,
-        sourceLevel: editingLevel as "school" | "grade",
-        dateStr: getTodayString(),
-        contentType: "all",
-      });
-      showToast("コピーが完了しました", "success");
-    } catch (err) {
-      showToast("コピーエラー: " + (err as Error).message, "error");
-    }
-  };
-
   const handleGradeChange = (newGradeId: string) => {
     if (!schoolId) return;
     setContext(schoolId, newGradeId || null, null);
@@ -538,20 +512,6 @@ function EditorContent() {
                   ? `学年マスター編集モード — 全学科の同名学年（${gradeSiblings.length}学年）に反映されます`
                   : "学年マスター編集モード — 学年内全クラスに自動反映されます"}
           </span>
-          {editingLevel !== "department" && (
-            <button
-              className="btn btn-sm"
-              style={{
-                background: "#fff",
-                color: editingLevel === "school" ? "#007bff" : "#28a745",
-                border: "none",
-                fontWeight: "bold",
-              }}
-              onClick={handleCopyToClasses}
-            >
-              全クラスにコピー
-            </button>
-          )}
         </div>
       )}
 

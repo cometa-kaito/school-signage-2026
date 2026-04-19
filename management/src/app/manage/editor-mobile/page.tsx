@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ContextSelector } from "@/components/context/ContextSelector";
@@ -43,9 +43,42 @@ const SUBJECT_OPTIONS = [
 function EditorMobileContent() {
   const { schoolId, gradeId, classId, hasFullContext, setContext } =
     useSchoolContextValue();
-  const { user, roleLabel } = useAuthContext();
+  const { user, roleLabel, isAdmin, isSchoolAdmin } = useAuthContext();
   const { showToast } = useToast();
-  const { data, loading, saveItem } = useEditorData(schoolId, gradeId, classId);
+  const searchParams = useSearchParams();
+  const urlLevel = searchParams.get("level");
+  const urlDepartment = searchParams.get("department");
+  const canEditMaster = isAdmin || isSchoolAdmin;
+  const departmentId = urlDepartment;
+
+  const {
+    data,
+    loading,
+    editingLevel,
+    setEditingLevel,
+    saveItem,
+  } = useEditorData(schoolId, gradeId, classId, departmentId);
+
+  useEffect(() => {
+    if (!canEditMaster) return;
+    if (
+      urlLevel === "school" ||
+      urlLevel === "grade" ||
+      urlLevel === "department" ||
+      urlLevel === "class"
+    ) {
+      if (urlLevel !== editingLevel) setEditingLevel(urlLevel);
+    }
+  }, [urlLevel, canEditMaster, editingLevel, setEditingLevel]);
+
+  const isMaster = editingLevel !== "class";
+  const headerLabel = isMaster
+    ? editingLevel === "school"
+      ? "学校マスター"
+      : editingLevel === "department"
+        ? "学科マスター"
+        : "学年マスター"
+    : data.className || "連絡登録";
 
   // タブ
   const [activeTab, setActiveTab] = useState<TabType>("schedule");
@@ -175,10 +208,34 @@ function EditorMobileContent() {
       {/* ヘッダー */}
       <div className={styles.appHeader}>
         <div className={styles.headerLeft}>
-          <span className={styles.contextLabel}>
-            {data.className || "連絡登録"}
-          </span>
+          <a
+            href={`/manage/editor-mobile?school=${schoolId}`}
+            style={{
+              fontSize: "0.8rem",
+              color: "#667eea",
+              textDecoration: "none",
+              fontWeight: 600,
+              marginRight: 8,
+            }}
+          >
+            ← クラス一覧
+          </a>
+          <span className={styles.contextLabel}>{headerLabel}</span>
           {roleLabel && <span className={styles.roleBadge}>{roleLabel}</span>}
+          {isMaster && (
+            <span
+              style={{
+                marginLeft: 6,
+                fontSize: "0.7rem",
+                padding: "2px 6px",
+                borderRadius: 6,
+                background: "#fff3cd",
+                color: "#8a6d3b",
+              }}
+            >
+              マスター編集
+            </span>
+          )}
         </div>
         <div className={styles.headerRight}>
           <button className={styles.logoutBtn} onClick={() => logout()}>
@@ -435,13 +492,20 @@ function EditorMobileRouter() {
   const schoolParam = searchParams.get("school");
   const gradeParam = searchParams.get("grade");
   const classParam = searchParams.get("class");
+  const levelParam = searchParams.get("level");
+  const departmentParam = searchParams.get("department");
 
   if (!schoolParam) {
     return <EditorSchoolPicker basePath="/manage/editor-mobile" />;
   }
 
-  // モバイル版はクラス編集のみ対応
-  const hasTarget = !!gradeParam && !!classParam;
+  // マスター編集時に必要なパラメータ
+  const hasMasterTarget =
+    (levelParam === "school") ||
+    (levelParam === "department" && !!departmentParam) ||
+    (levelParam === "grade" && !!gradeParam);
+  const hasClassTarget = !!gradeParam && !!classParam;
+  const hasTarget = hasMasterTarget || hasClassTarget;
 
   if (!hasTarget) {
     return (
@@ -449,7 +513,6 @@ function EditorMobileRouter() {
         <EditorTargetMenu
           schoolId={schoolParam}
           basePath="/manage/editor-mobile"
-          mobileMode
         />
       </AuthGuard>
     );

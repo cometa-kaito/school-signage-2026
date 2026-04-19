@@ -480,8 +480,11 @@ function EditorContent() {
                   },
                 ] as const)
           ).map((l) => {
-            const deptDisabled =
+            // 必要なコンテキストが揃っていないレベルは編集対象選択画面へ誘導
+            const needsGrade = l.key === "grade" && !gradeId;
+            const needsDept =
               l.key === "department" && !selectedDepartmentId;
+            const needsContext = needsGrade || needsDept;
             return (
               <button
                 key={l.key}
@@ -491,14 +494,21 @@ function EditorContent() {
                   background:
                     editingLevel === l.key ? l.color : "#fff",
                   color: editingLevel === l.key ? "#fff" : l.color,
-                  opacity: deptDisabled ? 0.5 : 1,
                 }}
-                disabled={deptDisabled}
-                onClick={() => setEditingLevel(l.key as EditingLevel)}
+                onClick={() => {
+                  if (needsContext) {
+                    // 対象選択画面に戻ってユーザーに学年/学科を選ばせる
+                    window.location.href = `/manage/editor?school=${schoolId}`;
+                    return;
+                  }
+                  setEditingLevel(l.key as EditingLevel);
+                }}
                 title={
-                  deptDisabled
-                    ? "先に学科を選択してください"
-                    : ""
+                  needsGrade
+                    ? "対象学年を選択します"
+                    : needsDept
+                      ? "対象学科を選択します"
+                      : ""
                 }
               >
                 {l.label}

@@ -198,47 +198,51 @@ export function useSignageData(
       const department = departmentMasterRef.current[dateKey] || {};
       const cls = classRawRef.current[dateKey] || {};
 
-      // スケジュールのマージ（school -> grade -> department -> class）
+      // スケジュールのマージ（school -> department -> grade -> class）
+      // スケジュールはその日（dateKey）のものを表示するだけで十分なため
+      // display_start/end による絞り込みは適用しない
       const mergedSchedules: Schedule[] = [
         ...((school.schedules as Schedule[]) || []).map((s) => ({
           ...s,
           _source: s._source || "school",
         })),
-        ...((grade.schedules as Schedule[]) || []).map((s) => ({
-          ...s,
-          _source: s._source || "grade",
-        })),
         ...((department.schedules as Schedule[]) || []).map((s) => ({
           ...s,
           _source: s._source || "department",
         })),
+        ...((grade.schedules as Schedule[]) || []).map((s) => ({
+          ...s,
+          _source: s._source || "grade",
+        })),
         ...((cls.schedules as Schedule[]) || []),
       ];
       if (dateKey >= todayStr && mergedSchedules.length > 0) {
-        const filtered = filterByDisplayRange(mergedSchedules, todayStr, dateKey);
-        if (filtered.length > 0) {
-          newWeeklySchedules[dateKey] = filtered;
-        }
+        newWeeklySchedules[dateKey] = mergedSchedules;
       }
 
-      // 連絡のマージ（今日分のみ + 表示期間フィルタ）
-      if (dateKey === todayStr) {
-        const mergedNotices: Notice[] = [
-          ...((school.notices as Notice[]) || []).map((n) => ({
-            ...n,
-            _source: n._source || "school",
-          })),
-          ...((grade.notices as Notice[]) || []).map((n) => ({
-            ...n,
-            _source: n._source || "grade",
-          })),
-          ...((department.notices as Notice[]) || []).map((n) => ({
-            ...n,
-            _source: n._source || "department",
-          })),
-          ...((cls.notices as Notice[]) || []),
-        ];
-        newNotices = filterByDisplayRange(mergedNotices, todayStr, dateKey);
+      // 連絡のマージ: 全日付を横断し、今日が表示期間内ならば追加
+      const mergedNotices: Notice[] = [
+        ...((school.notices as Notice[]) || []).map((n) => ({
+          ...n,
+          _source: n._source || "school",
+        })),
+        ...((department.notices as Notice[]) || []).map((n) => ({
+          ...n,
+          _source: n._source || "department",
+        })),
+        ...((grade.notices as Notice[]) || []).map((n) => ({
+          ...n,
+          _source: n._source || "grade",
+        })),
+        ...((cls.notices as Notice[]) || []),
+      ];
+      const activeNotices = filterByDisplayRange(
+        mergedNotices,
+        todayStr,
+        dateKey
+      );
+      if (activeNotices.length > 0) {
+        newNotices = newNotices.concat(activeNotices);
       }
 
       // 提出物のマージ

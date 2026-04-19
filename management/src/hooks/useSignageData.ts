@@ -150,7 +150,14 @@ export function useSignageData(
     className: string;
     ads: Ad[];
     quietHours: QuietHour[];
-  }>({ schoolName: "", className: "", ads: [], quietHours: [] });
+    adDisplayOrder: string[];
+  }>({
+    schoolName: "",
+    className: "",
+    ads: [],
+    quietHours: [],
+    adDisplayOrder: [],
+  });
   const gradeNameRef = useRef("");
   // 階層の広告ストア
   const schoolAdsRef = useRef<Ad[]>([]);
@@ -260,12 +267,34 @@ export function useSignageData(
     );
 
     // 広告の階層マージ（school > department > grade > class の順で連結）
-    const mergedAds: Ad[] = [
+    const mergedAdsBase: Ad[] = [
       ...schoolAdsRef.current,
       ...departmentAdsRef.current,
       ...gradeAdsRef.current,
       ...classConfigRef.current.ads,
     ];
+
+    // クラス側で保存された adDisplayOrder があれば適用
+    const order = classConfigRef.current.adDisplayOrder;
+    let mergedAds: Ad[];
+    if (order && order.length > 0) {
+      const byId = new Map(mergedAdsBase.map((a) => [a.id, a]));
+      const ordered: Ad[] = [];
+      const used = new Set<string>();
+      for (const id of order) {
+        const ad = byId.get(id);
+        if (ad) {
+          ordered.push(ad);
+          used.add(id);
+        }
+      }
+      for (const a of mergedAdsBase) {
+        if (!used.has(a.id)) ordered.push(a);
+      }
+      mergedAds = ordered;
+    } else {
+      mergedAds = mergedAdsBase;
+    }
 
     // 消音のフォールバック: class > grade > department > school で最初に見つかった非空を採用
     const effectiveQuietHours: QuietHour[] =
@@ -390,6 +419,8 @@ export function useSignageData(
               snapData.schoolName || "School Name";
             classConfigRef.current.className = snapData.name || "";
             classConfigRef.current.ads = settings.ads || [];
+            classConfigRef.current.adDisplayOrder =
+              settings.adDisplayOrder || [];
             classQuietHoursRef.current =
               settings.quiet_hours || settings.quietHours || [];
           } else {

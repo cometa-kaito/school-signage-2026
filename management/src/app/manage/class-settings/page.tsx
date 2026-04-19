@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getDoc } from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Header } from "@/components/ui/Header";
 import { ContextSelector } from "@/components/context/ContextSelector";
 import { AdManager } from "@/components/class-settings/AdManager";
+import { AdDisplayOrderManager } from "@/components/class-settings/AdDisplayOrderManager";
 import { QuietHoursConfig } from "@/components/class-settings/QuietHoursConfig";
 import { Loading } from "@/components/ui/Loading";
 import { useSchoolContextValue } from "@/providers/SchoolContextProvider";
-import { classDocRef, schoolDocRef } from "@/lib/paths";
-import { doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { classDocRef, schoolDocRef, gradeDocRef } from "@/lib/paths";
 import styles from "@/styles/class-settings.module.css";
 import { useRouter } from "next/navigation";
 
@@ -30,6 +30,8 @@ interface QuietHourItem {
 
 function ClassSettingsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const departmentId = searchParams.get("department");
   const { schoolId, gradeId, classId, hasFullContext, setContext } =
     useSchoolContextValue();
 
@@ -45,8 +47,8 @@ function ClassSettingsContent() {
     try {
       const [schoolSnap, gradeSnap, classSnap] = await Promise.all([
         getDoc(schoolDocRef(schoolId)),
-        getDoc(doc(db, "schools", schoolId, "grades", gradeId)),
-        getDoc(classDocRef(schoolId, gradeId, classId)),
+        getDoc(gradeDocRef(schoolId, gradeId, departmentId)),
+        getDoc(classDocRef(schoolId, gradeId, classId, departmentId)),
       ]);
 
       const schoolName = schoolSnap.exists()
@@ -74,7 +76,7 @@ function ClassSettingsContent() {
       setClassTitle("クラス設定");
     }
     setLoading(false);
-  }, [schoolId, gradeId, classId]);
+  }, [schoolId, gradeId, classId, departmentId]);
 
   useEffect(() => {
     if (hasFullContext) {
@@ -117,15 +119,23 @@ function ClassSettingsContent() {
       </div>
 
       <AdManager
-        docRef={classDocRef(schoolId!, gradeId!, classId!)}
+        docRef={classDocRef(schoolId!, gradeId!, classId!, departmentId)}
         ads={ads}
         onAdsChange={setAds}
+      />
+
+      <AdDisplayOrderManager
+        schoolId={schoolId!}
+        gradeId={gradeId!}
+        classId={classId!}
+        departmentId={departmentId}
       />
 
       <QuietHoursConfig
         schoolId={schoolId!}
         gradeId={gradeId!}
         classId={classId!}
+        departmentId={departmentId}
         quietHours={quietHours}
         onQuietHoursChange={setQuietHours}
       />

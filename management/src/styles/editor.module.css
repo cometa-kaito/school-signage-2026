@@ -213,11 +213,17 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 8px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #dde3ec;
+}
+
+.scheduleItem:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .scheduleItem:hover {

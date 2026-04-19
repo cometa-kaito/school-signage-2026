@@ -250,8 +250,11 @@
   flex: 1;
   overflow: hidden;
   min-height: 0;
-  /* デスクトップでは 5 行分までを表示し、それ以降は画面外へ */
-  max-height: calc(5 * 1.5em * 1.3);
+}
+
+/* デスクトップ: 6 行目以降は非表示 */
+.scheduleScrollArea > .scheduleListItem:nth-of-type(n + 6) {
+  display: none;
 }
 
 .scheduleListItem {
@@ -323,8 +326,11 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  /* デスクトップでは 5 行分までを表示し、それ以降は画面外へ */
-  max-height: calc(5 * 1.55em * 1.35);
+}
+
+/* デスクトップ: 6 行目以降は非表示 */
+.listGroup > li:nth-of-type(n + 6) {
+  display: none;
 }
 
 .listGroup li {
@@ -362,8 +368,11 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  /* デスクトップでは 5 行分 + ヘッダーを表示し、それ以降は画面外へ */
-  max-height: calc(5 * 1.5em * 1.3 + 2em);
+}
+
+/* デスクトップ: 6 行目以降は非表示 */
+.taskTable tbody > tr:nth-of-type(n + 6) {
+  display: none;
 }
 
 .taskTable {
@@ -516,6 +525,13 @@
 .detailMode .listGroup {
   max-height: none !important;
   overflow: visible !important;
+}
+
+/* 詳細表示モード: 5 行制限を解除 */
+.detailMode .scheduleScrollArea > .scheduleListItem:nth-of-type(n + 6),
+.detailMode .listGroup > li:nth-of-type(n + 6),
+.detailMode .taskTable tbody > tr:nth-of-type(n + 6) {
+  display: revert !important;
 }
 
 /* 詳細モード ヒントバナー */
@@ -1211,6 +1227,13 @@
   .listGroup li {
     font-size: clamp(1rem, 3vw, 1.3rem);
     padding: 0.5rem 0;
+  }
+
+  /* モバイル: 5 行制限を解除 */
+  .scheduleScrollArea > .scheduleListItem:nth-of-type(n + 6),
+  .listGroup > li:nth-of-type(n + 6),
+  .taskTable tbody > tr:nth-of-type(n + 6) {
+    display: revert !important;
   }
 
   .tableWrapper {

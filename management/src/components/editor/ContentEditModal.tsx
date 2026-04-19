@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { getTodayString } from "@/lib/utils";
 
@@ -94,6 +94,25 @@ export function ContentEditModal({
   const [displayEnd, setDisplayEnd] = useState(
     (initialData?.display_end as string) || ""
   );
+
+  // モーダルを開くたびに initialData から再初期化（前回の入力を持ち越さない）
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = (initialData?.time as string) || "";
+    const custom = t && !TIME_OPTIONS.some((opt) => opt.value === t);
+    setTimeSelect(custom ? "その他" : t);
+    setTimeCustom(custom ? t : "");
+    setContent((initialData?.content as string) || "");
+    setLocation((initialData?.location as string) || "");
+    setText((initialData?.text as string) || "");
+    setIsHighlight((initialData?.is_highlight as boolean) || false);
+    setPlaySound((initialData?.play_sound as boolean) || false);
+    setDeadline((initialData?.deadline as string) || getTodayString());
+    setSubject((initialData?.subject as string) || "");
+    setTask((initialData?.task as string) || "");
+    setDisplayStart((initialData?.display_start as string) || "");
+    setDisplayEnd((initialData?.display_end as string) || "");
+  }, [isOpen, initialData]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -195,19 +214,49 @@ export function ContentEditModal({
           <div className="form-group">
             <label>表示期間（空欄＝この日のみ表示）</label>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input
-                type="date"
-                value={displayStart}
-                onChange={(e) => setDisplayStart(e.target.value)}
-                style={{ flex: 1 }}
-              />
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <input
+                  type="date"
+                  value={displayStart}
+                  onChange={(e) => setDisplayStart(e.target.value)}
+                />
+                <input
+                  type="text"
+                  value={displayStart}
+                  onChange={(e) => setDisplayStart(e.target.value)}
+                  placeholder="YYYY-MM-DD"
+                  pattern="\d{4}-\d{2}-\d{2}"
+                />
+              </div>
               <span>〜</span>
-              <input
-                type="date"
-                value={displayEnd}
-                onChange={(e) => setDisplayEnd(e.target.value)}
-                style={{ flex: 1 }}
-              />
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <input
+                  type="date"
+                  value={displayEnd}
+                  onChange={(e) => setDisplayEnd(e.target.value)}
+                />
+                <input
+                  type="text"
+                  value={displayEnd}
+                  onChange={(e) => setDisplayEnd(e.target.value)}
+                  placeholder="YYYY-MM-DD"
+                  pattern="\d{4}-\d{2}-\d{2}"
+                />
+              </div>
             </div>
           </div>
         </>
@@ -246,19 +295,49 @@ export function ContentEditModal({
           <div className="form-group">
             <label>表示期間（空欄＝この日のみ表示）</label>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input
-                type="date"
-                value={displayStart}
-                onChange={(e) => setDisplayStart(e.target.value)}
-                style={{ flex: 1 }}
-              />
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <input
+                  type="date"
+                  value={displayStart}
+                  onChange={(e) => setDisplayStart(e.target.value)}
+                />
+                <input
+                  type="text"
+                  value={displayStart}
+                  onChange={(e) => setDisplayStart(e.target.value)}
+                  placeholder="YYYY-MM-DD"
+                  pattern="\d{4}-\d{2}-\d{2}"
+                />
+              </div>
               <span>〜</span>
-              <input
-                type="date"
-                value={displayEnd}
-                onChange={(e) => setDisplayEnd(e.target.value)}
-                style={{ flex: 1 }}
-              />
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <input
+                  type="date"
+                  value={displayEnd}
+                  onChange={(e) => setDisplayEnd(e.target.value)}
+                />
+                <input
+                  type="text"
+                  value={displayEnd}
+                  onChange={(e) => setDisplayEnd(e.target.value)}
+                  placeholder="YYYY-MM-DD"
+                  pattern="\d{4}-\d{2}-\d{2}"
+                />
+              </div>
             </div>
           </div>
         </>

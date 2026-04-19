@@ -473,6 +473,11 @@
   letter-spacing: 0.1em;
 }
 
+/* 広告が表示されている時はウォーターマーク非表示 */
+.adAreaHasMedia::after {
+  content: none !important;
+}
+
 .adContainer {
   width: 100%;
   flex: 1;

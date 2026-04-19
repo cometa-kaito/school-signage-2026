@@ -12,7 +12,8 @@ interface AdDisplayProps {
 }
 
 export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onImageLoad, onVideoEnded }: AdDisplayProps) {
-  const areaClass = `${styles.adArea} ${isQuietTime ? styles.quietMode : ""}`;
+  const hasMedia = !!currentAd && !!mediaUrl && !isQuietTime;
+  const areaClass = `${styles.adArea} ${isQuietTime ? styles.quietMode : ""} ${hasMedia ? styles.adAreaHasMedia : ""}`;
 
   const renderBackdrop = () => {
     if (!currentAd || !mediaUrl || isQuietTime) return null;

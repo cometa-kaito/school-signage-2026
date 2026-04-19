@@ -23,9 +23,10 @@ function SignagePageContent() {
   const forceStatic = searchParams.get("static") === "1";
 
   useEffect(() => {
-    // パラメータなしの場合は管理画面にリダイレクト
+    // 教室を特定するパラメータが無いときは、誰でも開ける「つかい方とフィードバック」
+    // ページに誘導する。管理画面へはそこからログインして進んでもらう。
     if (!schoolId || !gradeId || !classId) {
-      router.replace("/manage/admin");
+      router.replace("/manage/guide");
       return;
     }
 
@@ -36,7 +37,7 @@ function SignagePageContent() {
   }, [schoolId, gradeId, classId, router]);
 
   if (!schoolId || !gradeId || !classId) {
-    return <Loading message="リダイレクト中..." />;
+    return <Loading message="ガイド画面へ移動しています…" />;
   }
 
   if (!SignagePage) {

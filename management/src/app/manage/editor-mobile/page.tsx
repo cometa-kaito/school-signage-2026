@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ContextSelector } from "@/components/context/ContextSelector";
+import { EditorSchoolPicker } from "@/components/editor/EditorSchoolPicker";
+import { EditorTargetMenu } from "@/components/editor/EditorTargetMenu";
 import { Loading } from "@/components/ui/Loading";
 import { useSchoolContextValue } from "@/providers/SchoolContextProvider";
 import { useAuthContext } from "@/providers/AuthProvider";
@@ -427,10 +430,38 @@ function EditorMobileContent() {
   );
 }
 
-export default function EditorMobilePage() {
+function EditorMobileRouter() {
+  const searchParams = useSearchParams();
+  const schoolParam = searchParams.get("school");
+  const gradeParam = searchParams.get("grade");
+  const classParam = searchParams.get("class");
+
+  if (!schoolParam) {
+    return <EditorSchoolPicker basePath="/manage/editor-mobile" />;
+  }
+
+  // モバイル版はクラス編集のみ対応
+  const hasTarget = !!gradeParam && !!classParam;
+
+  if (!hasTarget) {
+    return (
+      <AuthGuard requiredRole="editor" loginMode="editor">
+        <EditorTargetMenu
+          schoolId={schoolParam}
+          basePath="/manage/editor-mobile"
+          mobileMode
+        />
+      </AuthGuard>
+    );
+  }
+
   return (
     <AuthGuard requiredRole="editor" loginMode="editor">
       <EditorMobileContent />
     </AuthGuard>
   );
+}
+
+export default function EditorMobilePage() {
+  return <EditorMobileRouter />;
 }

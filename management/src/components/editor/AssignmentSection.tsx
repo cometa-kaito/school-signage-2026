@@ -6,12 +6,14 @@ import {
   calculateDaysLeft,
   formatDateKey,
 } from "@/lib/utils";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import styles from "@/styles/editor.module.css";
 
 interface AssignmentItem {
   deadline: string;
   subject: string;
   task: string;
+  _source?: string;
   _sourceDate: string;
   _originalIndex: number;
 }
@@ -77,7 +79,10 @@ export function AssignmentSection({
                         {text}
                       </span>
                     </td>
-                    <td>{escapeHtml(item.subject)}</td>
+                    <td>
+                      <SourceBadge source={item._source} compact />
+                      {escapeHtml(item.subject)}
+                    </td>
                     <td>{escapeHtml(item.task)}</td>
                     <td>
                       <button

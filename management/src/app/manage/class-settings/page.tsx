@@ -13,7 +13,7 @@ import { classDocRef, schoolDocRef } from "@/lib/paths";
 import { doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import styles from "@/styles/class-settings.module.css";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface AdItem {
   id: string;
@@ -29,6 +29,7 @@ interface QuietHourItem {
 }
 
 function ClassSettingsContent() {
+  const router = useRouter();
   const { schoolId, gradeId, classId, hasFullContext, setContext } =
     useSchoolContextValue();
 
@@ -101,12 +102,12 @@ function ClassSettingsContent() {
 
   return (
     <div className={styles.pageContainer}>
-      <Link
-        href={`/manage/admin?school=${schoolId}`}
+      <a
+        href={`/manage/admin.html?school=${schoolId}`}
         className={styles.backLink}
       >
         &lt; 学校管理に戻る
-      </Link>
+      </a>
 
       <div className={styles.classInfo}>
         <h2 className={styles.classTitle}>{classTitle}</h2>
@@ -116,9 +117,7 @@ function ClassSettingsContent() {
       </div>
 
       <AdManager
-        schoolId={schoolId!}
-        gradeId={gradeId!}
-        classId={classId!}
+        docRef={classDocRef(schoolId!, gradeId!, classId!)}
         ads={ads}
         onAdsChange={setAds}
       />

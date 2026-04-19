@@ -3,8 +3,7 @@
  * マスターコンテンツのクラスへのコピー機能
  */
 
-const functions = require('firebase-functions');
-const { db, schoolMasterDailyDataPath, gradeMasterDailyDataPath, dailyDataPath } = require('../helpers/paths');
+const { functions, db, schoolMasterDailyDataPath, gradeMasterDailyDataPath, dailyDataPath } = require('../helpers/paths');
 const { verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 

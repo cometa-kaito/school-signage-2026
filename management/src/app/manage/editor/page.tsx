@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ContextSelector } from "@/components/context/ContextSelector";
+import { EditorSchoolPicker } from "@/components/editor/EditorSchoolPicker";
+import { EditorTargetMenu } from "@/components/editor/EditorTargetMenu";
 import { ScheduleSection } from "@/components/editor/ScheduleSection";
 import { NoticeSection } from "@/components/editor/NoticeSection";
 import { AssignmentSection } from "@/components/editor/AssignmentSection";
@@ -11,7 +14,6 @@ import { CalendarView } from "@/components/editor/CalendarView";
 import { HistoryModal } from "@/components/editor/HistoryModal";
 import { Loading } from "@/components/ui/Loading";
 import { Header } from "@/components/ui/Header";
-import { Modal } from "@/components/ui/Modal";
 import { useSchoolContextValue } from "@/providers/SchoolContextProvider";
 import { useAuthContext } from "@/providers/AuthProvider";
 import { useEditorData, type EditingLevel } from "@/hooks/useEditorData";
@@ -20,10 +22,17 @@ import {
   listSchoolsFn,
   listGradesFn,
   listClassesFn,
+  listDepartmentsFn,
   copyMasterToClassesFn,
 } from "@/lib/firebase-functions";
 import { getTodayString, escapeHtml } from "@/lib/utils";
-import type { School, Grade, Class } from "@/types/school";
+import type {
+  School,
+  Grade,
+  Class,
+  Department,
+  HierarchyMode,
+} from "@/types/school";
 import styles from "@/styles/editor.module.css";
 
 type ContentType = "schedule" | "notice" | "assignment";
@@ -31,8 +40,16 @@ type ContentType = "schedule" | "notice" | "assignment";
 function EditorContent() {
   const { schoolId, gradeId, classId, hasFullContext, setContext } =
     useSchoolContextValue();
-  const { isAdmin } = useAuthContext();
+  const { isAdmin, isSchoolAdmin } = useAuthContext();
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
+  const urlLevel = searchParams.get("level");
+  const urlDepartment = searchParams.get("department");
+  const canEditMaster = isAdmin || isSchoolAdmin;
+
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<
+    string | null
+  >(urlDepartment);
 
   const {
     data,
@@ -41,17 +58,37 @@ function EditorContent() {
     setEditingLevel,
     saveItem,
     deleteItem,
-    saveClassName,
-  } = useEditorData(schoolId, gradeId, classId);
+  } = useEditorData(schoolId, gradeId, classId, selectedDepartmentId);
 
-  // クラス名編集
-  const [classNameModalOpen, setClassNameModalOpen] = useState(false);
-  const [editClassNameValue, setEditClassNameValue] = useState("");
+  // URL ?level= からの初期同期
+  useEffect(() => {
+    if (!canEditMaster) return;
+    if (
+      urlLevel === "school" ||
+      urlLevel === "grade" ||
+      urlLevel === "department" ||
+      urlLevel === "class"
+    ) {
+      if (urlLevel !== editingLevel) setEditingLevel(urlLevel);
+    }
+  }, [urlLevel, canEditMaster, editingLevel, setEditingLevel]);
+
+  useEffect(() => {
+    if (urlDepartment) setSelectedDepartmentId(urlDepartment);
+  }, [urlDepartment]);
+
+  const hasRequiredContext =
+    (editingLevel === "school" && !!schoolId) ||
+    (editingLevel === "department" && !!schoolId && !!selectedDepartmentId) ||
+    (editingLevel === "grade" && !!schoolId && !!gradeId) ||
+    (editingLevel === "class" && hasFullContext);
 
   // セレクタ用
   const [schools, setSchools] = useState<School[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [hierarchyMode, setHierarchyMode] = useState<HierarchyMode>("class");
 
   // 時計
   const [currentTime, setCurrentTime] = useState("");
@@ -88,27 +125,81 @@ function EditorContent() {
     return () => clearInterval(id);
   }, []);
 
-  // セレクタデータ読み込み
+  // 学校一覧と現在の学校の hierarchyMode、学科一覧（学科モード時）
   useEffect(() => {
     async function load() {
       if (!schoolId) return;
       try {
-        const [schoolRes, gradeRes] = await Promise.all([
-          listSchoolsFn(),
-          listGradesFn({ schoolId }),
-        ]);
-        setSchools(schoolRes.data.schools || []);
-        setGrades(gradeRes.data.grades || []);
-        if (gradeId) {
-          const classRes = await listClassesFn({ schoolId, gradeId });
-          setClasses(classRes.data.classes || []);
+        const schoolRes = await listSchoolsFn();
+        const allSchools = schoolRes.data.schools || [];
+        setSchools(allSchools);
+        const currentSchool = allSchools.find((s) => s.id === schoolId);
+        const mode: "class" | "department" =
+          currentSchool?.hierarchyMode || "class";
+        setHierarchyMode(mode);
+        if (mode === "department") {
+          const depts = await listDepartmentsFn({ schoolId });
+          setDepartments(depts.data.departments || []);
+        } else {
+          setDepartments([]);
         }
       } catch {
         /* ignore */
       }
     }
     load();
-  }, [schoolId, gradeId]);
+  }, [schoolId]);
+
+  // 学年一覧をモードに応じて取得
+  useEffect(() => {
+    async function loadGrades() {
+      if (!schoolId) {
+        setGrades([]);
+        return;
+      }
+      try {
+        if (hierarchyMode === "department") {
+          if (!selectedDepartmentId) {
+            setGrades([]);
+            return;
+          }
+          const res = await listGradesFn({
+            schoolId,
+            departmentId: selectedDepartmentId,
+          });
+          setGrades(res.data.grades || []);
+        } else {
+          const res = await listGradesFn({ schoolId });
+          setGrades(res.data.grades || []);
+        }
+      } catch {
+        setGrades([]);
+      }
+    }
+    loadGrades();
+  }, [schoolId, hierarchyMode, selectedDepartmentId]);
+
+  // クラス一覧
+  useEffect(() => {
+    async function loadClasses() {
+      if (!schoolId || !gradeId) {
+        setClasses([]);
+        return;
+      }
+      try {
+        const res = await listClassesFn({
+          schoolId,
+          gradeId,
+          departmentId:
+            hierarchyMode === "department" ? selectedDepartmentId : null,
+        });
+        setClasses(res.data.classes || []);
+      } catch {
+        setClasses([]);
+      }
+    }
+    loadClasses();
+  }, [schoolId, gradeId, hierarchyMode, selectedDepartmentId]);
 
   const handleContextSelected = useCallback(
     (s: string, g: string, c: string) => setContext(s, g, c),
@@ -204,20 +295,9 @@ function EditorContent() {
     }
   };
 
-  const handleGradeChange = async (newGradeId: string) => {
-    if (!newGradeId || !schoolId) return;
-    try {
-      const res = await listClassesFn({ schoolId, gradeId: newGradeId });
-      const cls = res.data.classes || [];
-      setClasses(cls);
-      if (cls.length > 0) {
-        setContext(schoolId, newGradeId, cls[0].id);
-      } else {
-        setContext(schoolId, newGradeId, null);
-      }
-    } catch {
-      setContext(schoolId, newGradeId, null);
-    }
+  const handleGradeChange = (newGradeId: string) => {
+    if (!schoolId) return;
+    setContext(schoolId, newGradeId || null, null);
   };
 
   const handleClassChange = (newClassId: string) => {
@@ -226,18 +306,7 @@ function EditorContent() {
     }
   };
 
-  const handleSaveClassName = async () => {
-    if (!editClassNameValue.trim()) return;
-    try {
-      await saveClassName(editClassNameValue);
-      showToast("クラス名を変更しました", "success");
-      setClassNameModalOpen(false);
-    } catch (err) {
-      showToast("エラー: " + (err as Error).message, "error");
-    }
-  };
-
-  if (!hasFullContext) {
+  if (!hasRequiredContext) {
     return <ContextSelector onSelected={handleContextSelected} />;
   }
 
@@ -250,21 +319,18 @@ function EditorContent() {
     ? escapeHtml(currentSchool.name)
     : schoolId || "";
 
+  const headerTitle =
+    editingLevel === "school"
+      ? "学校マスター"
+      : editingLevel === "grade"
+        ? "学年マスター"
+        : editingLevel === "department"
+          ? `学科マスター — ${departments.find((d) => d.id === selectedDepartmentId)?.name || ""}`
+          : data.className || "エディター";
+
   return (
     <>
-      <Header title={data.className || "エディター"}>
-        <button
-          className="btn btn-sm btn-secondary"
-          onClick={() => {
-            setEditClassNameValue(data.className || "");
-            setClassNameModalOpen(true);
-          }}
-          style={{ marginLeft: 8, fontSize: "0.8rem" }}
-          title="クラス名を編集"
-        >
-          編集
-        </button>
-      </Header>
+      <Header title={headerTitle} />
       <div className={styles.editorLayout}>
       <div className={styles.pageContainer}>
       {/* 時計 */}
@@ -272,15 +338,40 @@ function EditorContent() {
         <span className={styles.clock}>{currentTime}</span>
       </div>
 
-      {/* セレクタ */}
+      {/* セレクタ: 学校 > 学科(dept mode) > 学年 > クラス */}
       <div className={styles.selectorRow}>
         <span className={styles.selectorLabel}>{schoolName}</span>
+        {hierarchyMode === "department" && (
+          <>
+            <span className={styles.selectorDivider}>/</span>
+            <select
+              value={selectedDepartmentId || ""}
+              onChange={(e) => {
+                setSelectedDepartmentId(e.target.value || null);
+                setContext(schoolId!, null, null);
+              }}
+              disabled={editingLevel === "school"}
+            >
+              <option value="">-- 学科 --</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <span className={styles.selectorDivider}>/</span>
         <select
           value={gradeId || ""}
           onChange={(e) => handleGradeChange(e.target.value)}
-          disabled={editingLevel === "school"}
+          disabled={
+            editingLevel === "school" ||
+            editingLevel === "department" ||
+            (hierarchyMode === "department" && !selectedDepartmentId)
+          }
         >
+          <option value="">-- 学年 --</option>
           {grades.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
@@ -291,8 +382,9 @@ function EditorContent() {
         <select
           value={classId || ""}
           onChange={(e) => handleClassChange(e.target.value)}
-          disabled={editingLevel !== "class"}
+          disabled={editingLevel !== "class" || !gradeId}
         >
+          <option value="">-- クラス --</option>
           {classes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -301,30 +393,68 @@ function EditorContent() {
         </select>
       </div>
 
-      {/* 編集レベル（管理者のみ） */}
-      {isAdmin && (
+      {/* 編集レベル（管理者 / 学校管理者） */}
+      {canEditMaster && (
         <div className={styles.levelSelector}>
           {(
-            [
-              { key: "class", label: "クラス", color: "#6c757d" },
-              { key: "grade", label: "学年マスター", color: "#28a745" },
-              { key: "school", label: "学校マスター", color: "#007bff" },
-            ] as const
-          ).map((l) => (
-            <button
-              key={l.key}
-              className={styles.levelBtn}
-              style={{
-                borderColor: l.color,
-                background:
-                  editingLevel === l.key ? l.color : "#fff",
-                color: editingLevel === l.key ? "#fff" : l.color,
-              }}
-              onClick={() => setEditingLevel(l.key as EditingLevel)}
-            >
-              {l.label}
-            </button>
-          ))}
+            hierarchyMode === "department"
+              ? ([
+                  { key: "class", label: "クラス", color: "#6c757d" },
+                  {
+                    key: "department",
+                    label: "学科マスター",
+                    color: "#9b59b6",
+                  },
+                  {
+                    key: "grade",
+                    label: "学年マスター",
+                    color: "#28a745",
+                  },
+                  {
+                    key: "school",
+                    label: "学校マスター",
+                    color: "#007bff",
+                  },
+                ] as const)
+              : ([
+                  { key: "class", label: "クラス", color: "#6c757d" },
+                  {
+                    key: "grade",
+                    label: "学年マスター",
+                    color: "#28a745",
+                  },
+                  {
+                    key: "school",
+                    label: "学校マスター",
+                    color: "#007bff",
+                  },
+                ] as const)
+          ).map((l) => {
+            const deptDisabled =
+              l.key === "department" && !selectedDepartmentId;
+            return (
+              <button
+                key={l.key}
+                className={styles.levelBtn}
+                style={{
+                  borderColor: l.color,
+                  background:
+                    editingLevel === l.key ? l.color : "#fff",
+                  color: editingLevel === l.key ? "#fff" : l.color,
+                  opacity: deptDisabled ? 0.5 : 1,
+                }}
+                disabled={deptDisabled}
+                onClick={() => setEditingLevel(l.key as EditingLevel)}
+                title={
+                  deptDisabled
+                    ? "先に学科を選択してください"
+                    : ""
+                }
+              >
+                {l.label}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -333,26 +463,34 @@ function EditorContent() {
           className={styles.levelIndicator}
           style={{
             background:
-              editingLevel === "school" ? "#007bff" : "#28a745",
+              editingLevel === "school"
+                ? "#007bff"
+                : editingLevel === "department"
+                  ? "#9b59b6"
+                  : "#28a745",
           }}
         >
           <span>
             {editingLevel === "school"
               ? "学校マスター編集モード — 全クラスに自動反映されます"
-              : "学年マスター編集モード — 学年内全クラスに自動反映されます"}
+              : editingLevel === "department"
+                ? "学科マスター編集モード — 同学科に属する全クラスに自動反映されます"
+                : "学年マスター編集モード — 学年内全クラスに自動反映されます"}
           </span>
-          <button
-            className="btn btn-sm"
-            style={{
-              background: "#fff",
-              color: editingLevel === "school" ? "#007bff" : "#28a745",
-              border: "none",
-              fontWeight: "bold",
-            }}
-            onClick={handleCopyToClasses}
-          >
-            全クラスにコピー
-          </button>
+          {editingLevel !== "department" && (
+            <button
+              className="btn btn-sm"
+              style={{
+                background: "#fff",
+                color: editingLevel === "school" ? "#007bff" : "#28a745",
+                border: "none",
+                fontWeight: "bold",
+              }}
+              onClick={handleCopyToClasses}
+            >
+              全クラスにコピー
+            </button>
+          )}
         </div>
       )}
 
@@ -450,71 +588,75 @@ function EditorContent() {
         onSave={handleSave}
       />
 
-      {/* クラス名編集モーダル */}
-      <Modal
-        isOpen={classNameModalOpen}
-        onClose={() => setClassNameModalOpen(false)}
-        title="クラス名を編集"
-        footer={
-          <>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setClassNameModalOpen(false)}
-            >
-              キャンセル
-            </button>
-            <button className="btn btn-primary" onClick={handleSaveClassName}>
-              保存
-            </button>
-          </>
-        }
-      >
-        <div className="form-group">
-          <label>クラス名</label>
-          <input
-            type="text"
-            value={editClassNameValue}
-            onChange={(e) => setEditClassNameValue(e.target.value)}
-            placeholder="例: A組"
-          />
-        </div>
-      </Modal>
-
       <footer className={styles.branding}>キミテラス by Rebounder（管理者モード）</footer>
     </div>
 
-      {/* 広告プレビューパネル */}
-      <aside className={styles.adPreview}>
-        <div className={styles.adPreviewContainer}>
-          {data.ads.length > 0 ? (
-            <img
-              src={data.ads[0].url}
-              alt="広告プレビュー"
-              className={styles.adPreviewImage}
-            />
-          ) : (
-            <div className={styles.adPreviewPlaceholder}>No Image</div>
-          )}
-          <div className={styles.adPreviewOverlay}>
-            <a
-              href={`/manage/class-settings?school=${schoolId}&grade=${gradeId}&class=${classId}`}
-              className="btn btn-sm btn-primary"
-              style={{ textDecoration: "none" }}
-            >
-              広告を管理
-            </a>
+      {/* 広告プレビューパネル（クラスレベルのみ） */}
+      {editingLevel === "class" && (
+        <aside className={styles.adPreview}>
+          <div className={styles.adPreviewContainer}>
+            {data.ads.length > 0 ? (
+              <img
+                src={data.ads[0].url}
+                alt="広告プレビュー"
+                className={styles.adPreviewImage}
+              />
+            ) : (
+              <div className={styles.adPreviewPlaceholder}>No Image</div>
+            )}
+            <div className={styles.adPreviewOverlay}>
+              <a
+                href={`/manage/class-settings?school=${schoolId}&grade=${gradeId}&class=${classId}`}
+                className="btn btn-sm btn-primary"
+                style={{ textDecoration: "none" }}
+              >
+                広告を管理
+              </a>
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+      )}
     </div>
     </>
   );
 }
 
-export default function EditorPage() {
+function EditorRouter() {
+  const searchParams = useSearchParams();
+  const schoolParam = searchParams.get("school");
+  const level = searchParams.get("level");
+  const gradeParam = searchParams.get("grade");
+  const classParam = searchParams.get("class");
+  const deptParam = searchParams.get("department");
+
+  if (!schoolParam) {
+    return <EditorSchoolPicker basePath="/manage/editor" />;
+  }
+
+  const hasTarget =
+    level === "school" ||
+    (level === "department" && !!deptParam) ||
+    (level === "grade" && !!gradeParam) ||
+    (!level && !!gradeParam && !!classParam);
+
+  if (!hasTarget) {
+    return (
+      <AuthGuard requiredRole="editor" loginMode="editor">
+        <EditorTargetMenu
+          schoolId={schoolParam}
+          basePath="/manage/editor"
+        />
+      </AuthGuard>
+    );
+  }
+
   return (
     <AuthGuard requiredRole="editor" loginMode="editor">
       <EditorContent />
     </AuthGuard>
   );
+}
+
+export default function EditorPage() {
+  return <EditorRouter />;
 }

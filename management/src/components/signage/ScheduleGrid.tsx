@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { Schedule } from "@/hooks/useSignageData";
 import { getTodayString, formatDateKey, getDateOffset, isWeekend, DAYS_JP } from "@/lib/utils";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import styles from "@/styles/signage.module.css";
 
 // 時間キーワードを分単位に変換
@@ -43,12 +44,6 @@ function sortSchedules(schedules: Schedule[]): Schedule[] {
   return [...schedules].sort(
     (a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time)
   );
-}
-
-function getSourceBadge(source?: string): string {
-  if (source === "school") return "\u{1F3EB}";
-  if (source === "grade") return "\u{1F4DA}";
-  return "";
 }
 
 interface ScheduleGridProps {
@@ -120,12 +115,9 @@ export function ScheduleGrid({ weeklySchedules, onCalendarOpen }: ScheduleGridPr
                 ) : (
                   <>
                     {sorted.map((schedule, idx) => {
-                      const badge = getSourceBadge(schedule._source);
                       return (
                         <div key={idx} className={styles.scheduleListItem}>
-                          {badge && (
-                            <span className={styles.sourceBadge}>{badge}</span>
-                          )}
+                          <SourceBadge source={schedule._source} compact />
                           <span className={styles.scheduleTime}>
                             {schedule.time}
                           </span>

@@ -23,14 +23,23 @@ const migration = require('./handlers/migration');
 // 学校管理
 exports.createSchool = schools.createSchool;
 exports.listSchools = schools.listSchools;
+exports.listSchoolsPublic = schools.listSchoolsPublic;
 exports.updateSchool = schools.updateSchool;
 exports.deleteSchool = schools.deleteSchool;
+exports.setSchoolHierarchyMode = schools.setSchoolHierarchyMode;
 
 // 学年管理
 exports.createGrade = grades.createGrade;
 exports.listGrades = grades.listGrades;
 exports.updateGrade = grades.updateGrade;
 exports.deleteGrade = grades.deleteGrade;
+
+// 学科管理
+const departments = require('./handlers/departments');
+exports.createDepartment = departments.createDepartment;
+exports.listDepartments = departments.listDepartments;
+exports.updateDepartment = departments.updateDepartment;
+exports.deleteDepartment = departments.deleteDepartment;
 
 // クラス管理
 exports.createClass = classes.createClass;
@@ -61,13 +70,25 @@ exports.setEditorPassword = editorAuth.setEditorPassword;
 // サイネージデータJSON生成
 exports.onClassDataChange = signageJson.onClassDataChange;
 exports.onClassConfigChange = signageJson.onClassConfigChange;
+exports.onDeptClassDataChange = signageJson.onDeptClassDataChange;
+exports.onDeptClassConfigChange = signageJson.onDeptClassConfigChange;
 exports.regenerateSignageJson = signageJson.regenerateSignageJson;
 exports.onSchoolMasterDataChange = signageJson.onSchoolMasterDataChange;
 exports.onGradeMasterDataChange = signageJson.onGradeMasterDataChange;
+exports.onDeptMasterDataChange = signageJson.onDeptMasterDataChange;
+exports.onDeptGradeMasterDataChange = signageJson.onDeptGradeMasterDataChange;
 
 // マスターコンテンツ
 const masterContent = require('./handlers/master-content');
 exports.copyMasterToClasses = masterContent.copyMasterToClasses;
+
+// 学校詳細一括取得
+const schoolDetail = require('./handlers/school-detail');
+exports.getSchoolDetail = schoolDetail.getSchoolDetail;
+
+// 管理者ダッシュボード概要
+const adminOverview = require('./handlers/admin-overview');
+exports.getAdminOverview = adminOverview.getAdminOverview;
 
 // マイグレーション
 exports.migrateToGradeStructure = migration.migrateToGradeStructure;

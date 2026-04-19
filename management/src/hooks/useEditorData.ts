@@ -19,12 +19,14 @@ import {
   schoolMasterDailyDataDocRef,
   gradeMasterDailyDataCollectionRef,
   gradeMasterDailyDataDocRef,
+  departmentMasterDailyDataCollectionRef,
+  departmentMasterDailyDataDocRef,
 } from "@/lib/paths";
 import { getTodayString, formatDateKey } from "@/lib/utils";
 import { getDaysAgoStr } from "@/lib/data-filter";
 import type { Schedule, Notice, Assignment } from "@/types/school";
 
-export type EditingLevel = "class" | "grade" | "school";
+export type EditingLevel = "class" | "grade" | "department" | "school";
 
 interface ScheduleWithMeta extends Schedule {
   _sourceDate: string;
@@ -78,7 +80,8 @@ const FIELD_MAP: Record<string, string> = {
 export function useEditorData(
   schoolId: string | null,
   gradeId: string | null,
-  classId: string | null
+  classId: string | null,
+  departmentId: string | null = null
 ): UseEditorDataReturn {
   const [data, setData] = useState<EditorData>({
     className: "",
@@ -98,25 +101,40 @@ export function useEditorData(
     if (!schoolId) return null;
     if (editingLevel === "school")
       return schoolMasterDailyDataCollectionRef(schoolId);
+    if (editingLevel === "department" && departmentId)
+      return departmentMasterDailyDataCollectionRef(schoolId, departmentId);
     if (editingLevel === "grade" && gradeId)
-      return gradeMasterDailyDataCollectionRef(schoolId, gradeId);
+      return gradeMasterDailyDataCollectionRef(schoolId, gradeId, departmentId);
     if (gradeId && classId)
-      return dailyDataCollectionRef(schoolId, gradeId, classId);
+      return dailyDataCollectionRef(schoolId, gradeId, classId, departmentId);
     return null;
-  }, [schoolId, gradeId, classId, editingLevel]);
+  }, [schoolId, gradeId, classId, departmentId, editingLevel]);
 
   const getDailyDataDocPath = useCallback(
     (dateStr: string) => {
       if (!schoolId) return null;
       if (editingLevel === "school")
         return schoolMasterDailyDataDocRef(schoolId, dateStr);
+      if (editingLevel === "department" && departmentId)
+        return departmentMasterDailyDataDocRef(schoolId, departmentId, dateStr);
       if (editingLevel === "grade" && gradeId)
-        return gradeMasterDailyDataDocRef(schoolId, gradeId, dateStr);
+        return gradeMasterDailyDataDocRef(
+          schoolId,
+          gradeId,
+          dateStr,
+          departmentId
+        );
       if (gradeId && classId)
-        return dailyDataDocRef(schoolId, gradeId, classId, dateStr);
+        return dailyDataDocRef(
+          schoolId,
+          gradeId,
+          classId,
+          dateStr,
+          departmentId
+        );
       return null;
     },
-    [schoolId, gradeId, classId, editingLevel]
+    [schoolId, gradeId, classId, departmentId, editingLevel]
   );
 
   // リスナー起動
@@ -127,6 +145,7 @@ export function useEditorData(
 
     const hasRequiredContext =
       (editingLevel === "school" && schoolId) ||
+      (editingLevel === "department" && schoolId && departmentId) ||
       (editingLevel === "grade" && schoolId && gradeId) ||
       (editingLevel === "class" && schoolId && gradeId && classId);
 
@@ -140,7 +159,7 @@ export function useEditorData(
 
     // クラスレベルの場合のみ設定を監視
     if (editingLevel === "class" && schoolId && gradeId && classId) {
-      const configRef = classDocRef(schoolId, gradeId, classId);
+      const configRef = classDocRef(schoolId, gradeId, classId, departmentId);
       const unsubConfig = onSnapshot(configRef, (snap) => {
         if (snap.exists()) {
           const d = snap.data();
@@ -244,7 +263,7 @@ export function useEditorData(
       unsubscribersRef.current.forEach((u) => u());
       unsubscribersRef.current = [];
     };
-  }, [schoolId, gradeId, classId, editingLevel, getDailyDataCollectionPath]);
+  }, [schoolId, gradeId, classId, departmentId, editingLevel, getDailyDataCollectionPath]);
 
   const saveItem = useCallback(
     async (
@@ -265,6 +284,7 @@ export function useEditorData(
 
       // マスターモード時はソース情報を付与
       if (editingLevel === "school") item._source = "school";
+      else if (editingLevel === "department") item._source = "department";
       else if (editingLevel === "grade") item._source = "grade";
 
       if (index !== null) {
@@ -305,10 +325,10 @@ export function useEditorData(
   const saveClassName = useCallback(
     async (name: string) => {
       if (!schoolId || !gradeId || !classId) return;
-      const docRef = classDocRef(schoolId, gradeId, classId);
+      const docRef = classDocRef(schoolId, gradeId, classId, departmentId);
       await updateDoc(docRef, { name });
     },
-    [schoolId, gradeId, classId]
+    [schoolId, gradeId, classId, departmentId]
   );
 
   return {

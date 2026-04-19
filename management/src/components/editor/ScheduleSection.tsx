@@ -8,6 +8,7 @@ import {
   escapeHtml,
 } from "@/lib/utils";
 import type { Schedule } from "@/types/school";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import styles from "@/styles/editor.module.css";
 
 interface ScheduleSectionProps {
@@ -68,6 +69,7 @@ export function ScheduleSection({
                         {escapeHtml(item.time)}
                       </span>
                       <span className={styles.scheduleContent}>
+                        <SourceBadge source={item._source} compact />
                         {escapeHtml(item.content)}
                         {item.location && (
                           <span className={styles.scheduleLocation}>

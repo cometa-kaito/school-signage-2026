@@ -7,7 +7,7 @@ import { LoginPage } from "./LoginPage";
 
 interface AuthGuardProps {
   children: ReactNode;
-  requiredRole?: "editor" | "admin" | "system_admin";
+  requiredRole?: "editor" | "school_admin" | "admin" | "system_admin";
   loginMode?: "admin" | "editor";
 }
 
@@ -16,7 +16,7 @@ export function AuthGuard({
   requiredRole = "editor",
   loginMode = "editor",
 }: AuthGuardProps) {
-  const { user, loading, isAdmin, isTeacher } = useAuthContext();
+  const { user, loading, isAdmin, isTeacher, isSchoolAdmin } = useAuthContext();
 
   if (loading) {
     return <Loading overlay message="認証を確認中..." />;
@@ -29,27 +29,48 @@ export function AuthGuard({
   // ロールチェック
   if (requiredRole === "system_admin" && !isAdmin) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
+      <div style={{ padding: "40px", textAlign: "center" }} data-guard-denied>
         <h2>アクセス権限がありません</h2>
         <p>この機能にはシステム管理者権限が必要です。</p>
+        <p style={{ marginTop: 16 }}>
+          <a href="/manage">アクセスできる画面に移動する</a>
+        </p>
       </div>
     );
   }
 
   if (requiredRole === "admin" && !isAdmin) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
+      <div style={{ padding: "40px", textAlign: "center" }} data-guard-denied>
         <h2>アクセス権限がありません</h2>
         <p>この機能には管理者権限が必要です。</p>
+        <p style={{ marginTop: 16 }}>
+          <a href="/manage">アクセスできる画面に移動する</a>
+        </p>
+      </div>
+    );
+  }
+
+  if (requiredRole === "school_admin" && !isAdmin && !isSchoolAdmin) {
+    return (
+      <div style={{ padding: "40px", textAlign: "center" }} data-guard-denied>
+        <h2>アクセス権限がありません</h2>
+        <p>この機能には学校管理者以上の権限が必要です。</p>
+        <p style={{ marginTop: 16 }}>
+          <a href="/manage">アクセスできる画面に移動する</a>
+        </p>
       </div>
     );
   }
 
   if (requiredRole === "editor" && !isTeacher) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
+      <div style={{ padding: "40px", textAlign: "center" }} data-guard-denied>
         <h2>アクセス権限がありません</h2>
         <p>この機能にはエディター以上の権限が必要です。</p>
+        <p style={{ marginTop: 16 }}>
+          <a href="/manage">アクセスできる画面に移動する</a>
+        </p>
       </div>
     );
   }

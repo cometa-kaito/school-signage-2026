@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { SchoolListView } from "@/components/admin/SchoolListView";
 import { SchoolDetailView } from "@/components/admin/SchoolDetailView";
@@ -9,10 +9,10 @@ import { Loading } from "@/components/ui/Loading";
 import { Header } from "@/components/ui/Header";
 import { useAuthContext } from "@/providers/AuthProvider";
 import styles from "@/styles/admin.module.css";
-import Link from "next/link";
 
 function AdminContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const schoolId = searchParams.get("school");
   const { isAdmin } = useAuthContext();
 
@@ -23,9 +23,12 @@ function AdminContent() {
         {schoolId ? (
           <>
             {isAdmin && (
-              <Link href="/manage/admin" className={styles.backLink}>
+              <a
+                href="/manage/admin.html"
+                className={styles.backLink}
+              >
                 &lt; 学校一覧に戻る
-              </Link>
+              </a>
             )}
             <SchoolDetailView schoolId={schoolId} isSystemAdmin={isAdmin} />
           </>

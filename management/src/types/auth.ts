@@ -24,6 +24,8 @@ export interface Membership {
   classIds?: string[];
   displayName?: string;
   email?: string;
+  isAdmin?: boolean;
+  disabled?: boolean;
 }
 
 export interface AuthResult {
@@ -37,5 +39,7 @@ export interface UserInfo {
   email: string | null;
   displayName: string | null;
   disabled?: boolean;
+  isAdmin?: boolean;
+  systemRole?: string;
   customClaims?: Claims;
 }

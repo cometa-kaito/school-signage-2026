@@ -12,18 +12,20 @@ function SignagePageContent() {
     schoolId: string;
     gradeId: string;
     classId: string;
+    departmentId?: string | null;
     forceStatic?: boolean;
   }> | null>(null);
 
   const schoolId = searchParams.get("school");
   const gradeId = searchParams.get("grade");
   const classId = searchParams.get("class");
+  const departmentId = searchParams.get("department");
   const forceStatic = searchParams.get("static") === "1";
 
   useEffect(() => {
     // パラメータなしの場合は管理画面にリダイレクト
     if (!schoolId || !gradeId || !classId) {
-      router.replace("/manage/editor");
+      router.replace("/manage/admin");
       return;
     }
 
@@ -46,6 +48,7 @@ function SignagePageContent() {
       schoolId={schoolId}
       gradeId={gradeId}
       classId={classId}
+      departmentId={departmentId}
       forceStatic={forceStatic}
     />
   );

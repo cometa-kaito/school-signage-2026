@@ -56,26 +56,70 @@ service cloud.firestore {
         allow write: if isSchoolAdmin(schoolId);
       }
 
-      // 学年
+      // 学科（学年横断の軸）
+      match /departments/{departmentId} {
+        allow read: if true;
+        allow write: if isSchoolAdmin(schoolId);
+
+        // 学科マスター日次データ
+        match /master_daily_data/{dateId} {
+          allow read: if true;
+          allow write: if isSchoolAdmin(schoolId);
+        }
+      }
+
+      // 学年（クラスモード: 学校 > 学年 > クラス）
       match /grades/{gradeId} {
         allow read: if true;
         allow write: if isSchoolAdmin(schoolId);
 
-        // 学年マスター日次データ
         match /master_daily_data/{dateId} {
           allow read: if true;
           allow write: if isSchoolAdmin(schoolId);
         }
 
-        // クラス
         match /classes/{classId} {
           allow read: if true;
           allow write: if isSchoolAdmin(schoolId);
 
-          // 日次データ
           match /daily_data/{dateId} {
             allow read: if true;
             allow write: if hasClassAccess(schoolId, classId);
+          }
+        }
+      }
+
+      // 学科（学科モード: 学校 > 学科 > 学年 > クラス）
+      match /departments/{departmentId} {
+        allow read: if true;
+        allow write: if isSchoolAdmin(schoolId);
+
+        // 学科マスター
+        match /master_daily_data/{dateId} {
+          allow read: if true;
+          allow write: if isSchoolAdmin(schoolId);
+        }
+
+        // 学科配下の学年
+        match /grades/{gradeId} {
+          allow read: if true;
+          allow write: if isSchoolAdmin(schoolId);
+
+          // 学年マスター（学科モード）
+          match /master_daily_data/{dateId} {
+            allow read: if true;
+            allow write: if isSchoolAdmin(schoolId);
+          }
+
+          // 学科配下の学年配下のクラス
+          match /classes/{classId} {
+            allow read: if true;
+            allow write: if isSchoolAdmin(schoolId);
+
+            match /daily_data/{dateId} {
+              allow read: if true;
+              allow write: if hasClassAccess(schoolId, classId);
+            }
           }
         }
       }

@@ -62,9 +62,10 @@ async function setAdminRole(email) {
         console.log(`   現在のクレーム:`, currentClaims);
         
         // 管理者クレームを設定
-        await admin.auth().setCustomUserClaims(user.uid, { 
+        await admin.auth().setCustomUserClaims(user.uid, {
             ...currentClaims,
-            admin: true 
+            admin: true,
+            systemRole: 'system_admin'
         });
         
         console.log('');

@@ -1,11 +1,13 @@
 "use client";
 
 import { escapeHtml, getTodayString } from "@/lib/utils";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import styles from "@/styles/editor.module.css";
 
 interface NoticeItem {
   text: string;
   is_highlight?: boolean;
+  _source?: string;
   _sourceDate: string;
   _originalIndex: number;
 }
@@ -43,6 +45,7 @@ export function NoticeSection({
               className={`${styles.noticeItem} ${item.is_highlight ? styles.highlight : ""}`}
               onClick={() => onEdit(item._sourceDate, item._originalIndex)}
             >
+              <SourceBadge source={item._source} compact />
               {item.is_highlight && (
                 <span className={styles.importantBadge}>【重要】</span>
               )}

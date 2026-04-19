@@ -2,7 +2,14 @@
 
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
-import type { School, Grade, Class, Device } from "@/types/school";
+import type {
+  School,
+  Grade,
+  Department,
+  Class,
+  Device,
+  HierarchyMode,
+} from "@/types/school";
 import type { Membership, UserInfo } from "@/types/auth";
 
 // ========================================
@@ -56,61 +63,136 @@ export const setEditorPasswordFn = httpsCallable<
 // ========================================
 
 export const createSchoolFn = httpsCallable<
-  { id: string; name: string },
-  { success: boolean }
+  { id?: string; schoolId?: string; name: string; hierarchyMode?: HierarchyMode },
+  { success: boolean; schoolId: string }
 >(functions, "createSchool");
 export const listSchoolsFn = httpsCallable<void, { schools: School[] }>(
   functions,
   "listSchools"
 );
+export const listSchoolsPublicFn = httpsCallable<
+  void,
+  {
+    schools: {
+      id: string;
+      name: string;
+      hierarchyMode: HierarchyMode;
+    }[];
+  }
+>(functions, "listSchoolsPublic");
 export const updateSchoolFn = httpsCallable<
-  { id: string; name: string },
+  { schoolId?: string; id?: string; name?: string },
   { success: boolean }
 >(functions, "updateSchool");
 export const deleteSchoolFn = httpsCallable<
-  { id: string },
+  { schoolId?: string; id?: string },
   { success: boolean }
 >(functions, "deleteSchool");
+export const setSchoolHierarchyModeFn = httpsCallable<
+  { schoolId: string; mode: HierarchyMode },
+  {
+    success: boolean;
+    message: string;
+    mode: HierarchyMode;
+  }
+>(functions, "setSchoolHierarchyMode");
 
 // ========================================
 // 学年管理
 // ========================================
 
 export const createGradeFn = httpsCallable<
-  { schoolId: string; name: string; order?: number },
+  {
+    schoolId: string;
+    departmentId?: string | null;
+    name: string;
+    order?: number;
+  },
   { success: boolean; gradeId: string }
 >(functions, "createGrade");
 export const listGradesFn = httpsCallable<
-  { schoolId: string },
+  { schoolId: string; departmentId?: string | null },
   { grades: Grade[] }
 >(functions, "listGrades");
 export const updateGradeFn = httpsCallable<
-  { schoolId: string; gradeId: string; name?: string; order?: number },
+  {
+    schoolId: string;
+    gradeId: string;
+    departmentId?: string | null;
+    name?: string;
+    order?: number;
+  },
   { success: boolean }
 >(functions, "updateGrade");
 export const deleteGradeFn = httpsCallable<
-  { schoolId: string; gradeId: string },
+  {
+    schoolId: string;
+    gradeId: string;
+    departmentId?: string | null;
+  },
   { success: boolean }
 >(functions, "deleteGrade");
+
+// ========================================
+// 学科管理（学科モード: schools/{sId}/departments/{dId}）
+// ========================================
+
+export const createDepartmentFn = httpsCallable<
+  { schoolId: string; name: string; order?: number },
+  { success: boolean; departmentId: string }
+>(functions, "createDepartment");
+export const listDepartmentsFn = httpsCallable<
+  { schoolId: string },
+  { departments: Department[] }
+>(functions, "listDepartments");
+export const updateDepartmentFn = httpsCallable<
+  {
+    schoolId: string;
+    departmentId: string;
+    name?: string;
+    order?: number;
+  },
+  { success: boolean }
+>(functions, "updateDepartment");
+export const deleteDepartmentFn = httpsCallable<
+  { schoolId: string; departmentId: string },
+  { success: boolean }
+>(functions, "deleteDepartment");
 
 // ========================================
 // クラス管理
 // ========================================
 
 export const createClassFn = httpsCallable<
-  { schoolId: string; gradeId: string; name: string },
+  {
+    schoolId: string;
+    gradeId: string;
+    departmentId?: string | null;
+    name: string;
+  },
   { success: boolean; classId: string }
 >(functions, "createClass");
 export const listClassesFn = httpsCallable<
-  { schoolId: string; gradeId: string },
+  { schoolId: string; gradeId: string; departmentId?: string | null },
   { classes: Class[] }
 >(functions, "listClasses");
 export const updateClassFn = httpsCallable<
-  { schoolId: string; gradeId: string; classId: string; name?: string },
+  {
+    schoolId: string;
+    gradeId: string;
+    departmentId?: string | null;
+    classId: string;
+    name?: string;
+  },
   { success: boolean }
 >(functions, "updateClass");
 export const deleteClassFn = httpsCallable<
-  { schoolId: string; gradeId: string; classId: string },
+  {
+    schoolId: string;
+    gradeId: string;
+    departmentId?: string | null;
+    classId: string;
+  },
   { success: boolean }
 >(functions, "deleteClass");
 
@@ -197,3 +279,39 @@ export const copyMasterToClassesFn = httpsCallable<
   },
   { success: boolean }
 >(functions, "copyMasterToClasses");
+
+// ========================================
+// 学校詳細一括取得
+// ========================================
+
+export const getSchoolDetailFn = httpsCallable<
+  { schoolId: string; includeUsers?: boolean },
+  {
+    schoolName: string;
+    hierarchyMode: HierarchyMode;
+    /** クラスモード時のみ */
+    grades: Grade[];
+    classesMap: Record<string, Class[]>;
+    /** 学科モード時のみ */
+    departments: Department[];
+    gradesByDept: Record<string, Grade[]>;
+    classesByDeptGrade: Record<string, Record<string, Class[]>>;
+    members: Membership[];
+    editorPassword: string;
+    quietHours: { start: string; end: string }[];
+    users: UserInfo[];
+  }
+>(functions, "getSchoolDetail");
+
+// ========================================
+// 管理者ダッシュボード一括取得
+// ========================================
+
+export const getAdminOverviewFn = httpsCallable<
+  void,
+  {
+    schools: School[];
+    users: UserInfo[];
+    membershipsMap: Record<string, { schoolId: string; schoolName: string; role: string }[]>;
+  }
+>(functions, "getAdminOverview");

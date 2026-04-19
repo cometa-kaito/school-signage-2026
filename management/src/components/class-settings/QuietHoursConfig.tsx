@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { getDoc, updateDoc } from "firebase/firestore";
-import { classDocRef, schoolConfigRef } from "@/lib/paths";
+import { getDoc, updateDoc, type DocumentReference } from "firebase/firestore";
+import {
+  classDocRef,
+  schoolConfigRef,
+  gradeConfigRef,
+  departmentConfigRef,
+} from "@/lib/paths";
 import { useToast } from "@/components/ui/Toast";
 import styles from "@/styles/class-settings.module.css";
 
@@ -15,6 +20,7 @@ interface QuietHoursConfigProps {
   schoolId: string;
   gradeId: string;
   classId: string;
+  departmentId?: string | null;
   quietHours: QuietHourItem[];
   onQuietHoursChange: (qh: QuietHourItem[]) => void;
 }
@@ -23,6 +29,7 @@ export function QuietHoursConfig({
   schoolId,
   gradeId,
   classId,
+  departmentId,
   quietHours,
   onQuietHoursChange,
 }: QuietHoursConfigProps) {
@@ -31,33 +38,57 @@ export function QuietHoursConfig({
   const [masterNote, setMasterNote] = useState("");
   const [localHours, setLocalHours] = useState<QuietHourItem[]>(quietHours);
 
-  // マスター設定のメモを読み込み
+  // マスター設定のメモを読み込み（学年 → 学科 → 学校 の順でフォールバック）
   useEffect(() => {
     async function loadMasterNote() {
-      try {
-        const masterSnap = await getDoc(
-          schoolConfigRef(schoolId, "display_settings")
-        );
-        const masterQH: QuietHourItem[] = masterSnap.exists()
-          ? masterSnap.data().quiet_hours || []
-          : [];
-        if (quietHours.length === 0 && masterQH.length > 0) {
-          setMasterNote(
-            `現在、学校マスター設定（${masterQH.map((q) => q.start + "〜" + q.end).join(", ")}）が適用されています。`
-          );
-        } else if (quietHours.length === 0) {
-          setMasterNote(
-            "授業時間が未設定です。学校マスター設定も未設定のため、広告は常時表示されます。"
-          );
-        } else {
-          setMasterNote("");
-        }
-      } catch {
-        /* ignore */
+      if (quietHours.length > 0) {
+        setMasterNote("");
+        return;
       }
+      const tryLoad = async (
+        ref: DocumentReference,
+        label: string
+      ): Promise<boolean> => {
+        try {
+          const snap = await getDoc(ref);
+          const data = snap.exists() ? (snap.data() as { quiet_hours?: QuietHourItem[] }) : undefined;
+          const qh: QuietHourItem[] = data?.quiet_hours || [];
+          if (qh.length > 0) {
+            setMasterNote(
+              `現在、${label}マスター設定（${qh.map((q) => q.start + "〜" + q.end).join(", ")}）が適用されています。`
+            );
+            return true;
+          }
+        } catch {
+          /* ignore */
+        }
+        return false;
+      };
+      if (
+        await tryLoad(
+          gradeConfigRef(schoolId, gradeId, "display_settings", departmentId),
+          "学年"
+        )
+      )
+        return;
+      if (
+        departmentId &&
+        (await tryLoad(
+          departmentConfigRef(schoolId, departmentId, "display_settings"),
+          "学科"
+        ))
+      )
+        return;
+      if (
+        await tryLoad(schoolConfigRef(schoolId, "display_settings"), "学校")
+      )
+        return;
+      setMasterNote(
+        "音声オフが未設定です。マスター設定も未設定のため、広告は常時表示されます。"
+      );
     }
     loadMasterNote();
-  }, [schoolId, quietHours]);
+  }, [schoolId, gradeId, departmentId, quietHours]);
 
   const handleAdd = () => {
     const newHours = [...localHours, { start: "08:30", end: "15:30" }];
@@ -82,7 +113,7 @@ export function QuietHoursConfig({
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const docRef = classDocRef(schoolId, gradeId, classId);
+      const docRef = classDocRef(schoolId, gradeId, classId, departmentId);
       const snap = await getDoc(docRef);
       const current = snap.exists()
         ? snap.data().displaySettings || {}
@@ -91,45 +122,35 @@ export function QuietHoursConfig({
       await updateDoc(docRef, { displaySettings: current });
       onQuietHoursChange(localHours);
       showToast("保存しました", "success");
-
-      // メモ更新
-      if (localHours.length === 0) {
-        const masterSnap = await getDoc(
-          schoolConfigRef(schoolId, "display_settings")
-        );
-        const masterQH: QuietHourItem[] = masterSnap.exists()
-          ? masterSnap.data().quiet_hours || []
-          : [];
-        if (masterQH.length > 0) {
-          setMasterNote(
-            `現在、学校マスター設定（${masterQH.map((q) => q.start + "〜" + q.end).join(", ")}）が適用されています。`
-          );
-        } else {
-          setMasterNote(
-            "授業時間が未設定です。学校マスター設定も未設定のため、広告は常時表示されます。"
-          );
-        }
-      } else {
+      if (localHours.length > 0) {
         setMasterNote("");
       }
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
     setSaving(false);
-  }, [schoolId, gradeId, classId, localHours, onQuietHoursChange, showToast]);
+  }, [
+    schoolId,
+    gradeId,
+    classId,
+    departmentId,
+    localHours,
+    onQuietHoursChange,
+    showToast,
+  ]);
 
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
-        <h2>授業時間設定（広告非表示）</h2>
+        <h2>音声オフ設定</h2>
       </div>
       <p className={styles.settingDescription}>
-        この時間帯は広告が非表示になります。未設定の場合、学校マスター設定が適用されます。
+        この時間帯は広告が非表示になります。未設定の場合、学年 → 学科 → 学校 の順にマスター設定が適用されます。
       </p>
 
       <div>
         {localHours.length === 0 ? (
-          <p className="empty-text">未設定（学校マスター設定を使用）</p>
+          <p className="empty-text">未設定（マスター設定を使用）</p>
         ) : (
           localHours.map((item, idx) => (
             <div key={idx} className={styles.quietHourRow}>

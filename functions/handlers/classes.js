@@ -1,19 +1,19 @@
 /**
  * handlers/classes.js
  * クラス管理 (school_admin 以上)
- * パス: schools/{schoolId}/grades/{gradeId}/classes/{classId}
+ *   クラスモード: schools/{s}/grades/{g}/classes/{c}
+ *   学科モード: schools/{s}/departments/{d}/grades/{g}/classes/{c}
  */
 
-const functions = require('firebase-functions');
-const { admin, db, classPath } = require('../helpers/paths');
+const {
+    functions, admin, db, classPathFor, classesCollectionFor
+} = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
 exports.createClass = functions.https.onCall(withAuth(async (data, context) => {
-    const { schoolId, gradeId, name } = data;
-    const ref = db.collection('schools').doc(schoolId)
-        .collection('grades').doc(gradeId)
-        .collection('classes').doc();
+    const { schoolId, gradeId, departmentId, name } = data;
+    const ref = classesCollectionFor(schoolId, gradeId, departmentId || null).doc();
     await ref.set({
         name,
         displaySettings: { ads: [], quietHours: [] },
@@ -26,10 +26,9 @@ exports.createClass = functions.https.onCall(withAuth(async (data, context) => {
 }));
 
 exports.listClasses = functions.https.onCall(withAuth(async (data, context) => {
-    const { schoolId, gradeId } = data;
-    const snap = await db.collection('schools').doc(schoolId)
-        .collection('grades').doc(gradeId)
-        .collection('classes').get();
+    const { schoolId, gradeId, departmentId } = data;
+    const snap = await classesCollectionFor(schoolId, gradeId, departmentId || null)
+        .orderBy('name', 'asc').get();
     const classes = [];
     snap.forEach(doc => classes.push({ id: doc.id, ...doc.data() }));
 
@@ -48,11 +47,11 @@ exports.listClasses = functions.https.onCall(withAuth(async (data, context) => {
 }));
 
 exports.updateClass = functions.https.onCall(withAuth(async (data, context) => {
-    const { schoolId, gradeId, classId, name, displaySettings } = data;
+    const { schoolId, gradeId, classId, departmentId, name, displaySettings } = data;
     const u = {};
     if (name) u.name = name;
     if (displaySettings) u.displaySettings = displaySettings;
-    await classPath(schoolId, gradeId, classId).update(u);
+    await classPathFor(schoolId, gradeId, classId, departmentId || null).update(u);
     return { success: true, message: 'クラス情報を更新しました' };
 }, async (context, data) => {
     validateRequired(data, ['schoolId', 'gradeId', 'classId']);
@@ -60,8 +59,8 @@ exports.updateClass = functions.https.onCall(withAuth(async (data, context) => {
 }));
 
 exports.deleteClass = functions.https.onCall(withAuth(async (data, context) => {
-    const { schoolId, gradeId, classId } = data;
-    await classPath(schoolId, gradeId, classId).delete();
+    const { schoolId, gradeId, classId, departmentId } = data;
+    await classPathFor(schoolId, gradeId, classId, departmentId || null).delete();
     return { success: true, message: 'クラスを削除しました' };
 }, async (context, data) => {
     validateRequired(data, ['schoolId', 'gradeId', 'classId']);

@@ -1,41 +1,48 @@
 /**
  * handlers/signage-json.js
  * サイネージデータJSON生成
- * パス: schools/{schoolId}/grades/{gradeId}/classes/{classId}/daily_data
+ *   クラスモード: schools/{s}/grades/{g}/classes/{c}/daily_data/*
+ *   学科モード:   schools/{s}/departments/{d}/grades/{g}/classes/{c}/daily_data/*
  * 保存: signage-data/{schoolId}/{gradeId}/{classId}/data.json
  */
 
-const functions = require('firebase-functions');
-const { db, bucket, classPath, dailyDataPath, schoolMasterDailyDataPath, gradeMasterDailyDataPath, formatDate } = require('../helpers/paths');
+const {
+    functions, db, bucket,
+    classPathFor,
+    dailyDataPathFor,
+    schoolMasterDailyDataPath,
+    gradeMasterDailyDataPathFor,
+    departmentMasterDailyDataPath,
+    departmentPath,
+    gradePathFor,
+    formatDate,
+} = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
-/**
- * 3階層（学校マスター・学年マスター・クラス）のデータをマージして配列にソース情報を付与
- */
-function mergeArraysWithSource(schoolItems, gradeItems, classItems, field) {
-    const addSource = (items, source) => (items || []).map(item => ({
-        ...item,
-        _source: item._source || source
-    }));
-    return [
-        ...addSource(schoolItems, 'school'),
-        ...addSource(gradeItems, 'grade'),
-        ...addSource(classItems, 'class')
-    ];
+function addSource(items, source) {
+    return (items || []).map(item => ({ ...item, _source: item._source || source }));
 }
 
-async function generateClassSignageJson(schoolId, gradeId, classId) {
+async function generateClassSignageJson(schoolId, gradeId, classId, departmentId) {
     try {
-        console.log(`Generating signage JSON: school=${schoolId}, grade=${gradeId}, class=${classId}`);
+        console.log(`Generating signage JSON: school=${schoolId}, dept=${departmentId || '-'}, grade=${gradeId}, class=${classId}`);
 
-        const classSnap = await classPath(schoolId, gradeId, classId).get();
+        const classSnap = await classPathFor(schoolId, gradeId, classId, departmentId || null).get();
         const classData = classSnap.exists ? classSnap.data() : {};
 
-        // 学年名を取得
-        const gradeSnap = await db.collection('schools').doc(schoolId)
-            .collection('grades').doc(gradeId).get();
+        const gradeSnap = await gradePathFor(schoolId, gradeId, departmentId || null).get();
         const gradeName = gradeSnap.exists ? (gradeSnap.data().name || '') : '';
+
+        let deptName = '';
+        let deptDocData = {};
+        if (departmentId) {
+            const dSnap = await departmentPath(schoolId, departmentId).get();
+            if (dSnap.exists) {
+                deptDocData = dSnap.data();
+                deptName = deptDocData.name || '';
+            }
+        }
 
         const today = new Date();
         const fiveDaysAgo = new Date(today); fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
@@ -46,56 +53,109 @@ async function generateClassSignageJson(schoolId, gradeId, classId) {
             .where('date', '<=', formatDate(tenDaysLater))
             .orderBy('date', 'asc').get();
 
-        // 3階層を並行取得
-        const [schoolMasterSnap, gradeMasterSnap, classSnap_] = await Promise.all([
+        const [schoolMasterSnap, deptMasterSnap, gradeMasterSnap, classSnap_] = await Promise.all([
             dateQuery(schoolMasterDailyDataPath(schoolId)),
-            dateQuery(gradeMasterDailyDataPath(schoolId, gradeId)),
-            dateQuery(dailyDataPath(schoolId, gradeId, classId))
+            departmentId
+                ? dateQuery(departmentMasterDailyDataPath(schoolId, departmentId))
+                : Promise.resolve({ forEach: () => {} }),
+            dateQuery(gradeMasterDailyDataPathFor(schoolId, gradeId, departmentId || null)),
+            dateQuery(dailyDataPathFor(schoolId, gradeId, classId, departmentId || null)),
         ]);
 
-        // 各階層のデータをマップに変換
-        const schoolMasterData = {};
-        schoolMasterSnap.forEach(d => { schoolMasterData[d.id] = d.data(); });
+        const toMap = (snap) => {
+            const map = {};
+            snap.forEach(d => { map[d.id] = d.data(); });
+            return map;
+        };
+        const schoolMasterData = toMap(schoolMasterSnap);
+        const deptMasterData = toMap(deptMasterSnap);
+        const gradeMasterData = toMap(gradeMasterSnap);
+        const classRawData = toMap(classSnap_);
 
-        const gradeMasterData = {};
-        gradeMasterSnap.forEach(d => { gradeMasterData[d.id] = d.data(); });
-
-        const classRawData = {};
-        classSnap_.forEach(d => { classRawData[d.id] = d.data(); });
-
-        // 全日付キーを統合
         const allDates = new Set([
             ...Object.keys(schoolMasterData),
+            ...Object.keys(deptMasterData),
             ...Object.keys(gradeMasterData),
-            ...Object.keys(classRawData)
+            ...Object.keys(classRawData),
         ]);
 
-        // マージ
         const dailyData = {};
         for (const dateKey of allDates) {
             const school = schoolMasterData[dateKey] || {};
+            const dept = deptMasterData[dateKey] || {};
             const grade = gradeMasterData[dateKey] || {};
             const cls = classRawData[dateKey] || {};
 
             dailyData[dateKey] = {
                 date: dateKey,
-                schedules: mergeArraysWithSource(school.schedules, grade.schedules, cls.schedules, 'schedules'),
-                notices: mergeArraysWithSource(school.notices, grade.notices, cls.notices, 'notices'),
-                assignments: mergeArraysWithSource(school.assignments, grade.assignments, cls.assignments, 'assignments')
+                // 順序: 学校 > 学科 > 学年 > クラス
+                schedules: [
+                    ...addSource(school.schedules, 'school'),
+                    ...addSource(dept.schedules, 'department'),
+                    ...addSource(grade.schedules, 'grade'),
+                    ...addSource(cls.schedules, 'class'),
+                ],
+                notices: [
+                    ...addSource(school.notices, 'school'),
+                    ...addSource(dept.notices, 'department'),
+                    ...addSource(grade.notices, 'grade'),
+                    ...addSource(cls.notices, 'class'),
+                ],
+                assignments: [
+                    ...addSource(school.assignments, 'school'),
+                    ...addSource(dept.assignments, 'department'),
+                    ...addSource(grade.assignments, 'grade'),
+                    ...addSource(cls.assignments, 'class'),
+                ],
             };
         }
 
+        // 広告階層マージ
+        const schoolDocSnap = await db.collection('schools').doc(schoolId).get();
+        const schoolAds = schoolDocSnap.exists ? (schoolDocSnap.data().displaySettings?.ads || []) : [];
+        const deptAds = departmentId ? (deptDocData.displaySettings?.ads || []) : [];
+        const gradeAds = gradeSnap.exists ? (gradeSnap.data().displaySettings?.ads || []) : [];
+        const classAds = (classData.displaySettings?.ads) || [];
+        const mergedAds = [...schoolAds, ...deptAds, ...gradeAds, ...classAds];
+
         const displaySettings = classData.displaySettings || {};
+        // quiet_hours フォールバックチェーン: クラス → 学年 → 学科 → 学校
+        const pickQH = (ds) =>
+            (ds && (ds.quiet_hours || ds.quietHours)) || [];
+        let resolvedQH = pickQH(displaySettings);
+        if (resolvedQH.length === 0) {
+            try {
+                const gradeCfgSnap = await gradePathFor(schoolId, gradeId, departmentId || null)
+                    .collection('config').doc('display_settings').get();
+                if (gradeCfgSnap.exists) resolvedQH = pickQH(gradeCfgSnap.data());
+            } catch { /* ignore */ }
+        }
+        if (resolvedQH.length === 0 && departmentId) {
+            try {
+                const deptCfgSnap = await departmentPath(schoolId, departmentId)
+                    .collection('config').doc('display_settings').get();
+                if (deptCfgSnap.exists) resolvedQH = pickQH(deptCfgSnap.data());
+            } catch { /* ignore */ }
+        }
+        if (resolvedQH.length === 0) {
+            try {
+                const schoolCfgSnap = await db.collection('schools').doc(schoolId)
+                    .collection('config').doc('display_settings').get();
+                if (schoolCfgSnap.exists) resolvedQH = pickQH(schoolCfgSnap.data());
+            } catch { /* ignore */ }
+        }
         const signageData = {
-            generatedAt: new Date().toISOString(), schoolId, gradeId, classId,
+            generatedAt: new Date().toISOString(),
+            schoolId, gradeId, classId, departmentId: departmentId || null,
             config: {
                 schoolName: classData.schoolName || '',
-                gradeName: gradeName,
+                departmentName: deptName,
+                gradeName,
                 className: classData.name || '',
-                ads: displaySettings.ads || [],
-                quietHours: displaySettings.quietHours || []
+                ads: mergedAds,
+                quietHours: resolvedQH,
             },
-            dailyData
+            dailyData,
         };
 
         const fileName = `signage-data/${schoolId}/${gradeId}/${classId}/data.json`;
@@ -114,14 +174,17 @@ async function generateClassSignageJson(schoolId, gradeId, classId) {
     }
 }
 
-// Firestoreトリガー (学年 > クラス単位)
+// ===== Firestore triggers =====
+
+// クラスモード: daily_data
 exports.onClassDataChange = functions.firestore
     .document('schools/{schoolId}/grades/{gradeId}/classes/{classId}/daily_data/{dateId}')
     .onWrite(async (change, context) => {
         const { schoolId, gradeId, classId } = context.params;
-        await generateClassSignageJson(schoolId, gradeId, classId);
+        await generateClassSignageJson(schoolId, gradeId, classId, null);
     });
 
+// クラスモード: classDoc
 exports.onClassConfigChange = functions.firestore
     .document('schools/{schoolId}/grades/{gradeId}/classes/{classId}')
     .onUpdate(async (change, context) => {
@@ -129,26 +192,93 @@ exports.onClassConfigChange = functions.firestore
         const before = change.before.data().displaySettings || {};
         const after = change.after.data().displaySettings || {};
         if (JSON.stringify(before) !== JSON.stringify(after)) {
-            await generateClassSignageJson(schoolId, gradeId, classId);
+            await generateClassSignageJson(schoolId, gradeId, classId, null);
         }
     });
 
-// マスターデータ変更時のファンアウト再生成
+// 学科モード: daily_data
+exports.onDeptClassDataChange = functions.firestore
+    .document('schools/{schoolId}/departments/{departmentId}/grades/{gradeId}/classes/{classId}/daily_data/{dateId}')
+    .onWrite(async (change, context) => {
+        const { schoolId, departmentId, gradeId, classId } = context.params;
+        await generateClassSignageJson(schoolId, gradeId, classId, departmentId);
+    });
 
-async function regenerateAllClassesInGrade(schoolId, gradeId) {
-    const classesSnap = await db.collection('schools').doc(schoolId)
-        .collection('grades').doc(gradeId).collection('classes').get();
-    await Promise.all(classesSnap.docs.map(c => generateClassSignageJson(schoolId, gradeId, c.id)));
+// 学科モード: classDoc
+exports.onDeptClassConfigChange = functions.firestore
+    .document('schools/{schoolId}/departments/{departmentId}/grades/{gradeId}/classes/{classId}')
+    .onUpdate(async (change, context) => {
+        const { schoolId, departmentId, gradeId, classId } = context.params;
+        const before = change.before.data().displaySettings || {};
+        const after = change.after.data().displaySettings || {};
+        if (JSON.stringify(before) !== JSON.stringify(after)) {
+            await generateClassSignageJson(schoolId, gradeId, classId, departmentId);
+        }
+    });
+
+// ===== 再生成ファンアウト =====
+
+async function enumerateAllClassesInSchool(schoolId) {
+    const targets = [];
+    // クラスモードの classes
+    const gradesSnap = await db.collection('schools').doc(schoolId).collection('grades').get();
+    for (const g of gradesSnap.docs) {
+        const cSnap = await g.ref.collection('classes').get();
+        cSnap.forEach(c => targets.push({ gradeId: g.id, classId: c.id, departmentId: null }));
+    }
+    // 学科モードの classes
+    const deptsSnap = await db.collection('schools').doc(schoolId).collection('departments').get();
+    for (const d of deptsSnap.docs) {
+        const dGradesSnap = await d.ref.collection('grades').get();
+        for (const g of dGradesSnap.docs) {
+            const cSnap = await g.ref.collection('classes').get();
+            cSnap.forEach(c => targets.push({ gradeId: g.id, classId: c.id, departmentId: d.id }));
+        }
+    }
+    return targets;
 }
 
 async function regenerateAllClassesInSchool(schoolId) {
-    const gradesSnap = await db.collection('schools').doc(schoolId).collection('grades').get();
-    for (const gradeDoc of gradesSnap.docs) {
-        await regenerateAllClassesInGrade(schoolId, gradeDoc.id);
-    }
+    const targets = await enumerateAllClassesInSchool(schoolId);
+    await Promise.all(targets.map(t =>
+        generateClassSignageJson(schoolId, t.gradeId, t.classId, t.departmentId)
+    ));
 }
 
-// 学校マスターデータ変更トリガー
+async function regenerateAllClassesInDepartment(schoolId, departmentId) {
+    const dGradesSnap = await db.collection('schools').doc(schoolId)
+        .collection('departments').doc(departmentId)
+        .collection('grades').get();
+    const targets = [];
+    for (const g of dGradesSnap.docs) {
+        const cSnap = await g.ref.collection('classes').get();
+        cSnap.forEach(c => targets.push({ gradeId: g.id, classId: c.id, departmentId }));
+    }
+    await Promise.all(targets.map(t =>
+        generateClassSignageJson(schoolId, t.gradeId, t.classId, t.departmentId)
+    ));
+}
+
+async function regenerateAllClassesInGradeClassMode(schoolId, gradeId) {
+    const cSnap = await db.collection('schools').doc(schoolId)
+        .collection('grades').doc(gradeId)
+        .collection('classes').get();
+    await Promise.all(cSnap.docs.map(c =>
+        generateClassSignageJson(schoolId, gradeId, c.id, null)
+    ));
+}
+
+async function regenerateAllClassesInDeptGrade(schoolId, departmentId, gradeId) {
+    const cSnap = await db.collection('schools').doc(schoolId)
+        .collection('departments').doc(departmentId)
+        .collection('grades').doc(gradeId)
+        .collection('classes').get();
+    await Promise.all(cSnap.docs.map(c =>
+        generateClassSignageJson(schoolId, gradeId, c.id, departmentId)
+    ));
+}
+
+// 学校マスター変更
 exports.onSchoolMasterDataChange = functions.firestore
     .document('schools/{schoolId}/master_daily_data/{dateId}')
     .onWrite(async (change, context) => {
@@ -156,18 +286,34 @@ exports.onSchoolMasterDataChange = functions.firestore
         await regenerateAllClassesInSchool(schoolId);
     });
 
-// 学年マスターデータ変更トリガー
+// 学年マスター変更（クラスモード）
 exports.onGradeMasterDataChange = functions.firestore
     .document('schools/{schoolId}/grades/{gradeId}/master_daily_data/{dateId}')
     .onWrite(async (change, context) => {
         const { schoolId, gradeId } = context.params;
-        await regenerateAllClassesInGrade(schoolId, gradeId);
+        await regenerateAllClassesInGradeClassMode(schoolId, gradeId);
+    });
+
+// 学科マスター変更
+exports.onDeptMasterDataChange = functions.firestore
+    .document('schools/{schoolId}/departments/{departmentId}/master_daily_data/{dateId}')
+    .onWrite(async (change, context) => {
+        const { schoolId, departmentId } = context.params;
+        await regenerateAllClassesInDepartment(schoolId, departmentId);
+    });
+
+// 学年マスター変更（学科モード: 学科×学年）
+exports.onDeptGradeMasterDataChange = functions.firestore
+    .document('schools/{schoolId}/departments/{departmentId}/grades/{gradeId}/master_daily_data/{dateId}')
+    .onWrite(async (change, context) => {
+        const { schoolId, departmentId, gradeId } = context.params;
+        await regenerateAllClassesInDeptGrade(schoolId, departmentId, gradeId);
     });
 
 // 手動JSON再生成
 exports.regenerateSignageJson = functions.https.onCall(withAuth(async (data, context) => {
-    const { schoolId, gradeId, classId } = data;
+    const { schoolId, gradeId, classId, departmentId } = data;
     validateRequired(data, ['schoolId', 'gradeId', 'classId']);
-    const url = await generateClassSignageJson(schoolId, gradeId, classId);
+    const url = await generateClassSignageJson(schoolId, gradeId, classId, departmentId || null);
     return { success: true, message: 'サイネージデータを再生成しました', url };
 }, (context) => verifyAdmin(context)));

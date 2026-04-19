@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { getDoc, updateDoc } from "firebase/firestore";
+import {
+  getDoc,
+  updateDoc,
+  setDoc,
+  type DocumentReference,
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import { classDocRef } from "@/lib/paths";
 import { useToast } from "@/components/ui/Toast";
 import styles from "@/styles/class-settings.module.css";
 
-interface AdItem {
+export interface AdItem {
   id: string;
   type: "image" | "video";
   url: string;
@@ -17,21 +21,21 @@ interface AdItem {
 }
 
 interface AdManagerProps {
-  schoolId: string;
-  gradeId: string;
-  classId: string;
+  docRef: DocumentReference;
   ads: AdItem[];
   onAdsChange: (ads: AdItem[]) => void;
+  title?: string;
+  description?: string;
+  maxAds?: number;
 }
 
-const MAX_ADS = 5;
-
 export function AdManager({
-  schoolId,
-  gradeId,
-  classId,
+  docRef,
   ads,
   onAdsChange,
+  title = "広告管理",
+  description,
+  maxAds = 5,
 }: AdManagerProps) {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -42,15 +46,22 @@ export function AdManager({
 
   const saveAds = useCallback(
     async (newAds: AdItem[]) => {
-      const docRef = classDocRef(schoolId, gradeId, classId);
       const snap = await getDoc(docRef);
       const current = snap.exists()
         ? snap.data().displaySettings || {}
         : {};
-      current.ads = newAds;
-      await updateDoc(docRef, { displaySettings: current });
+      const nextSettings = { ...current, ads: newAds };
+      if (snap.exists()) {
+        await updateDoc(docRef, { displaySettings: nextSettings });
+      } else {
+        await setDoc(
+          docRef,
+          { displaySettings: nextSettings },
+          { merge: true }
+        );
+      }
     },
-    [schoolId, gradeId, classId]
+    [docRef]
   );
 
   const handleMoveAd = async (index: number, direction: "up" | "down") => {
@@ -70,8 +81,8 @@ export function AdManager({
   };
 
   const handleAddClick = () => {
-    if (ads.length >= MAX_ADS) {
-      showToast(`最大${MAX_ADS}枚です`, "error");
+    if (ads.length >= maxAds) {
+      showToast(`最大${maxAds}枚です`, "error");
       return;
     }
     setPendingAction("add");
@@ -100,11 +111,12 @@ export function AdManager({
 
   const handleSaveAdSettings = async (index: number) => {
     const ad = ads[index];
+    const uid = `${docRef.path}-${index}`;
     const linkInput = document.getElementById(
-      `ad-link-${index}`
+      `ad-link-${uid}`
     ) as HTMLInputElement | null;
     const durationInput = document.getElementById(
-      `ad-duration-${index}`
+      `ad-duration-${uid}`
     ) as HTMLInputElement | null;
     const linkUrl = (linkInput?.value || "").trim();
     const duration = parseInt(durationInput?.value || "10", 10);
@@ -174,8 +186,8 @@ export function AdManager({
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
-        <h2>広告管理</h2>
-        {ads.length < MAX_ADS && (
+        <h2>{title}</h2>
+        {ads.length < maxAds && (
           <button
             className="btn btn-primary"
             onClick={handleAddClick}
@@ -186,114 +198,117 @@ export function AdManager({
         )}
       </div>
       <p className={styles.settingDescription}>
-        最大5枚まで。画像または動画をアップロードできます。
+        {description || `最大${maxAds}枚まで。画像または動画をアップロードできます。`}
       </p>
 
       {ads.length === 0 ? (
         <p className="empty-text">広告未登録</p>
       ) : (
         <div className={styles.adList}>
-          {ads.map((ad, idx) => (
-            <div key={ad.id || idx} className={styles.adItem}>
-              <div className={styles.adDragHandle}>
-                <button
-                  className="btn btn-sm"
-                  onClick={() => handleMoveAd(idx, "up")}
-                  disabled={saving || idx === 0}
-                  title="上に移動"
-                  style={{ padding: "2px 6px", fontSize: "14px" }}
-                >
-                  ▲
-                </button>
-                <button
-                  className="btn btn-sm"
-                  onClick={() => handleMoveAd(idx, "down")}
-                  disabled={saving || idx === ads.length - 1}
-                  title="下に移動"
-                  style={{ padding: "2px 6px", fontSize: "14px" }}
-                >
-                  ▼
-                </button>
-              </div>
-              {ad.type === "video" ? (
-                <video
-                  src={ad.url}
-                  className={styles.adThumbnail}
-                  muted
-                  playsInline
-                  onMouseEnter={(e) =>
-                    (e.target as HTMLVideoElement).play()
-                  }
-                  onMouseLeave={(e) => {
-                    const v = e.target as HTMLVideoElement;
-                    v.pause();
-                    v.currentTime = 0;
-                  }}
-                />
-              ) : (
-                <img
-                  src={ad.url}
-                  className={styles.adThumbnail}
-                  alt={`広告 ${idx + 1}`}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      "https://placehold.jp/80x60.png?text=Error";
-                  }}
-                />
-              )}
-              <div className={styles.adDetails}>
-                <p className={styles.adLabel}>
-                  {ad.type === "video" ? "動画" : "画像"} {idx + 1}
-                </p>
-                <div className={styles.adSettingRow}>
-                  <span className={styles.adSettingLabel}>URL:</span>
-                  <input
-                    type="text"
-                    id={`ad-link-${idx}`}
-                    placeholder="https://example.com"
-                    defaultValue={ad.link_url || ""}
-                    className={styles.adSettingInput}
-                  />
-                </div>
-                <div className={styles.adSettingRow}>
-                  <span className={styles.adSettingLabel}>表示秒数:</span>
-                  <input
-                    type="number"
-                    id={`ad-duration-${idx}`}
-                    defaultValue={ad.duration_sec || 10}
-                    min={3}
-                    max={120}
-                    className={styles.adDurationInput}
-                  />
-                  <span className={styles.adSettingLabel}>秒</span>
+          {ads.map((ad, idx) => {
+            const uid = `${docRef.path}-${idx}`;
+            return (
+              <div key={ad.id || idx} className={styles.adItem}>
+                <div className={styles.adDragHandle}>
                   <button
                     className="btn btn-sm"
-                    onClick={() => handleSaveAdSettings(idx)}
-                    disabled={saving}
-                    style={{ marginLeft: "auto" }}
+                    onClick={() => handleMoveAd(idx, "up")}
+                    disabled={saving || idx === 0}
+                    title="上に移動"
+                    style={{ padding: "2px 6px", fontSize: "14px" }}
                   >
-                    設定を保存
+                    ▲
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => handleMoveAd(idx, "down")}
+                    disabled={saving || idx === ads.length - 1}
+                    title="下に移動"
+                    style={{ padding: "2px 6px", fontSize: "14px" }}
+                  >
+                    ▼
+                  </button>
+                </div>
+                {ad.type === "video" ? (
+                  <video
+                    src={ad.url}
+                    className={styles.adThumbnail}
+                    muted
+                    playsInline
+                    onMouseEnter={(e) =>
+                      (e.target as HTMLVideoElement).play()
+                    }
+                    onMouseLeave={(e) => {
+                      const v = e.target as HTMLVideoElement;
+                      v.pause();
+                      v.currentTime = 0;
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={ad.url}
+                    className={styles.adThumbnail}
+                    alt={`広告 ${idx + 1}`}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "https://placehold.jp/80x60.png?text=Error";
+                    }}
+                  />
+                )}
+                <div className={styles.adDetails}>
+                  <p className={styles.adLabel}>
+                    {ad.type === "video" ? "動画" : "画像"} {idx + 1}
+                  </p>
+                  <div className={styles.adSettingRow}>
+                    <span className={styles.adSettingLabel}>URL:</span>
+                    <input
+                      type="text"
+                      id={`ad-link-${uid}`}
+                      placeholder="https://example.com"
+                      defaultValue={ad.link_url || ""}
+                      className={styles.adSettingInput}
+                    />
+                  </div>
+                  <div className={styles.adSettingRow}>
+                    <span className={styles.adSettingLabel}>表示秒数:</span>
+                    <input
+                      type="number"
+                      id={`ad-duration-${uid}`}
+                      defaultValue={ad.duration_sec || 10}
+                      min={3}
+                      max={120}
+                      className={styles.adDurationInput}
+                    />
+                    <span className={styles.adSettingLabel}>秒</span>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleSaveAdSettings(idx)}
+                      disabled={saving}
+                      style={{ marginLeft: "auto" }}
+                    >
+                      設定を保存
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.adActions}>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => handleReplaceClick(idx)}
+                    disabled={saving}
+                  >
+                    変更
+                  </button>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    onClick={() => handleDeleteAd(idx)}
+                    disabled={saving}
+                  >
+                    削除
                   </button>
                 </div>
               </div>
-              <div className={styles.adActions}>
-                <button
-                  className="btn btn-sm"
-                  onClick={() => handleReplaceClick(idx)}
-                  disabled={saving}
-                >
-                  変更
-                </button>
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => handleDeleteAd(idx)}
-                  disabled={saving}
-                >
-                  削除
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

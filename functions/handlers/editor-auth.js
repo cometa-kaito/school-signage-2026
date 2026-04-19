@@ -8,8 +8,7 @@
  * createCustomTokenを使わないためIAM権限不要。
  */
 
-const functions = require('firebase-functions');
-const { admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
+const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 

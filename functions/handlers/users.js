@@ -3,8 +3,7 @@
  * ユーザー管理
  */
 
-const functions = require('firebase-functions');
-const { admin, db } = require('../helpers/paths');
+const { functions, admin, db } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, preventSelfAction, getErrorMessage } = require('../helpers/validation');
 

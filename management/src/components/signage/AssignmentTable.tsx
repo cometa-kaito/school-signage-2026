@@ -3,13 +3,8 @@
 import type { Assignment } from "@/hooks/useSignageData";
 import { calculateDaysLeft } from "@/lib/utils";
 import { filterRecentAssignments } from "@/lib/data-filter";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import styles from "@/styles/signage.module.css";
-
-function getSourceBadge(source?: string): string {
-  if (source === "school") return "\u{1F3EB}";
-  if (source === "grade") return "\u{1F4DA}";
-  return "";
-}
 
 interface AssignmentTableProps {
   assignments: Assignment[];
@@ -46,7 +41,6 @@ export function AssignmentTable({ assignments }: AssignmentTableProps) {
             ) : (
               <>
                 {filtered.map((assignment, idx) => {
-                  const badge = getSourceBadge(assignment._source);
                   const { days, text, cssClass } = calculateDaysLeft(
                     assignment.deadline
                   );
@@ -65,9 +59,7 @@ export function AssignmentTable({ assignments }: AssignmentTableProps) {
                         <span className={daysClassName}>{text}</span>
                       </td>
                       <td>
-                        {badge && (
-                          <span className={styles.sourceBadge}>{badge}</span>
-                        )}
+                        <SourceBadge source={assignment._source} compact />
                         {assignment.subject}
                       </td>
                       <td>{assignment.task}</td>

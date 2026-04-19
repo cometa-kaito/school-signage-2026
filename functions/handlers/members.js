@@ -3,8 +3,7 @@
  * メンバーシップ管理
  */
 
-const functions = require('firebase-functions');
-const { admin, db } = require('../helpers/paths');
+const { functions, admin, db } = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, preventSelfAction } = require('../helpers/validation');
 
@@ -55,17 +54,22 @@ exports.removeMember = functions.https.onCall(withAuth(async (data, context) => 
 
 exports.listMembers = functions.https.onCall(withAuth(async (data, context) => {
     const { schoolId } = data;
+    const callerIsSystemAdmin = context.auth.token.admin === true
+        || context.auth.token.systemRole === 'system_admin';
     const snap = await db.collection('memberships').where('schoolId', '==', schoolId).get();
     const members = [];
     for (const doc of snap.docs) {
         const m = doc.data();
         try {
             const user = await admin.auth().getUser(m.userId);
+            const isAdmin = user.customClaims?.admin === true;
+            // セキュリティ: 非システム管理者にはシステム管理者の情報を見せない
+            if (isAdmin && !callerIsSystemAdmin) continue;
             members.push({
                 userId: m.userId, email: user.email, displayName: user.displayName || '',
                 role: m.role, classIds: m.classIds || [], grantedAt: m.grantedAt,
                 disabled: user.disabled, emailVerified: user.emailVerified,
-                isAdmin: user.customClaims?.admin === true,
+                isAdmin,
                 lastSignInTime: user.metadata.lastSignInTime
             });
         } catch (e) { /* skip deleted users */ }

@@ -5,7 +5,6 @@ import { useSignageData } from "@/hooks/useSignageData";
 import { useClock } from "@/hooks/useClock";
 import { useQuietHours } from "@/hooks/useQuietHours";
 import { useAdRotation } from "@/hooks/useAdRotation";
-import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ImageCache } from "@/lib/image-cache";
 import { debounce } from "@/lib/utils";
@@ -27,10 +26,11 @@ interface SignagePageProps {
   schoolId: string;
   gradeId: string;
   classId: string;
+  departmentId?: string | null;
   forceStatic?: boolean;
 }
 
-export function SignagePage({ schoolId, gradeId, classId, forceStatic }: SignagePageProps) {
+export function SignagePage({ schoolId, gradeId, classId, departmentId, forceStatic }: SignagePageProps) {
   // ========================================
   // Hooks
   // ========================================
@@ -45,7 +45,7 @@ export function SignagePage({ schoolId, gradeId, classId, forceStatic }: Signage
     quietHours,
     isInitialLoad,
     refetch,
-  } = useSignageData(schoolId, gradeId, classId, { forceStatic });
+  } = useSignageData(schoolId, gradeId, classId, departmentId ?? null, { forceStatic });
 
   const { time, dateText, dayText } = useClock();
   const { isQuietTime } = useQuietHours(quietHours);
@@ -62,7 +62,6 @@ export function SignagePage({ schoolId, gradeId, classId, forceStatic }: Signage
 
   // 自動スクロール用ref
   const noticeListRef = useRef<HTMLUListElement>(null);
-  const { restart: restartAutoScroll } = useAutoScroll(noticeListRef);
 
   // ========================================
   // scrollRestoration制御
@@ -234,7 +233,6 @@ export function SignagePage({ schoolId, gradeId, classId, forceStatic }: Signage
       if (document.visibilityState === "visible") {
         console.log("タブがアクティブになりました");
         refetch();
-        restartAutoScroll();
       }
     };
 
@@ -242,7 +240,7 @@ export function SignagePage({ schoolId, gradeId, classId, forceStatic }: Signage
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refetch, restartAutoScroll]);
+  }, [refetch]);
 
   // ========================================
   // 広告画像に応じた動的グリッド幅調整

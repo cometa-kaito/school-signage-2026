@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
+  getAdminOverviewFn,
   listSchoolsFn,
   createSchoolFn,
   updateSchoolFn,
   deleteSchoolFn,
+  setSchoolHierarchyModeFn,
   listUsersFn,
   listMembersFn,
   deleteUserFn,
@@ -13,14 +15,17 @@ import {
   setAdminRoleFn,
   updateUserFn,
   toggleUserStatusFn,
+  inviteMemberFn,
+  removeMemberFn,
 } from "@/lib/firebase-functions";
 import { Modal } from "@/components/ui/Modal";
 import { Loading } from "@/components/ui/Loading";
+import { EditIconButton } from "@/components/ui/EditIconButton";
 import { useToast } from "@/components/ui/Toast";
-import type { School } from "@/types/school";
+import type { School, HierarchyMode } from "@/types/school";
 import type { UserInfo, Membership } from "@/types/auth";
 import styles from "@/styles/admin.module.css";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface SchoolMembership {
   schoolId: string;
@@ -35,14 +40,40 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function SchoolListView() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
-  const [formId, setFormId] = useState("");
   const [formName, setFormName] = useState("");
+  const [formMode, setFormMode] = useState<HierarchyMode>("class");
   const [saving, setSaving] = useState(false);
+  const [busyMessage, setBusyMessage] = useState<string | null>(null);
+  const [busyItems, setBusyItems] = useState<Record<string, string>>({}); // key -> message
+
+  const runBusy = async <T,>(
+    message: string,
+    fn: () => Promise<T>,
+    itemKey?: string
+  ): Promise<T> => {
+    setBusyMessage(message);
+    if (itemKey) {
+      setBusyItems((prev) => ({ ...prev, [itemKey]: message }));
+    }
+    try {
+      return await fn();
+    } finally {
+      setBusyMessage(null);
+      if (itemKey) {
+        setBusyItems((prev) => {
+          const next = { ...prev };
+          delete next[itemKey];
+          return next;
+        });
+      }
+    }
+  };
 
   // Global user management
   const [globalUsers, setGlobalUsers] = useState<UserInfo[]>([]);
@@ -54,49 +85,67 @@ export function SchoolListView() {
   const [newUserDisplayName, setNewUserDisplayName] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
+  const [newUserMembership, setNewUserMembership] = useState(""); // "schoolId:role" or ""
 
-  const loadSchools = async () => {
+  const loadAll = async () => {
     setLoading(true);
+    setUsersLoading(true);
     try {
-      const res = await listSchoolsFn();
-      setSchools(res.data.schools || []);
+      const res = await getAdminOverviewFn();
+      const d = res.data;
+      setSchools(d.schools || []);
+      setGlobalUsers(d.users || []);
+      setMembershipsMap(d.membershipsMap || {});
     } catch {
-      showToast("学校一覧の取得に失敗しました", "error");
+      showToast("データの取得に失敗しました", "error");
     }
     setLoading(false);
+    setUsersLoading(false);
   };
 
   useEffect(() => {
-    loadSchools();
+    loadAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreateModal = () => {
     setEditingSchool(null);
-    setFormId("");
     setFormName("");
+    setFormMode("class");
     setModalOpen(true);
   };
 
   const openEditModal = (school: School) => {
     setEditingSchool(school);
-    setFormId(school.id);
     setFormName(school.name);
+    setFormMode(school.hierarchyMode || "class");
     setModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formId.trim() || !formName.trim()) return;
+    if (!formName.trim()) return;
     setSaving(true);
     try {
-      if (editingSchool) {
-        await updateSchoolFn({ id: editingSchool.id, name: formName });
-        showToast("学校を更新しました", "success");
-      } else {
-        await createSchoolFn({ id: formId, name: formName });
-        showToast("学校を作成しました", "success");
-      }
-      setModalOpen(false);
-      loadSchools();
+      await runBusy(editingSchool ? "学校を更新中..." : "学校を作成中...", async () => {
+        if (editingSchool) {
+          await updateSchoolFn({ schoolId: editingSchool.id, name: formName });
+          const currentMode = editingSchool.hierarchyMode || "class";
+          if (currentMode !== formMode) {
+            await setSchoolHierarchyModeFn({
+              schoolId: editingSchool.id,
+              mode: formMode,
+            });
+          }
+          showToast("学校を更新しました", "success");
+        } else {
+          await createSchoolFn({
+            name: formName,
+            hierarchyMode: formMode,
+          });
+          showToast("学校を作成しました", "success");
+        }
+        setModalOpen(false);
+        await loadAll();
+      });
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
@@ -106,72 +155,61 @@ export function SchoolListView() {
   const handleDelete = async (school: School) => {
     if (!confirm(`「${school.name}」を削除しますか？`)) return;
     try {
-      await deleteSchoolFn({ id: school.id });
-      showToast("学校を削除しました", "success");
-      loadSchools();
+      await runBusy(
+        "学校を削除中...",
+        async () => {
+          await deleteSchoolFn({ schoolId: school.id });
+          showToast("学校を削除しました", "success");
+          await loadAll();
+        },
+        `school:${school.id}`
+      );
     } catch (err) {
       showToast("削除エラー: " + (err as Error).message, "error");
     }
   };
 
-  // Load global users
-  const loadGlobalUsers = async (schoolList: School[]) => {
-    setUsersLoading(true);
-    try {
-      const usersRes = await listUsersFn();
-      const allUsers = (usersRes.data.users || []).filter(
-        (u) => !u.email?.endsWith("@signage.local")
-      );
-      setGlobalUsers(allUsers);
 
-      const msMap: Record<string, SchoolMembership[]> = {};
-      await Promise.all(
-        schoolList.map(async (school) => {
-          try {
-            const r = await listMembersFn({ schoolId: school.id });
-            const members = r.data.members || [];
-            members.forEach((m) => {
-              if (!msMap[m.userId]) msMap[m.userId] = [];
-              msMap[m.userId].push({
-                schoolId: school.id,
-                schoolName: school.name || school.id,
-                role: m.role,
-              });
-            });
-          } catch {
-            // ignore
-          }
-        })
-      );
-      setMembershipsMap(msMap);
-    } catch (err) {
-      showToast("ユーザー読み込みエラー: " + (err as Error).message, "error");
+  const syncMembership = async (
+    uid: string,
+    email: string,
+    existing: SchoolMembership[],
+    selection: string
+  ) => {
+    // 既存の所属を全削除
+    for (const m of existing) {
+      await removeMemberFn({ schoolId: m.schoolId, userId: uid });
     }
-    setUsersLoading(false);
+    // 新しい所属を追加
+    if (selection) {
+      const [schoolId, role] = selection.split(":");
+      if (schoolId && role) {
+        await inviteMemberFn({ schoolId, email, role });
+      }
+    }
   };
-
-  useEffect(() => {
-    if (schools.length > 0) {
-      loadGlobalUsers(schools);
-    }
-  }, [schools]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateUser = async () => {
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
     setSaving(true);
     try {
-      const res = await createAdminUserFn({
-        email: newUserEmail,
-        password: newUserPassword,
-        displayName: newUserDisplayName || undefined,
+      await runBusy("ユーザーを作成中...", async () => {
+        const res = await createAdminUserFn({
+          email: newUserEmail,
+          password: newUserPassword,
+          displayName: newUserDisplayName || undefined,
+        });
+        if (newUserIsAdmin) {
+          await setAdminRoleFn({ uid: res.data.uid, admin: true });
+        }
+        if (newUserMembership) {
+          await syncMembership(res.data.uid, newUserEmail, [], newUserMembership);
+        }
+        showToast("ユーザーを作成しました", "success");
+        setUserModalOpen(false);
+        resetUserForm();
+        await loadAll();
       });
-      if (newUserIsAdmin) {
-        await setAdminRoleFn({ uid: res.data.uid, admin: true });
-      }
-      showToast("ユーザーを作成しました", "success");
-      setUserModalOpen(false);
-      resetUserForm();
-      loadGlobalUsers(schools);
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
@@ -182,18 +220,31 @@ export function SchoolListView() {
     if (!editingUser) return;
     setSaving(true);
     try {
-      await updateUserFn({
-        uid: editingUser.uid,
-        displayName: newUserDisplayName || undefined,
+      await runBusy("ユーザーを更新中...", async () => {
+        await updateUserFn({
+          uid: editingUser.uid,
+          displayName: newUserDisplayName || undefined,
+        });
+        const wasAdmin = editingUser.isAdmin ?? false;
+        if (wasAdmin !== newUserIsAdmin) {
+          await setAdminRoleFn({ uid: editingUser.uid, admin: newUserIsAdmin });
+        }
+        const existing = membershipsMap[editingUser.uid] || [];
+        const currentSelection =
+          existing.length > 0 ? `${existing[0].schoolId}:${existing[0].role}` : "";
+        if (currentSelection !== newUserMembership) {
+          await syncMembership(
+            editingUser.uid,
+            editingUser.email || "",
+            existing,
+            newUserMembership
+          );
+        }
+        showToast("ユーザーを更新しました", "success");
+        setUserModalOpen(false);
+        setEditingUser(null);
+        await loadAll();
       });
-      const wasAdmin = editingUser.customClaims?.admin ?? false;
-      if (wasAdmin !== newUserIsAdmin) {
-        await setAdminRoleFn({ uid: editingUser.uid, admin: newUserIsAdmin });
-      }
-      showToast("ユーザーを更新しました", "success");
-      setUserModalOpen(false);
-      setEditingUser(null);
-      loadGlobalUsers(schools);
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
@@ -204,9 +255,15 @@ export function SchoolListView() {
     if (!confirm("このユーザーを完全に削除しますか？この操作は取り消せません。"))
       return;
     try {
-      await deleteUserFn({ uid });
-      showToast("ユーザーを削除しました", "success");
-      loadGlobalUsers(schools);
+      await runBusy(
+        "ユーザーを削除中...",
+        async () => {
+          await deleteUserFn({ uid });
+          showToast("ユーザーを削除しました", "success");
+          await loadAll();
+        },
+        `user:${uid}`
+      );
     } catch (err) {
       showToast("削除エラー: " + (err as Error).message, "error");
     }
@@ -214,12 +271,18 @@ export function SchoolListView() {
 
   const handleToggleGlobalUserStatus = async (uid: string, currentDisabled: boolean) => {
     try {
-      await toggleUserStatusFn({ uid, disabled: !currentDisabled });
-      showToast(
-        currentDisabled ? "ユーザーを有効にしました" : "ユーザーを無効にしました",
-        "success"
+      await runBusy(
+        currentDisabled ? "ユーザーを有効化中..." : "ユーザーを無効化中...",
+        async () => {
+          await toggleUserStatusFn({ uid, disabled: !currentDisabled });
+          showToast(
+            currentDisabled ? "ユーザーを有効にしました" : "ユーザーを無効にしました",
+            "success"
+          );
+          await loadAll();
+        },
+        `user:${uid}`
       );
-      loadGlobalUsers(schools);
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
@@ -230,6 +293,7 @@ export function SchoolListView() {
     setNewUserDisplayName("");
     setNewUserPassword("");
     setNewUserIsAdmin(false);
+    setNewUserMembership("");
     setEditingUser(null);
   };
 
@@ -237,6 +301,7 @@ export function SchoolListView() {
 
   return (
     <div>
+      {busyMessage && <Loading overlay message={busyMessage} />}
       <div className={styles.sectionHeader}>
         <h2>学校一覧</h2>
         <button className="btn btn-primary" onClick={openCreateModal}>
@@ -250,23 +315,45 @@ export function SchoolListView() {
         <div className={styles.cardList}>
           {schools.map((school) => (
             <div key={school.id} className={styles.card}>
+              {busyItems[`school:${school.id}`] && (
+                <Loading itemOverlay message={busyItems[`school:${school.id}`]} />
+              )}
               <div className={styles.cardBody}>
-                <h3>{school.name}</h3>
+                <h3>
+                  {school.name}
+                  <EditIconButton
+                    onClick={() => openEditModal(school)}
+                    label="学校名・モードを編集"
+                  />
+                  <span
+                    className="badge"
+                    style={{
+                      marginLeft: 8,
+                      fontSize: "0.7rem",
+                      background:
+                        (school.hierarchyMode || "class") === "department"
+                          ? "#f0e8ff"
+                          : "#e3f2fd",
+                      color:
+                        (school.hierarchyMode || "class") === "department"
+                          ? "#5a2ea6"
+                          : "#1565c0",
+                    }}
+                  >
+                    {(school.hierarchyMode || "class") === "department"
+                      ? "学科モード"
+                      : "クラスモード"}
+                  </span>
+                </h3>
                 <p className={styles.cardSubtext}>ID: {school.id}</p>
               </div>
               <div className={styles.cardActions}>
-                <Link
-                  href={`/manage/admin?school=${school.id}`}
+                <a
+                  href={`/manage/admin.html?school=${school.id}`}
                   className="btn btn-sm btn-primary"
                 >
                   管理
-                </Link>
-                <button
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => openEditModal(school)}
-                >
-                  編集
-                </button>
+                </a>
                 <button
                   className="btn btn-sm btn-danger"
                   onClick={() => handleDelete(school)}
@@ -312,12 +399,20 @@ export function SchoolListView() {
             <tbody>
               {globalUsers.map((u) => {
                 const memberships = membershipsMap[u.uid] || [];
+                const userBusy = busyItems[`user:${u.uid}`];
                 return (
-                  <tr key={u.uid}>
+                  <tr
+                    key={u.uid}
+                    style={
+                      userBusy
+                        ? { opacity: 0.5, pointerEvents: "none" }
+                        : undefined
+                    }
+                  >
                     <td>{u.email}</td>
                     <td>{u.displayName || "-"}</td>
                     <td>
-                      {u.customClaims?.admin ? (
+                      {u.isAdmin ? (
                         <span className="badge badge-admin">
                           システム管理者
                         </span>
@@ -340,14 +435,22 @@ export function SchoolListView() {
                       )}
                     </td>
                     <td>
+                      {userBusy && (
+                        <span style={{ marginRight: 6 }}>
+                          <Loading inline message={userBusy} />
+                        </span>
+                      )}
+                      <span style={{ marginRight: "6px", fontSize: "0.75rem", color: u.disabled ? "#dc3545" : "#28a745" }}>
+                        {u.disabled ? "無効" : "有効"}
+                      </span>
                       <button
-                        className={`btn btn-sm ${u.disabled ? "btn-secondary" : ""}`}
+                        className={`btn btn-sm ${u.disabled ? "btn-success" : "btn-danger"}`}
                         onClick={() =>
                           handleToggleGlobalUserStatus(u.uid, !!u.disabled)
                         }
                         style={{ fontSize: "0.75rem", padding: "2px 8px" }}
                       >
-                        {u.disabled ? "無効 → 有効" : "有効 → 無効"}
+                        {u.disabled ? "有効にする" : "無効にする"}
                       </button>
                     </td>
                     <td>
@@ -357,7 +460,11 @@ export function SchoolListView() {
                           onClick={() => {
                             setEditingUser(u);
                             setNewUserDisplayName(u.displayName || "");
-                            setNewUserIsAdmin(!!u.customClaims?.admin);
+                            setNewUserIsAdmin(!!u.isAdmin);
+                            const ms = membershipsMap[u.uid] || [];
+                            setNewUserMembership(
+                              ms.length > 0 ? `${ms[0].schoolId}:${ms[0].role}` : ""
+                            );
                             setUserModalOpen(true);
                           }}
                         >
@@ -439,15 +546,9 @@ export function SchoolListView() {
         }
       >
         {!editingSchool && (
-          <div className="form-group">
-            <label>学校ID</label>
-            <input
-              type="text"
-              value={formId}
-              onChange={(e) => setFormId(e.target.value)}
-              placeholder="例: gn_tech"
-            />
-          </div>
+          <p style={{ color: "#888", fontSize: "0.8rem", marginBottom: 12 }}>
+            学校IDは自動で発行されます。
+          </p>
         )}
         <div className="form-group">
           <label>学校名</label>
@@ -457,6 +558,23 @@ export function SchoolListView() {
             onChange={(e) => setFormName(e.target.value)}
             placeholder="例: 技能短期大学校"
           />
+        </div>
+        <div className="form-group">
+          <label>階層モード</label>
+          <select
+            value={formMode}
+            onChange={(e) => setFormMode(e.target.value as HierarchyMode)}
+          >
+            <option value="class">クラスモード（学年 &gt; クラス）</option>
+            <option value="department">
+              学科モード（学年 &gt; 学科 &gt; クラス）
+            </option>
+          </select>
+          <p style={{ color: "#888", fontSize: "0.8rem", marginTop: 4 }}>
+            {editingSchool
+              ? "切替には学校直下の学年・クラスを整理する必要があります。"
+              : "階層モードの切替はシステム管理者のみ、この画面から行えます。"}
+          </p>
         </div>
       </Modal>
 
@@ -526,6 +644,28 @@ export function SchoolListView() {
             />
           </div>
         )}
+        <div className="form-group">
+          <label>所属</label>
+          <select
+            value={newUserMembership}
+            onChange={(e) => setNewUserMembership(e.target.value)}
+            disabled={newUserIsAdmin}
+          >
+            <option value="">未所属</option>
+            {schools.flatMap((s) =>
+              Object.entries(ROLE_LABELS).map(([role, label]) => (
+                <option key={`${s.id}:${role}`} value={`${s.id}:${role}`}>
+                  {s.name} / {label}
+                </option>
+              ))
+            )}
+          </select>
+          {newUserIsAdmin && (
+            <p style={{ color: "#888", fontSize: "0.8rem", marginTop: 4 }}>
+              システム管理者は所属設定の対象外です。
+            </p>
+          )}
+        </div>
         <div className="form-group">
           <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <input

@@ -3,8 +3,7 @@
  * データマイグレーション: 旧classes → grades/classes
  */
 
-const functions = require('firebase-functions');
-const { admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
+const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 
 exports.migrateToGradeStructure = functions.https.onCall(withAuth(async (data, context) => {

@@ -29,6 +29,6 @@ export const app: FirebaseApp = getOrInitApp();
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 export const auth: Auth = getAuth(app);
-export const functions: Functions = getFunctions(app);
+export const functions: Functions = getFunctions(app, "asia-northeast1");
 
 export const DEFAULT_SCHOOL_ID = "gn_tech";

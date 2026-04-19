@@ -1,15 +1,24 @@
 // types/school.ts - 学校・学年・クラス・日次データの型定義
 
+export type HierarchyMode = "class" | "department";
+
 export interface School {
   id: string;
   name: string;
   createdAt?: string;
+  hierarchyMode?: HierarchyMode;
 }
 
 export interface Grade {
   id: string;
   name: string;
   order: number;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  order?: number;
 }
 
 export interface Class {
@@ -25,15 +34,16 @@ export interface DisplaySettings {
 }
 
 export interface Ad {
+  id: string;
   url: string;
-  position: number;
-  type?: "image" | "video";
-  duration?: number;
+  type: "image" | "video";
+  duration_sec?: number;
+  link_url?: string;
 }
 
 export interface QuietHour {
-  startTime: string; // HH:MM
-  endTime: string; // HH:MM
+  start: string; // HH:MM
+  end: string; // HH:MM
 }
 
 export interface Schedule {

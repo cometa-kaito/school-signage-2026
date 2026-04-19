@@ -40,6 +40,7 @@
   --content-gap: 8px;
   --scale-factor: 1;
   --base-font-size: 16px;
+  --header-height: 32px;
 
   font-family: var(--font-base);
   background-color: var(--bg-color);
@@ -82,7 +83,7 @@
   max-height: 100vh;
   overflow: hidden;
   background-color: var(--bg-color);
-  padding-top: 24px;
+  padding-top: var(--header-height);
 }
 
 .infoArea {
@@ -90,8 +91,9 @@
   padding: 0 1vmin 1vmin;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  max-height: 100vh;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow: hidden;
   background-color: var(--bg-color);
   cursor: pointer;
@@ -426,9 +428,9 @@
   justify-content: flex-start;
   overflow: hidden;
   position: relative;
-  height: 100vh;
-  max-height: 100vh;
-  min-height: 100%;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
 }
 
 .adArea::after {
@@ -1057,13 +1059,15 @@
   }
 
   .infoArea {
-    height: 100vh;
-    max-height: 100vh;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
   }
 
   .adArea {
-    height: 100vh;
-    max-height: 100vh;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
   }
 
   .adHeader {
@@ -1267,6 +1271,7 @@
   .signageRoot {
     --scale-factor: 1.3;
     --content-gap: 12px;
+    --header-height: 44px;
   }
 
   .adHeader {
@@ -1335,6 +1340,7 @@
   .signageRoot {
     --scale-factor: 2;
     --content-gap: 20px;
+    --header-height: 60px;
   }
 
   .adHeader {

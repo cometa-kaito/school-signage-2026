@@ -2,13 +2,8 @@
 
 import { forwardRef } from "react";
 import type { Notice } from "@/hooks/useSignageData";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import styles from "@/styles/signage.module.css";
-
-function getSourceBadge(source?: string): string {
-  if (source === "school") return "\u{1F3EB}";
-  if (source === "grade") return "\u{1F4DA}";
-  return "";
-}
 
 interface NoticeListProps {
   notices: Notice[];
@@ -32,16 +27,13 @@ export const NoticeList = forwardRef<HTMLUListElement, NoticeListProps>(
           ) : (
             <>
               {notices.map((notice, idx) => {
-                const badge = getSourceBadge(notice._source);
                 const isHighlight = notice.is_highlight === true;
                 return (
                   <li
                     key={idx}
                     className={isHighlight ? styles.highlight : undefined}
                   >
-                    {badge && (
-                      <span className={styles.sourceBadge}>{badge}</span>
-                    )}
+                    <SourceBadge source={notice._source} compact />
                     {isHighlight && "【重要】"}
                     {notice.text}
                   </li>

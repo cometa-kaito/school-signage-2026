@@ -13,13 +13,18 @@ import {
   getDoc,
   type QuerySnapshot,
   type DocumentData,
+  type CollectionReference,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   classDocRef,
+  schoolDocRef,
   dailyDataCollectionRef,
   schoolMasterDailyDataCollectionRef,
   gradeMasterDailyDataCollectionRef,
+  gradeDocRef,
+  departmentDocRef,
+  departmentMasterDailyDataCollectionRef,
 } from "@/lib/paths";
 import { getTodayString } from "@/lib/utils";
 import { getDaysAgoStr, filterByDisplayRange } from "@/lib/data-filter";
@@ -140,6 +145,7 @@ export function useSignageData(
   schoolId: string,
   gradeId: string,
   classId: string,
+  departmentId: string | null = null,
   options?: UseSignageDataOptions
 ): UseSignageDataResult {
   const forceStatic = options?.forceStatic ?? false;
@@ -158,6 +164,7 @@ export function useSignageData(
   // 3階層マージ用の内部ストア
   const schoolMasterRef = useRef<Record<string, DocumentData>>({});
   const gradeMasterRef = useRef<Record<string, DocumentData>>({});
+  const departmentMasterRef = useRef<Record<string, DocumentData>>({});
   const classRawRef = useRef<Record<string, DocumentData>>({});
 
   // クラス/学年設定の中間状態
@@ -168,6 +175,10 @@ export function useSignageData(
     quietHours: QuietHour[];
   }>({ schoolName: "", className: "", ads: [], quietHours: [] });
   const gradeNameRef = useRef("");
+  // 階層の広告ストア
+  const schoolAdsRef = useRef<Ad[]>([]);
+  const gradeAdsRef = useRef<Ad[]>([]);
+  const departmentAdsRef = useRef<Ad[]>([]);
 
   // 静的JSONポーリング用ハッシュ
   const lastJsonHashRef = useRef("");
@@ -188,15 +199,17 @@ export function useSignageData(
     const allDates = new Set([
       ...Object.keys(schoolMasterRef.current),
       ...Object.keys(gradeMasterRef.current),
+      ...Object.keys(departmentMasterRef.current),
       ...Object.keys(classRawRef.current),
     ]);
 
     for (const dateKey of allDates) {
       const school = schoolMasterRef.current[dateKey] || {};
       const grade = gradeMasterRef.current[dateKey] || {};
+      const department = departmentMasterRef.current[dateKey] || {};
       const cls = classRawRef.current[dateKey] || {};
 
-      // スケジュールのマージ（school -> grade -> class）
+      // スケジュールのマージ（school -> grade -> department -> class）
       const mergedSchedules: Schedule[] = [
         ...((school.schedules as Schedule[]) || []).map((s) => ({
           ...s,
@@ -205,6 +218,10 @@ export function useSignageData(
         ...((grade.schedules as Schedule[]) || []).map((s) => ({
           ...s,
           _source: s._source || "grade",
+        })),
+        ...((department.schedules as Schedule[]) || []).map((s) => ({
+          ...s,
+          _source: s._source || "department",
         })),
         ...((cls.schedules as Schedule[]) || []),
       ];
@@ -226,6 +243,10 @@ export function useSignageData(
             ...n,
             _source: n._source || "grade",
           })),
+          ...((department.notices as Notice[]) || []).map((n) => ({
+            ...n,
+            _source: n._source || "department",
+          })),
           ...((cls.notices as Notice[]) || []),
         ];
         newNotices = filterByDisplayRange(mergedNotices, todayStr, dateKey);
@@ -241,6 +262,10 @@ export function useSignageData(
           ...a,
           _source: a._source || "grade",
         })),
+        ...((department.assignments as Assignment[]) || []).map((a) => ({
+          ...a,
+          _source: a._source || "department",
+        })),
         ...((cls.assignments as Assignment[]) || []),
       ];
       if (mergedAssignments.length > 0) {
@@ -252,12 +277,20 @@ export function useSignageData(
       (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
     );
 
+    // 広告の階層マージ（school > grade > department > class の順で連結）
+    const mergedAds: Ad[] = [
+      ...schoolAdsRef.current,
+      ...gradeAdsRef.current,
+      ...departmentAdsRef.current,
+      ...classConfigRef.current.ads,
+    ];
+
     setData((prev) => ({
       ...prev,
       schoolName: classConfigRef.current.schoolName,
       gradeName: gradeNameRef.current,
       className: classConfigRef.current.className,
-      ads: classConfigRef.current.ads,
+      ads: mergedAds,
       quietHours: classConfigRef.current.quietHours,
       weeklySchedules: newWeeklySchedules,
       notices: newNotices,
@@ -290,19 +323,69 @@ export function useSignageData(
     const fiveDaysAgoStr = getDaysAgoStr(5);
     pendingUpdatesRef.current = 2;
 
-    // 1. 学年名の監視
-    const gradeDocRef = doc(db, "schools", schoolId, "grades", gradeId);
+    // 1. 学年名・学年広告の監視
     unsubscribes.push(
-      onSnapshot(gradeDocRef, (snap) => {
+      onSnapshot(gradeDocRef(schoolId, gradeId, departmentId), (snap) => {
         if (snap.exists()) {
-          gradeNameRef.current = snap.data().name || "";
+          const d = snap.data();
+          gradeNameRef.current = d.name || "";
+          gradeAdsRef.current = d.displaySettings?.ads || [];
           mergeAndUpdate();
         }
       })
     );
 
+    // 1b. 学校全体の広告の監視
+    unsubscribes.push(
+      onSnapshot(schoolDocRef(schoolId), (snap) => {
+        if (snap.exists()) {
+          schoolAdsRef.current = snap.data().displaySettings?.ads || [];
+        } else {
+          schoolAdsRef.current = [];
+        }
+        mergeAndUpdate();
+      })
+    );
+
+    // 1c. 学科広告・学科マスター（学科モードのみ）
+    if (departmentId) {
+      unsubscribes.push(
+        onSnapshot(
+          departmentDocRef(schoolId, departmentId),
+          (snap) => {
+            departmentAdsRef.current = snap.exists()
+              ? snap.data().displaySettings?.ads || []
+              : [];
+            mergeAndUpdate();
+          },
+          (err) => console.warn("学科広告監視エラー:", err)
+        )
+      );
+      unsubscribes.push(
+        onSnapshot(
+          query(
+            departmentMasterDailyDataCollectionRef(
+              schoolId,
+              departmentId
+            ),
+            where("date", ">=", fiveDaysAgoStr),
+            orderBy("date", "asc"),
+            limit(10)
+          ),
+          (snapshot) => {
+            departmentMasterRef.current = snapshotToMap(snapshot);
+            mergeAndUpdate();
+          },
+          (err) => console.warn("学科マスター監視エラー:", err)
+        )
+      );
+    } else {
+      departmentAdsRef.current = [];
+      departmentMasterRef.current = {};
+    }
+
     // 2. クラス設定・広告の監視
-    const classRef = classDocRef(schoolId, gradeId, classId);
+    const classRef = classDocRef(schoolId, gradeId, classId, departmentId);
     unsubscribes.push(
       onSnapshot(
         classRef,
@@ -316,20 +399,61 @@ export function useSignageData(
             classConfigRef.current.className = snapData.name || "";
             classConfigRef.current.ads = settings.ads || [];
 
-            // クラス個別のquiet_hours -> 学校マスターにフォールバック
+            // quiet_hours フォールバックチェーン: クラス → 学年 → 学科 → 学校
             let qh: QuietHour[] =
               settings.quiet_hours || settings.quietHours || [];
-            if (qh.length === 0) {
+            const tryLoad = async (ref: ReturnType<typeof doc>) => {
+              if (qh.length > 0) return;
               try {
-                const masterSnap = await getDoc(
-                  doc(db, "schools", schoolId, "config", "display_settings")
-                );
-                if (masterSnap.exists()) {
-                  qh = masterSnap.data().quiet_hours || [];
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                  qh = snap.data().quiet_hours || [];
                 }
               } catch {
                 /* ignore */
               }
+            };
+            if (qh.length === 0) {
+              const gradeConfigPath = departmentId
+                ? doc(
+                    db,
+                    "schools",
+                    schoolId,
+                    "departments",
+                    departmentId,
+                    "grades",
+                    gradeId,
+                    "config",
+                    "display_settings"
+                  )
+                : doc(
+                    db,
+                    "schools",
+                    schoolId,
+                    "grades",
+                    gradeId,
+                    "config",
+                    "display_settings"
+                  );
+              await tryLoad(gradeConfigPath);
+            }
+            if (qh.length === 0 && departmentId) {
+              await tryLoad(
+                doc(
+                  db,
+                  "schools",
+                  schoolId,
+                  "departments",
+                  departmentId,
+                  "config",
+                  "display_settings"
+                )
+              );
+            }
+            if (qh.length === 0) {
+              await tryLoad(
+                doc(db, "schools", schoolId, "config", "display_settings")
+              );
             }
             classConfigRef.current.quietHours = qh;
 
@@ -353,7 +477,7 @@ export function useSignageData(
     );
 
     // 日次データクエリのビルダー
-    function buildDailyQuery(collectionReference: ReturnType<typeof dailyDataCollectionRef>) {
+    function buildDailyQuery(collectionReference: CollectionReference) {
       return query(
         collectionReference,
         where("date", ">=", fiveDaysAgoStr),
@@ -380,7 +504,8 @@ export function useSignageData(
     // 4. 学年マスターデータの監視
     const gradeMasterCollRef = gradeMasterDailyDataCollectionRef(
       schoolId,
-      gradeId
+      gradeId,
+      departmentId
     );
     unsubscribes.push(
       onSnapshot(
@@ -396,7 +521,12 @@ export function useSignageData(
     );
 
     // 5. クラスデータの監視
-    const dailyRef = dailyDataCollectionRef(schoolId, gradeId, classId);
+    const dailyRef = dailyDataCollectionRef(
+      schoolId,
+      gradeId,
+      classId,
+      departmentId
+    );
     unsubscribes.push(
       onSnapshot(
         buildDailyQuery(dailyRef),
@@ -418,8 +548,17 @@ export function useSignageData(
 
     return () => {
       unsubscribes.forEach((unsub) => unsub());
+      departmentMasterRef.current = {};
+      departmentAdsRef.current = [];
     };
-  }, [schoolId, gradeId, classId, mergeAndUpdate, markInitialLoadComplete]);
+  }, [
+    schoolId,
+    gradeId,
+    classId,
+    departmentId,
+    mergeAndUpdate,
+    markInitialLoadComplete,
+  ]);
 
   // ========================================
   // 静的JSONモード
@@ -470,7 +609,7 @@ export function useSignageData(
             newWeeklySchedules[dateKey] = d.schedules as Schedule[];
           }
 
-          if (d.notices && (d.notices as Notice[]).length > 0) {
+          if (dateKey === todayStr && d.notices && (d.notices as Notice[]).length > 0) {
             const filteredNotices = filterByDisplayRange(
               d.notices as Notice[],
               todayStr,
@@ -548,16 +687,20 @@ export function useSignageData(
     if (!schoolId || !gradeId || !classId) return;
 
     let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
     (async () => {
       if (forceStatic) {
         console.log("強制静的JSONモードで起動");
         modeRef.current = "static";
-        cleanup = startStaticJsonPolling();
+        const fn = startStaticJsonPolling();
+        if (cancelled) { fn(); return; }
+        cleanup = fn;
         return;
       }
 
       const firestoreAvailable = await testFirestoreConnection();
+      if (cancelled) return;
 
       if (firestoreAvailable) {
         console.log("Firestoreモードで起動");
@@ -571,6 +714,7 @@ export function useSignageData(
     })();
 
     return () => {
+      cancelled = true;
       cleanup?.();
     };
   }, [schoolId, gradeId, classId, forceStatic, startFirestoreListeners, startStaticJsonPolling]);

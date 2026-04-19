@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ContextSelector } from "@/components/context/ContextSelector";
@@ -70,18 +70,22 @@ function EditorContent() {
     gradeSiblings
   );
 
-  // URL ?level= からの初期同期
+  // URL ?level= からの同期は「URLが変わったときのみ」実行する。
+  // editingLevel を依存に入れるとユーザーのボタン操作を URL 値で打ち消してしまう。
+  const lastSyncedUrlLevel = useRef<string | null>(null);
   useEffect(() => {
     if (!canEditMaster) return;
+    if (lastSyncedUrlLevel.current === urlLevel) return;
     if (
       urlLevel === "school" ||
       urlLevel === "grade" ||
       urlLevel === "department" ||
       urlLevel === "class"
     ) {
-      if (urlLevel !== editingLevel) setEditingLevel(urlLevel);
+      setEditingLevel(urlLevel);
+      lastSyncedUrlLevel.current = urlLevel;
     }
-  }, [urlLevel, canEditMaster, editingLevel, setEditingLevel]);
+  }, [urlLevel, canEditMaster, setEditingLevel]);
 
   useEffect(() => {
     if (urlDepartment) setSelectedDepartmentId(urlDepartment);

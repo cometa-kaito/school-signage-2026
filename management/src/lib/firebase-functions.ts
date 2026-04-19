@@ -297,6 +297,7 @@ export const getAdminOverviewFn = httpsCallable<
 export interface FeedbackItem {
   id: string;
   schoolId: string;
+  schoolName?: string;
   classroomLabel: string;
   studentReaction: number;
   studentEpisode: string;
@@ -305,6 +306,7 @@ export interface FeedbackItem {
   submitterUid: string | null;
   submitterEmail: string | null;
   createdAt: string | null;
+  emailStatus?: string | null;
 }
 
 export const submitFeedbackFn = httpsCallable<

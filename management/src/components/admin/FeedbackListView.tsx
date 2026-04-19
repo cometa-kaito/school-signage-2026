@@ -118,7 +118,13 @@ export function FeedbackListView() {
                       marginTop: 2,
                     }}
                   >
-                    学校: {it.schoolId || "-"} ・ 送信者:{" "}
+                    学校: {it.schoolName || it.schoolId || "-"}
+                    {it.schoolName && it.schoolId ? (
+                      <span style={{ color: "var(--color-text-subtle)", marginLeft: 6 }}>
+                        ({it.schoolId})
+                      </span>
+                    ) : null}
+                    {" ・ 送信者: "}
                     {it.submitterEmail || it.submitterUid || "不明"}
                   </div>
                 </div>

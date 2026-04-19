@@ -61,6 +61,10 @@ const SCALE_SHORT_TEACHER: Record<ScaleValue, string> = {
  * 指定学校の「教室ラベル」一覧を Firestore から直接取得。
  * grades/classes/departments は firestore.rules で `allow read: if true;` が設定されており
  * 認証なしでも読める。
+ *
+ * 学年ドキュメントに hasClasses: false が設定されている場合、その学年は
+ * クラスを持たない運用（実データとしては学年=クラスが 1:1）として扱い、
+ * 表示ラベルは「学科 / 学年」または「学年」までに留めて冗長な繰り返しを避ける。
  */
 async function fetchClassroomLabels(
   schoolId: string,
@@ -84,7 +88,13 @@ async function fetchClassroomLabels(
         )
       );
       for (const gradeDoc of gradeSnap.docs) {
-        const gradeName = gradeDoc.data().name || gradeDoc.id;
+        const gradeData = gradeDoc.data();
+        const gradeName = gradeData.name || gradeDoc.id;
+        // hasClasses が明示的に false の場合、クラスの枝をたどらず「学科 / 学年」で止める
+        if (gradeData.hasClasses === false) {
+          labels.push(`${deptName} / ${gradeName}`);
+          continue;
+        }
         const classSnap = await getDocs(
           collection(
             db,
@@ -108,7 +118,12 @@ async function fetchClassroomLabels(
       collection(db, "schools", schoolId, "grades")
     );
     for (const gradeDoc of gradeSnap.docs) {
-      const gradeName = gradeDoc.data().name || gradeDoc.id;
+      const gradeData = gradeDoc.data();
+      const gradeName = gradeData.name || gradeDoc.id;
+      if (gradeData.hasClasses === false) {
+        labels.push(gradeName);
+        continue;
+      }
       const classSnap = await getDocs(
         collection(
           db,

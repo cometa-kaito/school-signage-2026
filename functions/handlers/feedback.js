@@ -104,8 +104,11 @@ function clampScore(n) {
 }
 
 function buildEmailBody(data) {
+    const schoolDisplay = data.schoolName
+        ? `${data.schoolName} (${data.schoolId})`
+        : (data.schoolId || '-');
     const lines = [
-        `学校: ${data.schoolId || '-'}`,
+        `学校: ${schoolDisplay}`,
         `教室: ${data.classroomLabel || '-'}`,
         '',
         `● 生徒の反応・注目度: ${data.studentReaction}/5`,
@@ -130,13 +133,16 @@ function buildEmailHtml(data) {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/\n/g, '<br>');
+    const schoolDisplay = data.schoolName
+        ? `${data.schoolName} <span style="color: #9ca3af; font-weight: normal;">(${data.schoolId})</span>`
+        : (data.schoolId || '-');
     return `
 <div style="font-family: sans-serif; max-width: 640px; color: #111827;">
   <h2 style="color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
     キミテラス フィードバック
   </h2>
   <p style="color: #6b7280; font-size: 14px;">
-    学校: <strong style="color: #111827;">${esc(data.schoolId || '-')}</strong><br>
+    学校: <strong style="color: #111827;">${schoolDisplay}</strong><br>
     教室: <strong style="color: #111827;">${esc(data.classroomLabel || '-')}</strong>
   </p>
   <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
@@ -190,9 +196,11 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
         if (!schoolSnap.exists) {
             throw new functions.https.HttpsError('invalid-argument', '選択された学校が見つかりません');
         }
+        const schoolName = schoolSnap.data().name || data.schoolId;
 
         const feedbackPayload = {
             schoolId: String(data.schoolId),
+            schoolName,
             classroomLabel: String(data.classroomLabel).slice(0, 200),
             studentReaction,
             studentEpisode: String(data.studentEpisode || '').slice(0, 2000),
@@ -299,6 +307,7 @@ exports.listFeedback = functions.https.onCall(withAuth(async (data) => {
         items.push({
             id: doc.id,
             schoolId: d.schoolId || '',
+            schoolName: d.schoolName || '',
             classroomLabel: d.classroomLabel || '',
             studentReaction: d.studentReaction || 0,
             studentEpisode: d.studentEpisode || '',

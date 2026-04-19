@@ -8,7 +8,6 @@ import { useAdRotation } from "@/hooks/useAdRotation";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ImageCache } from "@/lib/image-cache";
 import { debounce } from "@/lib/utils";
-import { deviceHeartbeatFn } from "@/lib/firebase-functions";
 import { SignageHeader } from "./SignageHeader";
 import { ScheduleGrid } from "./ScheduleGrid";
 import { NoticeList } from "./NoticeList";
@@ -64,33 +63,6 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
 
   // 自動スクロール用ref
   const noticeListRef = useRef<HTMLUListElement>(null);
-
-  // ========================================
-  // 端末ハートビート（URL の ?device=xxx または localStorage の "kimiterras.deviceId"）
-  // ========================================
-  useEffect(() => {
-    if (typeof window === "undefined" || !schoolId) return;
-    const url = new URL(window.location.href);
-    const deviceIdFromUrl = url.searchParams.get("device");
-    if (deviceIdFromUrl) {
-      try {
-        localStorage.setItem("kimiterras.deviceId", deviceIdFromUrl);
-      } catch {}
-    }
-    let deviceId: string | null = deviceIdFromUrl;
-    if (!deviceId) {
-      try {
-        deviceId = localStorage.getItem("kimiterras.deviceId");
-      } catch {}
-    }
-    if (!deviceId) return;
-    const beat = () => {
-      deviceHeartbeatFn({ schoolId, deviceId: deviceId! }).catch(() => {});
-    };
-    beat();
-    const timer = setInterval(beat, 60000);
-    return () => clearInterval(timer);
-  }, [schoolId]);
 
   // ========================================
   // scrollRestoration制御

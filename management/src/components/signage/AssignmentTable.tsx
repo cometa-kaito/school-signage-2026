@@ -58,11 +58,11 @@ export function AssignmentTable({ assignments }: AssignmentTableProps) {
                       <td>
                         <span className={daysClassName}>{text}</span>
                       </td>
+                      <td>{assignment.subject}</td>
                       <td>
-                        <SourceBadge source={assignment._source} compact />
-                        {assignment.subject}
+                        <SourceBadge source={assignment._source} compact align="right" />
+                        {assignment.task}
                       </td>
-                      <td>{assignment.task}</td>
                     </tr>
                   );
                 })}

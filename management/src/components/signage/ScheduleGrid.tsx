@@ -117,7 +117,7 @@ export function ScheduleGrid({ weeklySchedules, onCalendarOpen }: ScheduleGridPr
                     {sorted.map((schedule, idx) => {
                       return (
                         <div key={idx} className={styles.scheduleListItem}>
-                          <SourceBadge source={schedule._source} compact />
+                          <SourceBadge source={schedule._source} compact align="right" />
                           <span className={styles.scheduleTime}>
                             {schedule.time}
                           </span>

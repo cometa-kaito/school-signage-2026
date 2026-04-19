@@ -700,7 +700,9 @@ function EditorContent() {
       <footer className={styles.branding}>キミテラス by Rebounder（管理者モード）</footer>
     </div>
 
-      {/* 広告プレビューパネル（クラスレベルのみ）— 連絡枠と広告枠を物理的にゾーニング */}
+      {/* 広告プレビューパネル（クラスレベルのみ）— 連絡枠と広告枠を物理的にゾーニング
+          広告の編集は学校管理者の権限が必要なため、このパネルは「見るだけ」。
+          編集導線は /manage/admin?school=X からのみ。 */}
       {editingLevel === "class" && (
         <aside className={styles.adPreview} aria-label="広告枠プレビュー">
           <div className={styles.adPreviewContainer}>
@@ -717,12 +719,18 @@ function EditorContent() {
             )}
             <div className={styles.adPreviewOverlay}>
               <div>ここは広告の枠です（連絡とは分けて管理）</div>
-              <a
-                href={`/manage/class-settings?school=${schoolId}&grade=${gradeId}&class=${classId}`}
-                className="btn btn-sm btn-secondary"
-              >
-                広告を整える
-              </a>
+              {canEditMaster ? (
+                <a
+                  href={`/manage/admin?school=${schoolId}`}
+                  className="btn btn-sm btn-secondary"
+                >
+                  広告を整える（学校管理）
+                </a>
+              ) : (
+                <div style={{ fontSize: "var(--fs-xs)", color: "var(--color-text-muted)" }}>
+                  広告の変更は学校の管理者にご相談ください
+                </div>
+              )}
             </div>
           </div>
         </aside>

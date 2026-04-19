@@ -4,8 +4,7 @@ export type UserRole =
   | "system_admin"
   | "school_admin"
   | "teacher"
-  | "editor"
-  | "device";
+  | "editor";
 
 export interface Claims {
   admin?: boolean;

@@ -4,6 +4,8 @@ interface SourceBadgeProps {
   source?: string;
   /** compact=小型表示（アイコン＋略称）。デフォルトはラベル付き */
   compact?: boolean;
+  /** 配置: 左（先頭）か 右（末尾）か。サイネージは右寄せ推奨。 */
+  align?: "left" | "right";
 }
 
 // バッジはラベル文字列で種別を識別する（色のみに依存しない）。
@@ -14,10 +16,15 @@ const SOURCE_STYLES: Record<string, { label: string; short: string }> = {
   grade: { label: "学年で共通", short: "学年" },
 };
 
-export function SourceBadge({ source, compact = false }: SourceBadgeProps) {
+export function SourceBadge({
+  source,
+  compact = false,
+  align = "left",
+}: SourceBadgeProps) {
   if (!source) return null;
   const style = SOURCE_STYLES[source];
   if (!style) return null;
+  const isRight = align === "right";
   return (
     <span
       style={{
@@ -29,7 +36,11 @@ export function SourceBadge({ source, compact = false }: SourceBadgeProps) {
         borderRadius: 999,
         fontSize: compact ? "0.65rem" : "0.7rem",
         fontWeight: 600,
-        marginRight: 6,
+        // 右寄せ時は float を使って、既存のレイアウト（flex/table cell）を崩さずに行末に押し出す。
+        // 左寄せ時は従来通り中身の先頭に並ぶ。
+        float: isRight ? "right" : undefined,
+        marginLeft: isRight ? 8 : 0,
+        marginRight: isRight ? 0 : 6,
         verticalAlign: "middle",
         whiteSpace: "nowrap",
       }}

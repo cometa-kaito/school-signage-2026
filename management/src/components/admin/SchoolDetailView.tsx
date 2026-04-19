@@ -27,16 +27,11 @@ import {
   deleteUserFn,
   toggleUserStatusFn,
   setEditorPasswordFn,
-  listDevicesFn,
-  registerDeviceFn,
-  revokeDeviceTokenFn,
-  removeDeviceFn,
 } from "@/lib/firebase-functions";
 import { getDoc, setDoc } from "firebase/firestore";
 import { doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { schoolDocRef, classDocRef } from "@/lib/paths";
-import { computeDeviceHealth, formatLastSeen } from "@/lib/utils";
 import { AdManager } from "@/components/class-settings/AdManager";
 import { QuietHoursConfig } from "@/components/class-settings/QuietHoursConfig";
 import { QuietHoursEditor } from "@/components/admin/QuietHoursEditor";
@@ -53,7 +48,6 @@ import type {
   Grade,
   Class,
   Department,
-  Device,
   HierarchyMode,
 } from "@/types/school";
 import type { Membership, UserInfo } from "@/types/auth";
@@ -74,7 +68,7 @@ export function SchoolDetailView({
   const [schoolName, setSchoolName] = useState("");
   const [hierarchyMode, setHierarchyMode] = useState<HierarchyMode>("class");
   const [activeTab, setActiveTab] = useState<
-    "grades" | "departments" | "devices" | "users" | "ads" | "settings"
+    "grades" | "departments" | "users" | "ads" | "settings"
   >("grades");
   const [loading, setLoading] = useState(true);
 
@@ -125,9 +119,6 @@ export function SchoolDetailView({
   // Members
   const [members, setMembers] = useState<Membership[]>([]);
 
-  // Devices
-  const [devices, setDevices] = useState<Device[]>([]);
-
   // Users (system admin only)
   const [users, setUsers] = useState<UserInfo[]>([]);
 
@@ -164,13 +155,6 @@ export function SchoolDetailView({
   const [targetDepartmentId, setTargetDepartmentId] = useState<string | null>(
     null
   );
-
-  // Device registration
-  const [deviceModalOpen, setDeviceModalOpen] = useState(false);
-  const [newDeviceName, setNewDeviceName] = useState("");
-  const [newDeviceGradeId, setNewDeviceGradeId] = useState("");
-  const [newDeviceClassId, setNewDeviceClassId] = useState("");
-  const [generatedToken, setGeneratedToken] = useState("");
 
   // User management (system admin)
   const [userModalOpen, setUserModalOpen] = useState(false);
@@ -217,12 +201,6 @@ export function SchoolDetailView({
         }
         if (d.quietHours) {
           setSchoolQuietHours(d.quietHours);
-        }
-        try {
-          const deviceRes = await listDevicesFn({ schoolId });
-          setDevices(deviceRes.data.devices || []);
-        } catch {
-          // 端末が未登録の学校では listDevices が失敗してもサイレントに無視
         }
       } catch (err) {
         showToast(
@@ -783,50 +761,6 @@ export function SchoolDetailView({
     setSaving(false);
   };
 
-  const handleRegisterDevice = async () => {
-    if (!newDeviceName.trim() || !newDeviceGradeId || !newDeviceClassId) return;
-    setSaving(true);
-    try {
-      const res = await registerDeviceFn({
-        schoolId,
-        gradeId: newDeviceGradeId,
-        classId: newDeviceClassId,
-        name: newDeviceName,
-      });
-      setGeneratedToken(res.data.token);
-      showToast("デバイスを登録しました", "success");
-      const deviceRes = await listDevicesFn({ schoolId });
-      setDevices(deviceRes.data.devices || []);
-    } catch (err) {
-      showToast("エラー: " + (err as Error).message, "error");
-    }
-    setSaving(false);
-  };
-
-  const handleRevokeDevice = async (deviceId: string) => {
-    if (!confirm("このデバイスのトークンを失効させますか？")) return;
-    try {
-      await revokeDeviceTokenFn({ schoolId, deviceId });
-      showToast("トークンを失効しました", "success");
-      const res = await listDevicesFn({ schoolId });
-      setDevices(res.data.devices || []);
-    } catch (err) {
-      showToast("エラー: " + (err as Error).message, "error");
-    }
-  };
-
-  const handleRemoveDevice = async (deviceId: string) => {
-    if (!confirm("このデバイスを削除しますか？")) return;
-    try {
-      await removeDeviceFn({ schoolId, deviceId });
-      showToast("デバイスを削除しました", "success");
-      const res = await listDevicesFn({ schoolId });
-      setDevices(res.data.devices || []);
-    } catch (err) {
-      showToast("エラー: " + (err as Error).message, "error");
-    }
-  };
-
   const toggleClassSettings = useCallback(async (
     gradeId: string,
     classId: string,
@@ -881,7 +815,6 @@ export function SchoolDetailView({
       : []),
     { key: "users" as const, label: "ユーザー" },
     { key: "ads" as const, label: "広告" },
-    { key: "devices" as const, label: "端末" },
     { key: "settings" as const, label: "設定" },
   ];
 
@@ -1362,126 +1295,6 @@ export function SchoolDetailView({
         );
       })()}
 
-
-      {/* 端末管理 */}
-      {activeTab === "devices" && (
-        <div>
-          <div className={styles.sectionHeader}>
-            <h3>端末ヘルス</h3>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setDeviceModalOpen(true);
-                setGeneratedToken("");
-                setNewDeviceName("");
-                setNewDeviceGradeId(grades[0]?.id || "");
-                setNewDeviceClassId("");
-              }}
-            >
-              + 端末登録
-            </button>
-          </div>
-          {(() => {
-            const totals = {
-              online: 0,
-              recent: 0,
-              offline: 0,
-            };
-            for (const d of devices) {
-              const h = computeDeviceHealth(d.lastSeen, d.status);
-              totals[h.key]++;
-            }
-            return (
-              <div style={{ display: "flex", gap: 12, marginBottom: 12, fontSize: "0.9rem" }}>
-                <span style={{ color: "#2e7d32" }}>● オンライン {totals.online}</span>
-                <span style={{ color: "#f9a825" }}>● 最近 {totals.recent}</span>
-                <span style={{ color: "#c62828" }}>● オフライン {totals.offline}</span>
-              </div>
-            );
-          })()}
-          {devices.length === 0 ? (
-            <p className="empty-text">登録されている端末はありません</p>
-          ) : (
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th>ヘルス</th>
-                  <th>端末名</th>
-                  <th>学年</th>
-                  <th>クラス</th>
-                  <th>状態</th>
-                  <th>最終接続</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {devices.map((d) => {
-                  const deptId = (d as Device & { departmentId?: string | null }).departmentId || null;
-                  let gradeName = d.gradeId;
-                  let className = d.classId;
-                  if (deptId) {
-                    const g = gradesByDept[deptId]?.find((x) => x.id === d.gradeId);
-                    if (g) gradeName = g.name;
-                    const c = classesByDeptGrade[deptId]?.[d.gradeId]?.find((x) => x.id === d.classId);
-                    if (c) className = c.name;
-                  } else {
-                    const g = grades.find((x) => x.id === d.gradeId);
-                    if (g) gradeName = g.name;
-                    const c = classesMap[d.gradeId]?.find((x) => x.id === d.classId);
-                    if (c) className = c.name;
-                  }
-                  const health = computeDeviceHealth(d.lastSeen, d.status);
-                  return (
-                    <tr key={d.id}>
-                      <td>
-                        <span
-                          title={health.label}
-                          style={{
-                            display: "inline-block",
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            background: health.color,
-                            marginRight: 6,
-                          }}
-                        />
-                        {health.label}
-                      </td>
-                      <td>{d.name}</td>
-                      <td>{gradeName}</td>
-                      <td>{className}</td>
-                      <td>
-                        <span className={`badge ${d.status === "active" ? "badge-active" : "badge-disabled"}`}>
-                          {d.status === "active" ? "有効" : "無効"}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: "0.8rem", color: "#888" }}>
-                        {formatLastSeen(d.lastSeen)}
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", gap: "4px" }}>
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => handleRevokeDevice(d.id)}
-                          >
-                            失効
-                          </button>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleRemoveDevice(d.id)}
-                          >
-                            削除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
 
       {/* 学科 */}
       {activeTab === "departments" && isDeptMode && (
@@ -2055,115 +1868,6 @@ export function SchoolDetailView({
             placeholder="例: A組"
           />
         </div>
-      </Modal>
-
-      {/* 端末登録モーダル */}
-      <Modal
-        isOpen={deviceModalOpen}
-        onClose={() => setDeviceModalOpen(false)}
-        title="端末を登録"
-        footer={
-          generatedToken ? (
-            <button
-              className="btn btn-primary"
-              onClick={() => setDeviceModalOpen(false)}
-            >
-              閉じる
-            </button>
-          ) : (
-            <>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setDeviceModalOpen(false)}
-              >
-                キャンセル
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleRegisterDevice}
-                disabled={saving}
-              >
-                登録
-              </button>
-            </>
-          )
-        }
-      >
-        {generatedToken ? (
-          <div>
-            <p style={{ marginBottom: 8, fontWeight: 600 }}>
-              デバイストークンが生成されました:
-            </p>
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <input
-                type="text"
-                readOnly
-                value={generatedToken}
-                style={{
-                  flex: 1,
-                  padding: "8px",
-                  fontSize: "0.85rem",
-                  border: "1px solid #ddd",
-                  borderRadius: "6px",
-                  fontFamily: "monospace",
-                }}
-              />
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => copyToClipboard(generatedToken)}
-              >
-                コピー
-              </button>
-            </div>
-            <p style={{ color: "var(--color-alert)", fontSize: "var(--fs-xs)", marginTop: 8, fontWeight: 500 }}>
-              ⚠ このトークンは一度だけ表示されます。安全な場所に保存してください。
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="form-group">
-              <label>端末名</label>
-              <input
-                type="text"
-                value={newDeviceName}
-                onChange={(e) => setNewDeviceName(e.target.value)}
-                placeholder="例: 教室ディスプレイ1"
-              />
-            </div>
-            <div className="form-group">
-              <label>学年</label>
-              <select
-                value={newDeviceGradeId}
-                onChange={(e) => {
-                  setNewDeviceGradeId(e.target.value);
-                  setNewDeviceClassId("");
-                }}
-              >
-                <option value="">-- 選択 --</option>
-                {sortByNameJa(grades).map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>クラス</label>
-              <select
-                value={newDeviceClassId}
-                onChange={(e) => setNewDeviceClassId(e.target.value)}
-                disabled={!newDeviceGradeId}
-              >
-                <option value="">-- 選択 --</option>
-                {(classesMap[newDeviceGradeId] || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </>
-        )}
       </Modal>
 
       {/* メンバー招待モーダル */}

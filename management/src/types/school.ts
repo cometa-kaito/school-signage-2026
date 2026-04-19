@@ -84,12 +84,3 @@ export interface DailyData {
   quietHours?: QuietHour[];
 }
 
-export interface Device {
-  id: string;
-  name: string;
-  gradeId: string;
-  classId: string;
-  status: "active" | "inactive";
-  lastSeen?: string;
-  deviceTokenHash?: string;
-}

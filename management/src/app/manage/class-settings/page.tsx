@@ -144,8 +144,10 @@ function ClassSettingsContent() {
 }
 
 export default function ClassSettingsPage() {
+  // 広告・静寂時間は学校管理者（school_admin）以上のみ編集可能。
+  // 一般の教員（editor）からはアクセスさせない。入口は /manage/admin?school=X に限定。
   return (
-    <AuthGuard requiredRole="editor" loginMode="admin">
+    <AuthGuard requiredRole="school_admin" loginMode="admin">
       <Header title="クラス設定" />
       <ClassSettingsContent />
     </AuthGuard>

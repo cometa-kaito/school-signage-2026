@@ -92,11 +92,3 @@ exports.getAdminOverview = adminOverview.getAdminOverview;
 
 // マイグレーション
 exports.migrateToGradeStructure = migration.migrateToGradeStructure;
-
-// 端末管理
-const devices = require('./handlers/devices');
-exports.listDevices = devices.listDevices;
-exports.registerDevice = devices.registerDevice;
-exports.revokeDeviceToken = devices.revokeDeviceToken;
-exports.removeDevice = devices.removeDevice;
-exports.deviceHeartbeat = devices.deviceHeartbeat;

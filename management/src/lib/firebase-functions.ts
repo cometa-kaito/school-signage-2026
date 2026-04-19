@@ -7,7 +7,6 @@ import type {
   Grade,
   Department,
   Class,
-  Device,
   HierarchyMode,
 } from "@/types/school";
 import type { Membership, UserInfo } from "@/types/auth";
@@ -231,36 +230,6 @@ export const getMyMembershipsFn = httpsCallable<
   void,
   { memberships: Membership[] }
 >(functions, "getMyMemberships");
-
-// ========================================
-// デバイス管理
-// ========================================
-
-export const registerDeviceFn = httpsCallable<
-  {
-    schoolId: string;
-    gradeId: string;
-    classId: string;
-    name: string;
-  },
-  { success: boolean; deviceId: string; token: string }
->(functions, "registerDevice");
-export const listDevicesFn = httpsCallable<
-  { schoolId: string },
-  { devices: Device[] }
->(functions, "listDevices");
-export const revokeDeviceTokenFn = httpsCallable<
-  { schoolId: string; deviceId: string },
-  { success: boolean }
->(functions, "revokeDeviceToken");
-export const removeDeviceFn = httpsCallable<
-  { schoolId: string; deviceId: string },
-  { success: boolean }
->(functions, "removeDevice");
-export const deviceHeartbeatFn = httpsCallable<
-  { schoolId: string; deviceId: string },
-  { success: boolean }
->(functions, "deviceHeartbeat");
 
 // ========================================
 // JSON再生成・マイグレーション・マスター

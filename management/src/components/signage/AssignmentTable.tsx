@@ -13,7 +13,7 @@ interface AssignmentTableProps {
 const MIN_ROWS = 5;
 
 export function AssignmentTable({ assignments }: AssignmentTableProps) {
-  const filtered = filterRecentAssignments(assignments, 5);
+  const filtered = filterRecentAssignments(assignments, 2);
   const placeholderCount = Math.max(0, MIN_ROWS - filtered.length);
 
   return (

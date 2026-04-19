@@ -16,6 +16,9 @@ interface ScheduleSectionProps {
   onEdit: (dateStr: string, index: number) => void;
   onDelete: (dateStr: string, index: number) => void;
   onAdd: (dateStr: string) => void;
+  onOpenTemplate?: () => void;
+  onApplyTemplate?: (dateStr: string) => void;
+  templateCountFor?: (dateStr: string) => number;
 }
 
 export function ScheduleSection({
@@ -23,6 +26,9 @@ export function ScheduleSection({
   onEdit,
   onDelete,
   onAdd,
+  onOpenTemplate,
+  onApplyTemplate,
+  templateCountFor,
 }: ScheduleSectionProps) {
   const columns: { dateKey: string; label: string; isToday: boolean }[] = [];
   let dayOffset = 0;
@@ -47,10 +53,20 @@ export function ScheduleSection({
     <div className={styles.section}>
       <div className={styles.sectionHeader}>
         <h2>予定</h2>
+        {onOpenTemplate && (
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={onOpenTemplate}
+            title="曜日ごとの基本時間割を設定"
+          >
+            ⚙ テンプレ設定
+          </button>
+        )}
       </div>
       <div className={styles.scheduleGrid}>
         {columns.map((col) => {
           const schedules = weeklySchedules[col.dateKey] || [];
+          const tmplCount = templateCountFor?.(col.dateKey) ?? 0;
           return (
             <div
               key={col.dateKey}
@@ -98,6 +114,16 @@ export function ScheduleSection({
               >
                 ＋ 予定を追加
               </button>
+              {onApplyTemplate && tmplCount > 0 && (
+                <button
+                  className={styles.addButton}
+                  style={{ marginTop: 4 }}
+                  onClick={() => onApplyTemplate(col.dateKey)}
+                  title="この曜日のテンプレートを展開"
+                >
+                  ⬇ テンプレ展開 ({tmplCount})
+                </button>
+              )}
             </div>
           );
         })}

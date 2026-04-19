@@ -8,6 +8,12 @@ import { EditorSchoolPicker } from "@/components/editor/EditorSchoolPicker";
 import { EditorTargetMenu } from "@/components/editor/EditorTargetMenu";
 import { EditorModeToggle } from "@/components/editor/EditorModeToggle";
 import { ScheduleSection } from "@/components/editor/ScheduleSection";
+import {
+  ScheduleTemplateModal,
+  emptyWeeklyTemplate,
+  weekdayKeyOf,
+  type WeeklyTemplate,
+} from "@/components/editor/ScheduleTemplateModal";
 import { NoticeSection } from "@/components/editor/NoticeSection";
 import { AssignmentSection } from "@/components/editor/AssignmentSection";
 import { ContentEditModal } from "@/components/editor/ContentEditModal";
@@ -153,6 +159,12 @@ function EditorContent() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyType, setHistoryType] = useState<"notice" | "assignment">(
     "notice"
+  );
+
+  // 時間割テンプレート
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [scheduleTemplate, setScheduleTemplate] = useState<WeeklyTemplate>(
+    emptyWeeklyTemplate()
   );
 
   // 時計更新
@@ -324,6 +336,77 @@ function EditorContent() {
       showToast("削除しました", "success");
     } catch (err) {
       showToast("削除エラー: " + (err as Error).message, "error");
+    }
+  };
+
+  // テンプレートをFirestoreから購読
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!schoolId) return;
+      try {
+        const { getDoc } = await import("firebase/firestore");
+        const { scheduleTemplatesRef } = await import("@/lib/paths");
+        const snap = await getDoc(scheduleTemplatesRef(schoolId));
+        if (cancelled) return;
+        if (snap.exists()) {
+          const weekly = (snap.data().weekly || {}) as Partial<WeeklyTemplate>;
+          const merged = emptyWeeklyTemplate();
+          (Object.keys(merged) as (keyof WeeklyTemplate)[]).forEach((k) => {
+            if (Array.isArray(weekly[k])) merged[k] = weekly[k]!;
+          });
+          setScheduleTemplate(merged);
+        } else {
+          setScheduleTemplate(emptyWeeklyTemplate());
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, templateModalOpen]);
+
+  const templateCountFor = useCallback(
+    (dateStr: string): number => {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return 0;
+      return scheduleTemplate[weekdayKeyOf(d)]?.length || 0;
+    },
+    [scheduleTemplate]
+  );
+
+  const handleApplyTemplate = async (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return;
+    const items = scheduleTemplate[weekdayKeyOf(d)] || [];
+    if (items.length === 0) {
+      showToast("この曜日のテンプレートは未設定です", "error");
+      return;
+    }
+    const existing = data.weeklySchedules[dateStr]?.length || 0;
+    if (
+      existing > 0 &&
+      !confirm(
+        `${dateStr} には既に ${existing} 件の予定があります。テンプレートを追加しますか？`
+      )
+    ) {
+      return;
+    }
+    try {
+      for (const item of items) {
+        const payload: Record<string, unknown> = {
+          time: item.time,
+          content: item.content,
+        };
+        if (item.location) payload.location = item.location;
+        await saveItem("schedule", dateStr, null, payload);
+      }
+      showToast(`${items.length}件の予定を展開しました`, "success");
+    } catch (err) {
+      showToast("展開エラー: " + (err as Error).message, "error");
     }
   };
 
@@ -561,6 +644,11 @@ function EditorContent() {
         onEdit={(d, i) => openEditModal("schedule", d, i)}
         onDelete={(d, i) => handleDelete("schedule", d, i)}
         onAdd={(d) => openAddModal("schedule", d)}
+        onOpenTemplate={
+          canEditMaster ? () => setTemplateModalOpen(true) : undefined
+        }
+        onApplyTemplate={handleApplyTemplate}
+        templateCountFor={templateCountFor}
       />
 
       <NoticeSection
@@ -638,6 +726,14 @@ function EditorContent() {
         index={modalIndex}
         initialData={modalInitialData}
         onSave={handleSave}
+      />
+
+      {/* 時間割テンプレートモーダル */}
+      <ScheduleTemplateModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        schoolId={schoolId}
+        onSaved={(t) => setScheduleTemplate(t)}
       />
 
       <footer className={styles.branding}>キミテラス by Rebounder（管理者モード）</footer>

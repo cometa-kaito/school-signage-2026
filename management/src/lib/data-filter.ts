@@ -29,10 +29,10 @@ export function filterByDisplayRange<T extends FilterableItem>(
   });
 }
 
-/** 提出物を最近のもののみフィルタリング */
+/** 提出物を最近のもののみフィルタリング（デフォルト: 締切2日後まで表示維持） */
 export function filterRecentAssignments<
   T extends FilterableItem & { deadline: string },
->(items: T[] | undefined, daysBack = 5): T[] {
+>(items: T[] | undefined, daysBack = 2): T[] {
   if (!items || !Array.isArray(items)) return [];
   const cutoff = getDaysAgoStr(daysBack);
   return items.filter((item) => item.deadline >= cutoff);

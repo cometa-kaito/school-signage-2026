@@ -36,6 +36,7 @@ import { getDoc, setDoc } from "firebase/firestore";
 import { doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { schoolDocRef, classDocRef } from "@/lib/paths";
+import { computeDeviceHealth, formatLastSeen } from "@/lib/utils";
 import { AdManager } from "@/components/class-settings/AdManager";
 import { QuietHoursConfig } from "@/components/class-settings/QuietHoursConfig";
 import { QuietHoursEditor } from "@/components/admin/QuietHoursEditor";
@@ -216,6 +217,12 @@ export function SchoolDetailView({
         }
         if (d.quietHours) {
           setSchoolQuietHours(d.quietHours);
+        }
+        try {
+          const deviceRes = await listDevicesFn({ schoolId });
+          setDevices(deviceRes.data.devices || []);
+        } catch {
+          // 端末が未登録の学校では listDevices が失敗してもサイレントに無視
         }
       } catch (err) {
         showToast(
@@ -874,7 +881,7 @@ export function SchoolDetailView({
       : []),
     { key: "users" as const, label: "ユーザー" },
     { key: "ads" as const, label: "広告" },
-    // { key: "devices" as const, label: "端末" },
+    { key: "devices" as const, label: "端末" },
     { key: "settings" as const, label: "設定" },
   ];
 
@@ -1360,7 +1367,7 @@ export function SchoolDetailView({
       {activeTab === "devices" && (
         <div>
           <div className={styles.sectionHeader}>
-            <h3>端末管理</h3>
+            <h3>端末ヘルス</h3>
             <button
               className="btn btn-primary btn-sm"
               onClick={() => {
@@ -1374,12 +1381,31 @@ export function SchoolDetailView({
               + 端末登録
             </button>
           </div>
+          {(() => {
+            const totals = {
+              online: 0,
+              recent: 0,
+              offline: 0,
+            };
+            for (const d of devices) {
+              const h = computeDeviceHealth(d.lastSeen, d.status);
+              totals[h.key]++;
+            }
+            return (
+              <div style={{ display: "flex", gap: 12, marginBottom: 12, fontSize: "0.9rem" }}>
+                <span style={{ color: "#2e7d32" }}>● オンライン {totals.online}</span>
+                <span style={{ color: "#f9a825" }}>● 最近 {totals.recent}</span>
+                <span style={{ color: "#c62828" }}>● オフライン {totals.offline}</span>
+              </div>
+            );
+          })()}
           {devices.length === 0 ? (
             <p className="empty-text">登録されている端末はありません</p>
           ) : (
             <table className={styles.dataTable}>
               <thead>
                 <tr>
+                  <th>ヘルス</th>
                   <th>端末名</th>
                   <th>学年</th>
                   <th>クラス</th>
@@ -1390,10 +1416,37 @@ export function SchoolDetailView({
               </thead>
               <tbody>
                 {devices.map((d) => {
-                  const gradeName = grades.find((g) => g.id === d.gradeId)?.name || d.gradeId;
-                  const className = classesMap[d.gradeId]?.find((c) => c.id === d.classId)?.name || d.classId;
+                  const deptId = (d as Device & { departmentId?: string | null }).departmentId || null;
+                  let gradeName = d.gradeId;
+                  let className = d.classId;
+                  if (deptId) {
+                    const g = gradesByDept[deptId]?.find((x) => x.id === d.gradeId);
+                    if (g) gradeName = g.name;
+                    const c = classesByDeptGrade[deptId]?.[d.gradeId]?.find((x) => x.id === d.classId);
+                    if (c) className = c.name;
+                  } else {
+                    const g = grades.find((x) => x.id === d.gradeId);
+                    if (g) gradeName = g.name;
+                    const c = classesMap[d.gradeId]?.find((x) => x.id === d.classId);
+                    if (c) className = c.name;
+                  }
+                  const health = computeDeviceHealth(d.lastSeen, d.status);
                   return (
                     <tr key={d.id}>
+                      <td>
+                        <span
+                          title={health.label}
+                          style={{
+                            display: "inline-block",
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            background: health.color,
+                            marginRight: 6,
+                          }}
+                        />
+                        {health.label}
+                      </td>
                       <td>{d.name}</td>
                       <td>{gradeName}</td>
                       <td>{className}</td>
@@ -1403,7 +1456,7 @@ export function SchoolDetailView({
                         </span>
                       </td>
                       <td style={{ fontSize: "0.8rem", color: "#888" }}>
-                        {d.lastSeen || "-"}
+                        {formatLastSeen(d.lastSeen)}
                       </td>
                       <td>
                         <div style={{ display: "flex", gap: "4px" }}>

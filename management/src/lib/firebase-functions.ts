@@ -257,6 +257,10 @@ export const removeDeviceFn = httpsCallable<
   { schoolId: string; deviceId: string },
   { success: boolean }
 >(functions, "removeDevice");
+export const deviceHeartbeatFn = httpsCallable<
+  { schoolId: string; deviceId: string },
+  { success: boolean }
+>(functions, "deviceHeartbeat");
 
 // ========================================
 // JSON再生成・マイグレーション・マスター

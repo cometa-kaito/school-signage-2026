@@ -22,6 +22,11 @@ export function schoolConfigRef(
   return doc(db, "schools", schoolId, "config", configName);
 }
 
+/** 時間割テンプレート（曜日ごとの予定） */
+export function scheduleTemplatesRef(schoolId: string): DocumentReference {
+  return doc(db, "schools", schoolId, "config", "schedule_templates");
+}
+
 /** 学科コンフィグ（display_settings 等） */
 export function departmentConfigRef(
   schoolId: string,

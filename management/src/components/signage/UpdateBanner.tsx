@@ -11,7 +11,7 @@ export function UpdateBanner({ show }: UpdateBannerProps) {
     <div
       className={`${styles.updateBanner} ${show ? styles.updateBannerShow : ""}`}
     >
-      &#x1F514; 情報が更新されました
+      情報が更新されました
     </div>
   );
 }

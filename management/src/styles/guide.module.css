@@ -1,0 +1,314 @@
+/* guide.module.css — 使い方ガイド & フィードバック */
+
+.pageContainer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-5) var(--space-7);
+}
+
+.pageHeader {
+  margin-bottom: var(--space-6);
+}
+
+.pageTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.pageLead {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+
+/* ===== リンクリスト ===== */
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.linkCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-4);
+  border: var(--border-1);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  min-height: 80px;
+}
+
+.linkCard:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-weak);
+}
+
+.linkCardTitle {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.linkCardDesc {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  line-height: var(--lh-body);
+}
+
+/* ===== 使い方ステップ ===== */
+.steps {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.stepItem {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+}
+
+.stepNumber {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-text);
+  color: var(--color-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepBody {
+  flex: 1;
+}
+
+.stepTitle {
+  margin: 0 0 4px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.stepDesc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  line-height: var(--lh-body);
+}
+
+/* ===== フィードバックフォーム ===== */
+.feedbackCard {
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.feedbackIntro {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-4);
+  line-height: var(--lh-body);
+}
+
+.field {
+  margin-bottom: var(--space-5);
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+}
+
+.fieldLabelMain {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.fieldHint {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  line-height: var(--lh-body);
+}
+
+.select,
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: var(--border-1);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  color: var(--color-text);
+  background: var(--color-canvas);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.15);
+}
+
+/* ===== 5段階スケール ===== */
+.scale {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.scaleOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-3) var(--space-2);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  text-align: center;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+.scaleOption:hover {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+}
+
+.scaleOptionActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-weak);
+  box-shadow: 0 0 0 2px var(--color-accent-weak);
+}
+
+.scaleNumber {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.scaleLabel {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+.scaleOptionActive .scaleLabel {
+  color: var(--color-text);
+}
+
+/* スケール（radio input を隠す） */
+.scaleInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== 送信ボタン ===== */
+.submitRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-1);
+}
+
+/* ===== 完了メッセージ ===== */
+.successCard {
+  background: var(--color-accent-weak);
+  border: 1px solid var(--color-accent-line);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+.successTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.successDesc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  line-height: var(--lh-body);
+}
+
+@media (max-width: 600px) {
+  .pageContainer {
+    padding: var(--space-3);
+  }
+
+  .linkGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .scale {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+
+  .scaleOption {
+    padding: var(--space-2) 2px;
+    min-height: 64px;
+  }
+
+  .scaleLabel {
+    font-size: 10px;
+  }
+}

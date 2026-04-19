@@ -17,10 +17,7 @@ export const NoticeList = forwardRef<HTMLUListElement, NoticeListProps>(
 
     return (
       <div className={styles.noticeSection}>
-        <h2>
-          <span className={styles.cardIcon}>&#x1F4E2;</span>
-          連絡事項
-        </h2>
+        <h2>連絡事項</h2>
         <ul className={styles.listGroup} ref={ref}>
           {notices.length === 0 ? (
             <li className={styles.noNotice}>連絡事項はありません</li>

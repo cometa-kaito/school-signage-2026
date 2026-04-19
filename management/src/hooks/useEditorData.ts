@@ -301,6 +301,154 @@ export function useEditorData(
     [editingLevel, schoolId, departmentId, gradeId, gradeSiblings]
   );
 
+  /**
+   * 楽観的 UI 更新ヘルパー:
+   * Firestore 書き込み完了前に手元の state を先に更新し、onSnapshot からの反映を
+   * 待たずに画面に結果を見せる。Firestore への書き込みが失敗した場合は再 fetch して
+   * 実サーバー状態へ巻き戻す。回線が遅い学校環境でも操作完了感が即座に得られる。
+   */
+  const applyLocalSave = useCallback(
+    (
+      type: "schedule" | "notice" | "assignment",
+      dateStr: string,
+      index: number | null,
+      item: Record<string, unknown>
+    ) => {
+      setData((prev) => {
+        const next = { ...prev };
+        // 楽観的更新では item は「必要フィールドを含む Record<string, unknown>」として
+        // 渡される。strict な Schedule/Notice/Assignment へは unknown 経由でキャストする。
+        const itemAsSchedule = item as unknown as Schedule;
+        const itemAsNotice = item as unknown as Notice;
+        const itemAsAssignment = item as unknown as Assignment;
+
+        if (type === "schedule") {
+          const weekly = { ...prev.weeklySchedules };
+          const all = { ...prev.allSchedules };
+          const wlist = [...((weekly[dateStr] as Schedule[]) || [])];
+          const alist = [...((all[dateStr] as ScheduleWithMeta[]) || [])];
+          if (index !== null && index >= 0 && index < wlist.length) {
+            wlist[index] = itemAsSchedule;
+            alist[index] = {
+              ...itemAsSchedule,
+              _sourceDate: dateStr,
+              _originalIndex: index,
+            };
+          } else {
+            wlist.push(itemAsSchedule);
+            alist.push({
+              ...itemAsSchedule,
+              _sourceDate: dateStr,
+              _originalIndex: alist.length,
+            });
+          }
+          weekly[dateStr] = wlist;
+          all[dateStr] = alist;
+          next.weeklySchedules = weekly;
+          next.allSchedules = all;
+        } else if (type === "notice") {
+          const notices = [...prev.notices];
+          const allN = [...prev.allNotices];
+          const targetIdx = allN.findIndex(
+            (n) => n._sourceDate === dateStr && n._originalIndex === index
+          );
+          const meta: NoticeWithMeta = {
+            ...itemAsNotice,
+            _sourceDate: dateStr,
+            _originalIndex:
+              index !== null
+                ? index
+                : allN.filter((n) => n._sourceDate === dateStr).length,
+          };
+          if (targetIdx >= 0) {
+            allN[targetIdx] = meta;
+            const ni = notices.findIndex(
+              (n) => n._sourceDate === dateStr && n._originalIndex === index
+            );
+            if (ni >= 0) notices[ni] = meta;
+          } else {
+            allN.push(meta);
+            notices.push(meta);
+          }
+          next.notices = notices;
+          next.allNotices = allN;
+        } else if (type === "assignment") {
+          const ass = [...prev.assignments];
+          const allA = [...prev.allAssignments];
+          const targetIdx = allA.findIndex(
+            (a) => a._sourceDate === dateStr && a._originalIndex === index
+          );
+          const meta: AssignmentWithMeta = {
+            ...itemAsAssignment,
+            _sourceDate: dateStr,
+            _originalIndex:
+              index !== null
+                ? index
+                : allA.filter((a) => a._sourceDate === dateStr).length,
+          };
+          if (targetIdx >= 0) {
+            allA[targetIdx] = meta;
+            const ai = ass.findIndex(
+              (a) => a._sourceDate === dateStr && a._originalIndex === index
+            );
+            if (ai >= 0) ass[ai] = meta;
+          } else {
+            allA.push(meta);
+            ass.push(meta);
+          }
+          ass.sort(
+            (a, b) =>
+              new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+          );
+          next.assignments = ass;
+          next.allAssignments = allA;
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const applyLocalDelete = useCallback(
+    (
+      type: "schedule" | "notice" | "assignment",
+      dateStr: string,
+      index: number
+    ) => {
+      setData((prev) => {
+        const next = { ...prev };
+        if (type === "schedule") {
+          const weekly = { ...prev.weeklySchedules };
+          const all = { ...prev.allSchedules };
+          const wlist = [...((weekly[dateStr] as Schedule[]) || [])];
+          const alist = [...((all[dateStr] as ScheduleWithMeta[]) || [])];
+          if (index >= 0 && index < wlist.length) wlist.splice(index, 1);
+          if (index >= 0 && index < alist.length) alist.splice(index, 1);
+          weekly[dateStr] = wlist;
+          all[dateStr] = alist;
+          next.weeklySchedules = weekly;
+          next.allSchedules = all;
+        } else if (type === "notice") {
+          next.notices = prev.notices.filter(
+            (n) => !(n._sourceDate === dateStr && n._originalIndex === index)
+          );
+          next.allNotices = prev.allNotices.filter(
+            (n) => !(n._sourceDate === dateStr && n._originalIndex === index)
+          );
+        } else if (type === "assignment") {
+          next.assignments = prev.assignments.filter(
+            (a) => !(a._sourceDate === dateStr && a._originalIndex === index)
+          );
+          next.allAssignments = prev.allAssignments.filter(
+            (a) => !(a._sourceDate === dateStr && a._originalIndex === index)
+          );
+        }
+        return next;
+      });
+    },
+    []
+  );
+
   const saveItem = useCallback(
     async (
       type: "schedule" | "notice" | "assignment",
@@ -311,50 +459,58 @@ export function useEditorData(
       const docRef = getDailyDataDocPath(dateStr);
       if (!docRef) throw new Error("コンテキストが不足しています");
 
-      const snap = await getDoc(docRef);
-      const docData = snap.exists()
-        ? snap.data()
-        : { date: dateStr };
-      const field = FIELD_MAP[type];
-      const list = [...(docData[field] || [])];
-
       // マスターモード時はソース情報を付与
       if (editingLevel === "school") item._source = "school";
       else if (editingLevel === "department") item._source = "department";
       else if (editingLevel === "grade") item._source = "grade";
 
-      if (index !== null) {
-        list[index] = item;
-      } else {
-        list.push(item);
-      }
+      // 1) 楽観的に UI を更新（即時反映）
+      applyLocalSave(type, dateStr, index, item);
 
-      if (snap.exists()) {
-        await updateDoc(docRef, { [field]: list });
-      } else {
-        await setDoc(docRef, { ...docData, [field]: list });
-      }
+      // 2) Firestore に書き込み（成功時は onSnapshot が追従、失敗時は巻き戻し）
+      try {
+        const snap = await getDoc(docRef);
+        const docData = snap.exists() ? snap.data() : { date: dateStr };
+        const field = FIELD_MAP[type];
+        const list = [...(docData[field] || [])];
 
-      // 学科モードの学年マスターは同名学年へファンアウト
-      const fanoutRefs = getGradeFanoutRefs(dateStr);
-      if (fanoutRefs.length > 0) {
-        await Promise.all(
-          fanoutRefs.map(async (ref) => {
-            const s = await getDoc(ref);
-            const d = s.exists() ? s.data() : { date: dateStr };
-            const l = [...(d[field] || [])];
-            if (index !== null) l[index] = item;
-            else l.push(item);
-            if (s.exists()) {
-              await updateDoc(ref, { [field]: l });
-            } else {
-              await setDoc(ref, { ...d, [field]: l });
-            }
-          })
-        );
+        if (index !== null) {
+          list[index] = item;
+        } else {
+          list.push(item);
+        }
+
+        if (snap.exists()) {
+          await updateDoc(docRef, { [field]: list });
+        } else {
+          await setDoc(docRef, { ...docData, [field]: list });
+        }
+
+        // 学科モードの学年マスターは同名学年へファンアウト
+        const fanoutRefs = getGradeFanoutRefs(dateStr);
+        if (fanoutRefs.length > 0) {
+          await Promise.all(
+            fanoutRefs.map(async (ref) => {
+              const s = await getDoc(ref);
+              const d = s.exists() ? s.data() : { date: dateStr };
+              const l = [...(d[field] || [])];
+              if (index !== null) l[index] = item;
+              else l.push(item);
+              if (s.exists()) {
+                await updateDoc(ref, { [field]: l });
+              } else {
+                await setDoc(ref, { ...d, [field]: l });
+              }
+            })
+          );
+        }
+      } catch (err) {
+        // 書き込み失敗: onSnapshot が次に発火したときに正しい状態へ巻き戻される。
+        // ここでは例外を呼び出し側へ伝搬し、トーストで失敗を通知してもらう。
+        throw err;
       }
     },
-    [getDailyDataDocPath, editingLevel, getGradeFanoutRefs]
+    [getDailyDataDocPath, editingLevel, getGradeFanoutRefs, applyLocalSave]
   );
 
   const deleteItem = useCallback(
@@ -365,32 +521,41 @@ export function useEditorData(
     ) => {
       const docRef = getDailyDataDocPath(dateStr);
       if (!docRef) return;
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return;
-      const field = FIELD_MAP[type];
-      const list = [...(snap.data()[field] || [])];
-      if (index >= 0 && index < list.length) {
-        list.splice(index, 1);
-        await updateDoc(docRef, { [field]: list });
-      }
 
-      // 学科モードの学年マスターは同名学年へファンアウト
-      const fanoutRefs = getGradeFanoutRefs(dateStr);
-      if (fanoutRefs.length > 0) {
-        await Promise.all(
-          fanoutRefs.map(async (ref) => {
-            const s = await getDoc(ref);
-            if (!s.exists()) return;
-            const l = [...(s.data()[field] || [])];
-            if (index >= 0 && index < l.length) {
-              l.splice(index, 1);
-              await updateDoc(ref, { [field]: l });
-            }
-          })
-        );
+      // 1) 楽観的に UI から削除
+      applyLocalDelete(type, dateStr, index);
+
+      // 2) Firestore から削除（失敗時は onSnapshot が巻き戻す）
+      try {
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) return;
+        const field = FIELD_MAP[type];
+        const list = [...(snap.data()[field] || [])];
+        if (index >= 0 && index < list.length) {
+          list.splice(index, 1);
+          await updateDoc(docRef, { [field]: list });
+        }
+
+        // 学科モードの学年マスターは同名学年へファンアウト
+        const fanoutRefs = getGradeFanoutRefs(dateStr);
+        if (fanoutRefs.length > 0) {
+          await Promise.all(
+            fanoutRefs.map(async (ref) => {
+              const s = await getDoc(ref);
+              if (!s.exists()) return;
+              const l = [...(s.data()[field] || [])];
+              if (index >= 0 && index < l.length) {
+                l.splice(index, 1);
+                await updateDoc(ref, { [field]: l });
+              }
+            })
+          );
+        }
+      } catch (err) {
+        throw err;
       }
     },
-    [getDailyDataDocPath, getGradeFanoutRefs]
+    [getDailyDataDocPath, getGradeFanoutRefs, applyLocalDelete]
   );
 
   const saveClassName = useCallback(

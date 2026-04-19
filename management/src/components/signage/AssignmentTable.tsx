@@ -18,10 +18,7 @@ export function AssignmentTable({ assignments }: AssignmentTableProps) {
 
   return (
     <div className={styles.assignmentSection}>
-      <h2>
-        <span className={styles.cardIcon}>&#x1F4DD;</span>
-        提出物
-      </h2>
+      <h2>提出物</h2>
       <div className={styles.tableWrapper}>
         <table className={styles.taskTable}>
           <thead>

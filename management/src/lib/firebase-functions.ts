@@ -289,3 +289,37 @@ export const getAdminOverviewFn = httpsCallable<
     membershipsMap: Record<string, { schoolId: string; schoolName: string; role: string }[]>;
   }
 >(functions, "getAdminOverview");
+
+// ========================================
+// フィードバック
+// ========================================
+
+export interface FeedbackItem {
+  id: string;
+  schoolId: string;
+  classroomLabel: string;
+  studentReaction: number;
+  studentEpisode: string;
+  teacherUtility: number;
+  improvement: string;
+  submitterUid: string | null;
+  submitterEmail: string | null;
+  createdAt: string | null;
+}
+
+export const submitFeedbackFn = httpsCallable<
+  {
+    schoolId: string;
+    classroomLabel: string;
+    studentReaction: number;
+    studentEpisode?: string;
+    teacherUtility: number;
+    improvement?: string;
+  },
+  { success: boolean; feedbackId: string }
+>(functions, "submitFeedback");
+
+export const listFeedbackFn = httpsCallable<
+  { limit?: number },
+  { items: FeedbackItem[] }
+>(functions, "listFeedback");

@@ -28,6 +28,10 @@
         "destination": "/manage/class-settings.html"
       },
       {
+        "source": "/manage/guide",
+        "destination": "/manage/guide.html"
+      },
+      {
         "source": "/manage/login",
         "destination": "/manage/login.html"
       },

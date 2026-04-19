@@ -73,7 +73,6 @@ export function ScheduleGrid({ weeklySchedules, onCalendarOpen }: ScheduleGridPr
   return (
     <div className={`${styles.card} ${styles.scheduleSection}`}>
       <h2>
-        <span className={styles.cardIcon}>&#x1F4C5;</span>
         予定
         {onCalendarOpen && (
           <button
@@ -83,8 +82,9 @@ export function ScheduleGrid({ weeklySchedules, onCalendarOpen }: ScheduleGridPr
               onCalendarOpen();
             }}
             type="button"
+            aria-label="カレンダーを開く"
           >
-            <span className={styles.calendarIcon}>&#x1F4C6;</span>
+            カレンダー
           </button>
         )}
       </h2>

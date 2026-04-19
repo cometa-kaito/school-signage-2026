@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { SchoolListView } from "@/components/admin/SchoolListView";
 import { SchoolDetailView } from "@/components/admin/SchoolDetailView";
+import { FeedbackListView } from "@/components/admin/FeedbackListView";
 import { Loading } from "@/components/ui/Loading";
 import { Header } from "@/components/ui/Header";
 import { useAuthContext } from "@/providers/AuthProvider";
@@ -12,7 +13,6 @@ import styles from "@/styles/admin.module.css";
 
 function AdminContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const schoolId = searchParams.get("school");
   const { isAdmin } = useAuthContext();
 
@@ -23,17 +23,23 @@ function AdminContent() {
         {schoolId ? (
           <>
             {isAdmin && (
-              <a
-                href="/manage/admin.html"
-                className={styles.backLink}
-              >
-                &lt; 学校一覧に戻る
+              <a href="/manage/admin" className={styles.backLink}>
+                ← 学校一覧に戻る
               </a>
             )}
             <SchoolDetailView schoolId={schoolId} isSystemAdmin={isAdmin} />
           </>
         ) : (
-          <SchoolListView />
+          <>
+            <SchoolListView />
+            {/* フィードバック一覧はシステム管理者のみに表示。
+                タブは追加せず、学校一覧の下に続けて配置する。 */}
+            {isAdmin && (
+              <section style={{ marginTop: 48 }}>
+                <FeedbackListView />
+              </section>
+            )}
+          </>
         )}
       </div>
     </>

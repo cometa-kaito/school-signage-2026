@@ -52,9 +52,8 @@ export function StartupScreen({ onStart }: StartupScreenProps) {
   return (
     <div className={overlayClass} onClick={dismiss}>
       <div className={styles.startupContent}>
-        <div className={styles.startupIcon}>&#x1F4FA;</div>
-        <h1>起動中</h1>
-        <p>サイネージを準備しています...</p>
+        <h1>キミテラス</h1>
+        <p>サイネージを準備しています</p>
         <div className={styles.startupCountdown}>{countdown}</div>
         <div className={styles.startupHint}>タップで今すぐ開始</div>
       </div>

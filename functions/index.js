@@ -92,3 +92,8 @@ exports.getAdminOverview = adminOverview.getAdminOverview;
 
 // マイグレーション
 exports.migrateToGradeStructure = migration.migrateToGradeStructure;
+
+// フィードバック
+const feedback = require('./handlers/feedback');
+exports.submitFeedback = feedback.submitFeedback;
+exports.listFeedback = feedback.listFeedback;

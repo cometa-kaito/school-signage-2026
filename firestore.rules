@@ -183,6 +183,21 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ========================================
+    // フィードバック (教員 → システム管理者)
+    // 書き込みは Cloud Functions (submitFeedback) 経由のみ。
+    // 読み取りはシステム管理者のみ。Trigger Email 用の mail/ も同様に CF 経由のみ。
+    // ========================================
+
+    match /feedback/{feedbackId} {
+      allow read: if hasAdminAccess();
+      allow write: if false; // クライアントからの直接書き込みは禁止（Cloud Functions 経由のみ）
+    }
+
+    match /mail/{mailId} {
+      allow read, write: if false; // Trigger Email extension + Cloud Functions のみ
+    }
+
     // デフォルト
     match /{document=**} {
       allow read, write: if false;

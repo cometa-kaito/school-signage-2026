@@ -192,14 +192,15 @@
 }
 
 /* =====================
-   6. カード共通
+   6. カード共通 — カードごとの色差別化を廃止、全て同じ枠線（ニュートラル Ink）
+   見出しと配置で識別し、色は極力使わない。
    ===================== */
 .card {
   background: white;
   border-radius: var(--radius-md);
   padding: 0.15vmin 1vmin 0.5vmin;
-  box-shadow: var(--shadow-sm);
-  border-top: 3px solid var(--accent-color);
+  /* シャドウもカード上辺の色強調も廃止。1px ラインだけで区切る。 */
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -214,12 +215,10 @@
   flex-shrink: 0;
   font-weight: 700;
   color: var(--primary-color);
+  letter-spacing: -0.01em;
 }
 
-.cardIcon {
-  margin-right: 0.3rem;
-  font-size: 0.9em;
-}
+/* cardIcon は廃止済み（アイコンは表示しない） */
 
 /* =====================
    7. スケジュールセクション
@@ -253,7 +252,7 @@
 .scheduleDateHeader {
   text-align: center;
   font-weight: 700;
-  border-bottom: 2px solid var(--accent-color);
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 0.2rem;
   font-size: clamp(1rem, 1.5vw, 1.3rem);
   padding: 0.2rem;
@@ -261,10 +260,12 @@
   color: var(--primary-color);
 }
 
+/* 今日のみ黒ベタで強調 — 色に頼らず明度差で見せる */
 .isToday .scheduleDateHeader {
-  background-color: var(--accent-color);
+  background-color: var(--primary-color);
   color: white;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  border-bottom-color: var(--primary-color);
 }
 
 .scheduleScrollArea {
@@ -288,7 +289,7 @@
 .scheduleTime {
   display: inline;
   font-size: 0.85em;
-  color: var(--accent-color);
+  color: var(--primary-color);
   font-weight: 700;
   margin-right: 0.3em;
 }
@@ -313,35 +314,32 @@
   border-bottom: 1px dotted transparent !important;
 }
 
-/* カレンダーボタン */
+/* カレンダーボタン — 主張を抑えた中立色のボタン（白地＋黒枠）に変更 */
 .calendarToggleBtn {
   float: right;
-  background: var(--accent-color);
-  border: 1px solid var(--accent-color);
+  background: white;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 0.2rem 0.5rem;
+  padding: 0.15rem 0.6rem;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
-  color: white;
+  color: var(--primary-color);
+  font-size: clamp(0.7rem, 1vw, 0.85rem);
+  font-weight: 600;
+  font-family: inherit;
 }
 
 .calendarToggleBtn:hover {
-  background: var(--accent-color-hover);
-  border-color: var(--accent-color-hover);
-}
-
-.calendarIcon {
-  font-size: 0.9em;
+  background: var(--surface-muted);
+  border-color: var(--primary-color);
 }
 
 /* =====================
    8. 連絡セクション
-   カード上部の色は 3セクションで異なるが、各カードの見出し（📅予定 / 📢連絡 / 📝提出物）で
-   既に識別可能なので、色は視覚的な補助に留める。連絡はニュートラルな Ink 系。
+   カードごとの色差別化は廃止。見出しテキストのみで識別。
    ===================== */
 .noticeSection {
   composes: card;
-  border-top-color: var(--primary-color);
 }
 
 .listGroup {
@@ -382,11 +380,10 @@
 }
 
 /* =====================
-   9. 提出物セクション
+   9. 提出物セクション — カード色差別化は廃止
    ===================== */
 .assignmentSection {
   composes: card;
-  border-top-color: var(--urgent-color);
 }
 
 .tableWrapper {
@@ -437,13 +434,14 @@
 }
 
 .daysLeft {
-  font-weight: bold;
-  color: var(--accent-color);
+  font-weight: 700;
+  color: var(--primary-color);
 }
 
+/* 期限切迫のみ赤、それ以外は黒で色数を最小化 */
 .daysUrgent {
   color: var(--urgent-color);
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .overdueRow {
@@ -899,12 +897,12 @@
   top: 20px;
   left: 50%;
   transform: translateX(-50%) translateY(-100px);
-  background: var(--accent-color);
+  background: var(--primary-color);
   color: white;
-  padding: 12px 25px;
+  padding: 10px 20px;
   border-radius: 999px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 500;
   box-shadow: 0 2px 8px rgba(17, 24, 39, 0.15);
   z-index: 9999;
   opacity: 0;
@@ -953,8 +951,9 @@
 .startupContent h1 {
   font-size: 2rem;
   margin-bottom: 0.5rem;
-  color: var(--accent-color);
+  color: white;
   letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 .startupContent p {
@@ -973,7 +972,8 @@
   font-size: 3rem;
   font-weight: 600;
   margin: 1rem 0;
-  color: var(--accent-color);
+  color: white;
+  opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
 

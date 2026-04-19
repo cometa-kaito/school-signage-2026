@@ -76,7 +76,8 @@
    ===================== */
 .container {
   display: grid;
-  grid-template-columns: 68fr 32fr;
+  /* コンテンツ領域を優先し、広告領域は上限を設ける（横幅を拡げない） */
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 32vw);
   grid-template-areas: "info ad";
   width: 100%;
   height: 100vh;

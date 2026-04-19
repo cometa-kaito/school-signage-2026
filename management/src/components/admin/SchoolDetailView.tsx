@@ -922,8 +922,10 @@ export function SchoolDetailView({
         const renderClassCard = (
           gradeId: string,
           cls: Class,
-          departmentId: string | null
+          departmentId: string | null,
+          options?: { hideClassHeader?: boolean }
         ) => {
+          const hideClassHeader = options?.hideClassHeader === true;
           const origin =
             typeof window !== "undefined" ? window.location.origin : "";
           const deptParam = departmentId ? `&department=${departmentId}` : "";
@@ -938,29 +940,31 @@ export function SchoolDetailView({
           return (
             <div key={settingsKey} className={styles.classCard}>
               <div className={styles.classItem}>
-                <span
-                  className={styles.className}
-                  style={{ display: "inline-flex", alignItems: "center" }}
-                >
+                {!hideClassHeader && (
                   <span
-                    onClick={() =>
-                      setExpandedClassId(isExpanded ? null : settingsKey)
-                    }
-                    style={{ cursor: "pointer" }}
+                    className={styles.className}
+                    style={{ display: "inline-flex", alignItems: "center" }}
                   >
-                    {isExpanded ? "▼" : "▶"} {cls.name}
+                    <span
+                      onClick={() =>
+                        setExpandedClassId(isExpanded ? null : settingsKey)
+                      }
+                      style={{ cursor: "pointer" }}
+                    >
+                      {isExpanded ? "▼" : "▶"} {cls.name}
+                    </span>
+                    <EditIconButton
+                      onClick={() => {
+                        setEditClassGradeId(gradeId);
+                        setEditClassDepartmentId(departmentId);
+                        setEditClassId(cls.id);
+                        setEditClassName(cls.name);
+                        setEditClassModalOpen(true);
+                      }}
+                      label="クラス名を変更"
+                    />
                   </span>
-                  <EditIconButton
-                    onClick={() => {
-                      setEditClassGradeId(gradeId);
-                      setEditClassDepartmentId(departmentId);
-                      setEditClassId(cls.id);
-                      setEditClassName(cls.name);
-                      setEditClassModalOpen(true);
-                    }}
-                    label="クラス名を変更"
-                  />
-                </span>
+                )}
                 <div className={styles.classActions}>
                   <div className={styles.classLinks}>
                     <a
@@ -996,16 +1000,18 @@ export function SchoolDetailView({
                       {settingsClassKey === settingsKey ? "▼ 設定" : "設定"}
                     </button>
                   </div>
-                  <div className={styles.classManage}>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() =>
-                        handleDeleteClass(gradeId, cls.id, departmentId)
-                      }
-                    >
-                      削除
-                    </button>
-                  </div>
+                  {!hideClassHeader && (
+                    <div className={styles.classManage}>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() =>
+                          handleDeleteClass(gradeId, cls.id, departmentId)
+                        }
+                      >
+                        削除
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               {isExpanded && (
@@ -1191,8 +1197,10 @@ export function SchoolDetailView({
                       </button>
                     </>
                   ) : classes.length > 0 ? (
-                    // クラスなし運用: 代表クラス (先頭) のリンクを表示
-                    renderClassCard(grade.id, classes[0], departmentId)
+                    // クラスなし運用: 代表クラスのリンクのみ表示（クラス名は学年名と重複するので省略）
+                    renderClassCard(grade.id, classes[0], departmentId, {
+                      hideClassHeader: true,
+                    })
                   ) : (
                     <p className="empty-text" style={{ padding: "8px 0" }}>
                       リンクを生成中...

@@ -81,7 +81,12 @@ export function useEditorData(
   schoolId: string | null,
   gradeId: string | null,
   classId: string | null,
-  departmentId: string | null = null
+  departmentId: string | null = null,
+  /**
+   * 学科モードで editingLevel="grade" のとき、同名学年に対する書込をファンアウトするための兄弟ペア。
+   * 現在選択中の (departmentId, gradeId) 自身も含めて可（重複は除外されます）。
+   */
+  gradeSiblings: { departmentId: string; gradeId: string }[] = []
 ): UseEditorDataReturn {
   const [data, setData] = useState<EditorData>({
     className: "",
@@ -265,6 +270,37 @@ export function useEditorData(
     };
   }, [schoolId, gradeId, classId, departmentId, editingLevel, getDailyDataCollectionPath]);
 
+  const getGradeFanoutRefs = useCallback(
+    (dateStr: string) => {
+      if (
+        editingLevel !== "grade" ||
+        !schoolId ||
+        !departmentId ||
+        gradeSiblings.length === 0
+      ) {
+        return [];
+      }
+      const seen = new Set<string>();
+      const refs = [];
+      for (const p of gradeSiblings) {
+        if (p.departmentId === departmentId && p.gradeId === gradeId) continue;
+        const key = `${p.departmentId}:${p.gradeId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        refs.push(
+          gradeMasterDailyDataDocRef(
+            schoolId,
+            p.gradeId,
+            dateStr,
+            p.departmentId
+          )
+        );
+      }
+      return refs;
+    },
+    [editingLevel, schoolId, departmentId, gradeId, gradeSiblings]
+  );
+
   const saveItem = useCallback(
     async (
       type: "schedule" | "notice" | "assignment",
@@ -298,8 +334,27 @@ export function useEditorData(
       } else {
         await setDoc(docRef, { ...docData, [field]: list });
       }
+
+      // 学科モードの学年マスターは同名学年へファンアウト
+      const fanoutRefs = getGradeFanoutRefs(dateStr);
+      if (fanoutRefs.length > 0) {
+        await Promise.all(
+          fanoutRefs.map(async (ref) => {
+            const s = await getDoc(ref);
+            const d = s.exists() ? s.data() : { date: dateStr };
+            const l = [...(d[field] || [])];
+            if (index !== null) l[index] = item;
+            else l.push(item);
+            if (s.exists()) {
+              await updateDoc(ref, { [field]: l });
+            } else {
+              await setDoc(ref, { ...d, [field]: l });
+            }
+          })
+        );
+      }
     },
-    [getDailyDataDocPath, editingLevel]
+    [getDailyDataDocPath, editingLevel, getGradeFanoutRefs]
   );
 
   const deleteItem = useCallback(
@@ -318,8 +373,24 @@ export function useEditorData(
         list.splice(index, 1);
         await updateDoc(docRef, { [field]: list });
       }
+
+      // 学科モードの学年マスターは同名学年へファンアウト
+      const fanoutRefs = getGradeFanoutRefs(dateStr);
+      if (fanoutRefs.length > 0) {
+        await Promise.all(
+          fanoutRefs.map(async (ref) => {
+            const s = await getDoc(ref);
+            if (!s.exists()) return;
+            const l = [...(s.data()[field] || [])];
+            if (index >= 0 && index < l.length) {
+              l.splice(index, 1);
+              await updateDoc(ref, { [field]: l });
+            }
+          })
+        );
+      }
     },
-    [getDailyDataDocPath]
+    [getDailyDataDocPath, getGradeFanoutRefs]
   );
 
   const saveClassName = useCallback(

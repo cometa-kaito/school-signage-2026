@@ -103,10 +103,10 @@ function ClassSettingsContent() {
   return (
     <div className={styles.pageContainer}>
       <a
-        href={`/manage/admin.html?school=${schoolId}`}
+        href={`/manage/editor?school=${schoolId}`}
         className={styles.backLink}
       >
-        &lt; 学校管理に戻る
+        ← エディターに戻る
       </a>
 
       <div className={styles.classInfo}>

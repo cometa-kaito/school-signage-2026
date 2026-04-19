@@ -100,6 +100,10 @@ export function HierarchicalAdsTab({
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedGradeId, setSelectedGradeId] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  /** 学科モード: 学年マスターを学年名単位で扱うための選択状態 */
+  const [selectedGradeName, setSelectedGradeName] = useState<string | null>(
+    null
+  );
 
   // 学校全体広告
   useEffect(() => {
@@ -171,6 +175,29 @@ export function HierarchicalAdsTab({
       }
     }
   }, [selectedGradeId, selectedDeptId, gradeAds, loadGradeAds, isDeptMode]);
+
+  // 学科モード: 学年名グルーピング時のプライマリ広告ロード
+  useEffect(() => {
+    if (!isDeptMode || !selectedGradeName) return;
+    const primary = departments
+      .flatMap((d) =>
+        (gradesByDept[d.id] || [])
+          .filter((g) => g.name === selectedGradeName)
+          .map((g) => ({ departmentId: d.id, gradeId: g.id }))
+      )[0];
+    if (!primary) return;
+    const key = gradeKey(primary.gradeId, primary.departmentId);
+    if (gradeAds[key] === undefined) {
+      loadGradeAds(primary.gradeId, primary.departmentId);
+    }
+  }, [
+    isDeptMode,
+    selectedGradeName,
+    departments,
+    gradesByDept,
+    gradeAds,
+    loadGradeAds,
+  ]);
 
   // クラス広告ロード
   useEffect(() => {
@@ -338,83 +365,133 @@ export function HierarchicalAdsTab({
         </div>
         {expandedSection === "grade" && (
           <div style={{ padding: "12px 14px 0" }}>
-            {isDeptMode && (
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ marginRight: 8, fontWeight: 600 }}>
-                  対象学科:
-                </label>
-                <select
-                  value={selectedDeptId || ""}
-                  onChange={(e) => {
-                    setSelectedDeptId(e.target.value || null);
-                    setSelectedGradeId(null);
-                  }}
-                >
-                  <option value="">-- 学科を選択 --</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {isDeptMode ? (
+              (() => {
+                const nameSet = new Set<string>();
+                departments.forEach((d) =>
+                  (gradesByDept[d.id] || []).forEach((g) => nameSet.add(g.name))
+                );
+                const names = [...nameSet].sort((a, b) =>
+                  a.localeCompare(b, "ja")
+                );
+                const pairsForName = (name: string) =>
+                  departments.flatMap((d) =>
+                    (gradesByDept[d.id] || [])
+                      .filter((g) => g.name === name)
+                      .map((g) => ({ departmentId: d.id, gradeId: g.id }))
+                  );
+                return (
+                  <>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ marginRight: 8, fontWeight: 600 }}>
+                        対象学年:
+                      </label>
+                      <select
+                        value={selectedGradeName || ""}
+                        onChange={(e) =>
+                          setSelectedGradeName(e.target.value || null)
+                        }
+                      >
+                        <option value="">-- 学年を選択 --</option>
+                        {names.map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {selectedGradeName &&
+                      (() => {
+                        const pairs = pairsForName(selectedGradeName);
+                        if (pairs.length === 0) return null;
+                        const primary = pairs[0];
+                        const primaryKey = gradeKey(
+                          primary.gradeId,
+                          primary.departmentId
+                        );
+                        const extraRefs = pairs
+                          .slice(1)
+                          .map((p) =>
+                            gradeDocRef(schoolId, p.gradeId, p.departmentId)
+                          );
+                        return (
+                          <>
+                            <ReadOnlyAdList
+                              title="学校全体の広告（継承）"
+                              ads={schoolAds}
+                            />
+                            <AdManager
+                              docRef={gradeDocRef(
+                                schoolId,
+                                primary.gradeId,
+                                primary.departmentId
+                              )}
+                              extraDocRefs={extraRefs}
+                              ads={gradeAds[primaryKey] || []}
+                              onAdsChange={(ads) =>
+                                setGradeAds((prev) => {
+                                  const next = { ...prev };
+                                  pairs.forEach((p) => {
+                                    next[gradeKey(p.gradeId, p.departmentId)] =
+                                      ads;
+                                  });
+                                  return next;
+                                })
+                              }
+                              title={`学年広告 — ${selectedGradeName}`}
+                              description={`全学科の「${selectedGradeName}」の全クラスに表示されます。`}
+                            />
+                          </>
+                        );
+                      })()}
+                  </>
+                );
+              })()
+            ) : (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ marginRight: 8, fontWeight: 600 }}>
+                    対象学年:
+                  </label>
+                  <select
+                    value={selectedGradeId || ""}
+                    onChange={(e) =>
+                      setSelectedGradeId(e.target.value || null)
+                    }
+                  >
+                    <option value="">-- 学年を選択 --</option>
+                    {grades.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedGradeId &&
+                  (() => {
+                    const key = gradeKey(selectedGradeId, null);
+                    const gradeName =
+                      grades.find((g) => g.id === selectedGradeId)?.name || "";
+                    return (
+                      <>
+                        <ReadOnlyAdList
+                          title="学校全体の広告（継承）"
+                          ads={schoolAds}
+                        />
+                        <AdManager
+                          docRef={gradeDocRef(schoolId, selectedGradeId, null)}
+                          ads={gradeAds[key] || []}
+                          onAdsChange={(ads) =>
+                            setGradeAds((prev) => ({ ...prev, [key]: ads }))
+                          }
+                          title={`学年広告 — ${gradeName}`}
+                          description="この学年の全クラスに表示される広告です。"
+                        />
+                      </>
+                    );
+                  })()}
+              </>
             )}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ marginRight: 8, fontWeight: 600 }}>
-                対象学年:
-              </label>
-              <select
-                value={selectedGradeId || ""}
-                onChange={(e) => setSelectedGradeId(e.target.value || null)}
-                disabled={isDeptMode && !selectedDeptId}
-              >
-                <option value="">-- 学年を選択 --</option>
-                {(isDeptMode
-                  ? (selectedDeptId && gradesByDept[selectedDeptId]) || []
-                  : grades
-                ).map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {selectedGradeId && (!isDeptMode || selectedDeptId) && (() => {
-              const deptId = isDeptMode ? selectedDeptId : null;
-              const key = gradeKey(selectedGradeId, deptId);
-              const gradeList = isDeptMode
-                ? (selectedDeptId && gradesByDept[selectedDeptId]) || []
-                : grades;
-              const gradeName =
-                gradeList.find((g) => g.id === selectedGradeId)?.name || "";
-              return (
-                <>
-                  <ReadOnlyAdList
-                    title="学校全体の広告（継承）"
-                    ads={schoolAds}
-                  />
-                  {isDeptMode && selectedDeptId && (
-                    <ReadOnlyAdList
-                      title="学科全体の広告（継承）"
-                      ads={deptAds[selectedDeptId] || []}
-                    />
-                  )}
-                  <AdManager
-                    docRef={gradeDocRef(schoolId, selectedGradeId, deptId)}
-                    ads={gradeAds[key] || []}
-                    onAdsChange={(ads) =>
-                      setGradeAds((prev) => ({ ...prev, [key]: ads }))
-                    }
-                    title={`学年広告 — ${gradeName}`}
-                    description={
-                      isDeptMode
-                        ? "この学科×学年の全クラスに表示される広告です。"
-                        : "この学年の全クラスに表示される広告です。"
-                    }
-                  />
-                </>
-              );
-            })()}
           </div>
         )}
       </div>

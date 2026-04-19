@@ -186,23 +186,59 @@ export function EditorTargetMenu({
           </p>
           <div style={gridStyle}>
             {isDept
-              ? departments.flatMap((d) =>
-                  (gradesByDept[d.id] || []).map((g) => (
-                    <button
-                      key={`${d.id}:${g.id}`}
-                      style={btnStyle("#28a745")}
-                      onClick={() =>
-                        nav({
-                          level: "grade",
-                          department: d.id,
-                          grade: g.id,
-                        })
-                      }
-                    >
-                      {d.name} / {g.name}
-                    </button>
-                  ))
-                )
+              ? (() => {
+                  const byName = new Map<
+                    string,
+                    { deptId: string; gradeId: string }[]
+                  >();
+                  departments.forEach((d) => {
+                    (gradesByDept[d.id] || []).forEach((g) => {
+                      if (!byName.has(g.name)) byName.set(g.name, []);
+                      byName.get(g.name)!.push({
+                        deptId: d.id,
+                        gradeId: g.id,
+                      });
+                    });
+                  });
+                  const names = [...byName.keys()].sort((a, b) =>
+                    a.localeCompare(b, "ja")
+                  );
+                  return names.map((name) => {
+                    const pairs = byName.get(name)!;
+                    const primary = pairs[0];
+                    return (
+                      <button
+                        key={`grade-name:${name}`}
+                        style={btnStyle("#28a745")}
+                        onClick={() =>
+                          nav({
+                            level: "grade",
+                            department: primary.deptId,
+                            grade: primary.gradeId,
+                          })
+                        }
+                        title={
+                          pairs.length > 1
+                            ? `全学科の「${name}」(${pairs.length}学年) に反映されます`
+                            : ""
+                        }
+                      >
+                        {name}
+                        {pairs.length > 1 && (
+                          <span
+                            style={{
+                              marginLeft: 8,
+                              fontSize: "0.75rem",
+                              color: "#666",
+                            }}
+                          >
+                            ({pairs.length}学科共通)
+                          </span>
+                        )}
+                      </button>
+                    );
+                  });
+                })()
               : grades.map((g) => (
                   <button
                     key={g.id}

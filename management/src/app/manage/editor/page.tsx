@@ -51,6 +51,10 @@ function EditorContent() {
     string | null
   >(urlDepartment);
 
+  const [gradeSiblings, setGradeSiblings] = useState<
+    { departmentId: string; gradeId: string }[]
+  >([]);
+
   const {
     data,
     loading,
@@ -58,7 +62,13 @@ function EditorContent() {
     setEditingLevel,
     saveItem,
     deleteItem,
-  } = useEditorData(schoolId, gradeId, classId, selectedDepartmentId);
+  } = useEditorData(
+    schoolId,
+    gradeId,
+    classId,
+    selectedDepartmentId,
+    gradeSiblings
+  );
 
   // URL ?level= からの初期同期
   useEffect(() => {
@@ -89,6 +99,37 @@ function EditorContent() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [hierarchyMode, setHierarchyMode] = useState<HierarchyMode>("class");
+  /** 学科モード: 全学科の学年一覧（同名学年のファンアウトに使用） */
+  const [allGradesByDept, setAllGradesByDept] = useState<
+    Record<string, Grade[]>
+  >({});
+
+  // 学科モードで学年マスター編集中: 同名学年の (dept, grade) を算出
+  useEffect(() => {
+    if (
+      hierarchyMode !== "department" ||
+      !selectedDepartmentId ||
+      !gradeId
+    ) {
+      setGradeSiblings([]);
+      return;
+    }
+    const myList = allGradesByDept[selectedDepartmentId] || [];
+    const myGrade = myList.find((g) => g.id === gradeId);
+    if (!myGrade) {
+      setGradeSiblings([]);
+      return;
+    }
+    const siblings: { departmentId: string; gradeId: string }[] = [];
+    Object.entries(allGradesByDept).forEach(([deptId, gs]) => {
+      gs.forEach((g) => {
+        if (g.name === myGrade.name) {
+          siblings.push({ departmentId: deptId, gradeId: g.id });
+        }
+      });
+    });
+    setGradeSiblings(siblings);
+  }, [hierarchyMode, selectedDepartmentId, gradeId, allGradesByDept]);
 
   // 時計
   const [currentTime, setCurrentTime] = useState("");
@@ -139,9 +180,27 @@ function EditorContent() {
         setHierarchyMode(mode);
         if (mode === "department") {
           const depts = await listDepartmentsFn({ schoolId });
-          setDepartments(depts.data.departments || []);
+          const deptList = depts.data.departments || [];
+          setDepartments(deptList);
+          // 全学科の学年一覧を取得（同名学年マスターのファンアウトに使用）
+          const byDept: Record<string, Grade[]> = {};
+          await Promise.all(
+            deptList.map(async (d) => {
+              try {
+                const r = await listGradesFn({
+                  schoolId,
+                  departmentId: d.id,
+                });
+                byDept[d.id] = r.data.grades || [];
+              } catch {
+                byDept[d.id] = [];
+              }
+            })
+          );
+          setAllGradesByDept(byDept);
         } else {
           setDepartments([]);
+          setAllGradesByDept({});
         }
       } catch {
         /* ignore */
@@ -475,7 +534,9 @@ function EditorContent() {
               ? "学校マスター編集モード — 全クラスに自動反映されます"
               : editingLevel === "department"
                 ? "学科マスター編集モード — 同学科に属する全クラスに自動反映されます"
-                : "学年マスター編集モード — 学年内全クラスに自動反映されます"}
+                : hierarchyMode === "department" && gradeSiblings.length > 1
+                  ? `学年マスター編集モード — 全学科の同名学年（${gradeSiblings.length}学年）に反映されます`
+                  : "学年マスター編集モード — 学年内全クラスに自動反映されます"}
           </span>
           {editingLevel !== "department" && (
             <button

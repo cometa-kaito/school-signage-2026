@@ -22,6 +22,8 @@ export interface AdItem {
 
 interface AdManagerProps {
   docRef: DocumentReference;
+  /** 同じ広告内容を並行書き込みする追加の書込先。読み込みは docRef から */
+  extraDocRefs?: DocumentReference[];
   ads: AdItem[];
   onAdsChange: (ads: AdItem[]) => void;
   title?: string;
@@ -31,6 +33,7 @@ interface AdManagerProps {
 
 export function AdManager({
   docRef,
+  extraDocRefs,
   ads,
   onAdsChange,
   title = "広告管理",
@@ -46,22 +49,26 @@ export function AdManager({
 
   const saveAds = useCallback(
     async (newAds: AdItem[]) => {
-      const snap = await getDoc(docRef);
-      const current = snap.exists()
-        ? snap.data().displaySettings || {}
-        : {};
-      const nextSettings = { ...current, ads: newAds };
-      if (snap.exists()) {
-        await updateDoc(docRef, { displaySettings: nextSettings });
-      } else {
-        await setDoc(
-          docRef,
-          { displaySettings: nextSettings },
-          { merge: true }
-        );
+      const writeTo = async (ref: DocumentReference) => {
+        const snap = await getDoc(ref);
+        const current = snap.exists() ? snap.data().displaySettings || {} : {};
+        const nextSettings = { ...current, ads: newAds };
+        if (snap.exists()) {
+          await updateDoc(ref, { displaySettings: nextSettings });
+        } else {
+          await setDoc(
+            ref,
+            { displaySettings: nextSettings },
+            { merge: true }
+          );
+        }
+      };
+      await writeTo(docRef);
+      if (extraDocRefs && extraDocRefs.length > 0) {
+        await Promise.all(extraDocRefs.map(writeTo));
       }
     },
-    [docRef]
+    [docRef, extraDocRefs]
   );
 
   const handleMoveAd = async (index: number, direction: "up" | "down") => {

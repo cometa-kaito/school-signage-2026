@@ -188,9 +188,11 @@ export function SchoolDetailView({
   >([]);
 
   const [saving, setSaving] = useState(false);
+  const [busyMessage, setBusyMessage] = useState<string | null>(null);
 
-  const sortGrades = (list: Grade[]) =>
+  const sortByNameJa = <T extends { name: string }>(list: T[]) =>
     [...list].sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  const sortGrades = (list: Grade[]) => sortByNameJa(list);
 
   useEffect(() => {
     async function load() {
@@ -229,6 +231,7 @@ export function SchoolDetailView({
   const handleCreateGrade = async () => {
     if (!newGradeName.trim()) return;
     setSaving(true);
+    setBusyMessage("学年を作成中...");
     try {
       await createGradeFn({
         schoolId,
@@ -248,6 +251,7 @@ export function SchoolDetailView({
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
+    setBusyMessage(null);
     setSaving(false);
   };
 
@@ -328,6 +332,7 @@ export function SchoolDetailView({
   const handleCreateClass = async () => {
     if (!newClassName.trim() || !targetGradeId) return;
     setSaving(true);
+    setBusyMessage("クラスを作成中...");
     try {
       await createClassFn({
         schoolId,
@@ -354,6 +359,7 @@ export function SchoolDetailView({
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
+    setBusyMessage(null);
     setSaving(false);
   };
 
@@ -387,6 +393,7 @@ export function SchoolDetailView({
   const handleSaveDepartment = async () => {
     if (!newDepartmentName.trim()) return;
     setSaving(true);
+    setBusyMessage(editingDepartmentId ? "学科を更新中..." : "学科を作成中...");
     try {
       if (editingDepartmentId) {
         await updateDepartmentFn({
@@ -410,6 +417,7 @@ export function SchoolDetailView({
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
+    setBusyMessage(null);
     setSaving(false);
   };
 
@@ -484,6 +492,7 @@ export function SchoolDetailView({
   const handleInviteMember = async () => {
     if (!newMemberEmail.trim()) return;
     setSaving(true);
+    setBusyMessage("メンバーを招待中...");
     try {
       await inviteMemberFn({
         email: newMemberEmail,
@@ -498,6 +507,7 @@ export function SchoolDetailView({
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
+    setBusyMessage(null);
     setSaving(false);
   };
 
@@ -587,6 +597,7 @@ export function SchoolDetailView({
   const handleCreateUser = async () => {
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
     setSaving(true);
+    setBusyMessage("ユーザーを作成中...");
     try {
       const res = await createAdminUserFn({
         email: newUserEmail,
@@ -607,6 +618,7 @@ export function SchoolDetailView({
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
+    setBusyMessage(null);
     setSaving(false);
   };
 
@@ -811,6 +823,7 @@ export function SchoolDetailView({
 
   return (
     <div>
+      {busyMessage && <Loading overlay message={busyMessage} />}
       <div
         style={{
           display: "flex",
@@ -1063,7 +1076,7 @@ export function SchoolDetailView({
               </div>
               {expanded && (
                 <div className={styles.classesContainer}>
-                  {classes.map((cls) =>
+                  {sortByNameJa(classes).map((cls) =>
                     renderClassCard(grade.id, cls, departmentId)
                   )}
                   <button
@@ -1118,7 +1131,7 @@ export function SchoolDetailView({
                 {grades.length === 0 ? (
                   <p className="empty-text">学年が登録されていません</p>
                 ) : (
-                  grades.map((grade) =>
+                  sortByNameJa(grades).map((grade) =>
                     renderGradeCard(grade, null, classesMap[grade.id] || [])
                   )
                 )}
@@ -1132,9 +1145,9 @@ export function SchoolDetailView({
                     学科が登録されていません。「+ 学科追加」で作成してください。
                   </p>
                 ) : (
-                  departments.map((dept) => {
+                  sortByNameJa(departments).map((dept) => {
                     const dExpanded = expandedDepartment === dept.id;
-                    const dGrades = gradesByDept[dept.id] || [];
+                    const dGrades = sortByNameJa(gradesByDept[dept.id] || []);
                     return (
                       <div key={dept.id} className={styles.gradeCard}>
                         <div
@@ -1331,7 +1344,7 @@ export function SchoolDetailView({
                 </tr>
               </thead>
               <tbody>
-                {departments.map((d) => {
+                {sortByNameJa(departments).map((d) => {
                   const g = gradesByDept[d.id] || [];
                   return (
                     <tr key={d.id}>
@@ -1511,7 +1524,6 @@ export function SchoolDetailView({
                               <option value="none">未所属</option>
                               <option value="school_admin">学校管理者</option>
                               <option value="teacher">教員</option>
-                              <option value="editor">エディター</option>
                             </select>
                           )}
                         </td>
@@ -1716,7 +1728,7 @@ export function SchoolDetailView({
                 学科ごとのマスター設定。学年・クラスに設定がないときに適用されます。
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {departments.map((d) => (
+                {sortByNameJa(departments).map((d) => (
                   <QuietHoursEditor
                     key={d.id}
                     docRef={departmentConfigRef(
@@ -1749,21 +1761,43 @@ export function SchoolDetailView({
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {isDeptMode
-                  ? departments.flatMap((d) =>
-                      (gradesByDept[d.id] || []).map((g) => (
-                        <QuietHoursEditor
-                          key={`${d.id}:${g.id}`}
-                          docRef={gradeConfigRef(
-                            schoolId,
-                            g.id,
-                            "display_settings",
-                            d.id
-                          )}
-                          title={`${d.name} / ${g.name}`}
-                        />
-                      ))
-                    )
-                  : grades.map((g) => (
+                  ? (() => {
+                      const groups = new Map<
+                        string,
+                        { departmentId: string; gradeId: string }[]
+                      >();
+                      departments.forEach((d) => {
+                        (gradesByDept[d.id] || []).forEach((g) => {
+                          if (!groups.has(g.name)) groups.set(g.name, []);
+                          groups.get(g.name)!.push({
+                            departmentId: d.id,
+                            gradeId: g.id,
+                          });
+                        });
+                      });
+                      const names = [...groups.keys()].sort((a, b) =>
+                        a.localeCompare(b, "ja")
+                      );
+                      return names.map((name) => {
+                        const pairs = groups.get(name)!;
+                        return (
+                          <QuietHoursEditor
+                            key={`grade-name:${name}`}
+                            docRefs={pairs.map((p) =>
+                              gradeConfigRef(
+                                schoolId,
+                                p.gradeId,
+                                "display_settings",
+                                p.departmentId
+                              )
+                            )}
+                            title={name}
+                            description={`全学科の「${name}」に適用されます`}
+                          />
+                        );
+                      });
+                    })()
+                  : sortByNameJa(grades).map((g) => (
                       <QuietHoursEditor
                         key={g.id}
                         docRef={gradeConfigRef(
@@ -1809,7 +1843,7 @@ export function SchoolDetailView({
             type="text"
             value={newGradeName}
             onChange={(e) => setNewGradeName(e.target.value)}
-            placeholder="例: 電子工学科2年"
+            placeholder={isDeptMode ? "例: 2年" : "例: 電子工学科2年"}
           />
         </div>
       </Modal>
@@ -1931,7 +1965,7 @@ export function SchoolDetailView({
                 }}
               >
                 <option value="">-- 選択 --</option>
-                {grades.map((g) => (
+                {sortByNameJa(grades).map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
@@ -2108,7 +2142,7 @@ export function SchoolDetailView({
             type="text"
             value={editGradeName}
             onChange={(e) => setEditGradeName(e.target.value)}
-            placeholder="例: 電子工学科2年"
+            placeholder={isDeptMode ? "例: 2年" : "例: 電子工学科2年"}
           />
         </div>
       </Modal>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   getDoc,
   setDoc,
@@ -14,13 +14,17 @@ interface QuietHour {
 }
 
 interface QuietHoursEditorProps {
-  docRef: DocumentReference;
+  /** 主となる書込先。docRefs が指定された場合は docRefs[0] が優先されます */
+  docRef?: DocumentReference;
+  /** 複数の書込先（ファンアウト）。指定時は全てに同内容を書き込み、読み込みは [0] から */
+  docRefs?: DocumentReference[];
   title: string;
   description?: string;
 }
 
 export function QuietHoursEditor({
   docRef,
+  docRefs,
   title,
   description,
 }: QuietHoursEditorProps) {
@@ -29,11 +33,24 @@ export function QuietHoursEditor({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const refs = useMemo<DocumentReference[]>(() => {
+    if (docRefs && docRefs.length > 0) return docRefs;
+    if (docRef) return [docRef];
+    return [];
+  }, [docRef, docRefs]);
+
+  const primaryRef = refs[0];
+  const refsKey = refs.map((r) => r.path).join("|");
+
   useEffect(() => {
     let cancelled = false;
+    if (!primaryRef) {
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
-        const snap = await getDoc(docRef);
+        const snap = await getDoc(primaryRef);
         if (cancelled) return;
         setHours(snap.exists() ? snap.data().quiet_hours || [] : []);
       } catch {
@@ -45,7 +62,7 @@ export function QuietHoursEditor({
     return () => {
       cancelled = true;
     };
-  }, [docRef]);
+  }, [primaryRef, refsKey]);
 
   const handleAdd = () =>
     setHours([...hours, { start: "08:45", end: "15:30" }]);
@@ -58,9 +75,12 @@ export function QuietHoursEditor({
   };
 
   const handleSave = async () => {
+    if (refs.length === 0) return;
     setSaving(true);
     try {
-      await setDoc(docRef, { quiet_hours: hours }, { merge: true });
+      await Promise.all(
+        refs.map((r) => setDoc(r, { quiet_hours: hours }, { merge: true }))
+      );
       showToast("音声オフ設定を保存しました", "success");
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");

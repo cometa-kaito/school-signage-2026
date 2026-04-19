@@ -28,6 +28,8 @@ interface UseAdRotationResult {
   currentIndex: number;
   mediaUrl: string;
   onVideoEnded: () => void;
+  /** 外部（スワイプ等）から現在インデックスを上書き */
+  setIndex: (i: number) => void;
 }
 
 /**
@@ -166,10 +168,18 @@ export function useAdRotation({
   const safeIndex = ads.length > 0 && currentIndex < ads.length ? currentIndex : 0;
   const currentAd = ads.length > 0 ? ads[safeIndex] : null;
 
+  const setIndex = useCallback((i: number) => {
+    const list = adsRef.current;
+    if (list.length === 0) return;
+    const clamped = ((i % list.length) + list.length) % list.length;
+    setCurrentIndex(clamped);
+  }, []);
+
   return {
     currentAd,
     currentIndex: safeIndex,
     mediaUrl,
     onVideoEnded: advanceToNext,
+    setIndex,
   };
 }

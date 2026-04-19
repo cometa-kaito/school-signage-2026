@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { Ad } from "@/hooks/useSignageData";
 import { MobileAdHeader } from "./SignageHeader";
 import styles from "@/styles/signage.module.css";
@@ -15,6 +16,8 @@ interface MobileAdAreaProps {
   time: string;
   className: string;
   onVideoEnded?: () => void;
+  /** ユーザーが横スワイプで広告を切替えた時に呼ぶ */
+  onIndexChange?: (index: number) => void;
 }
 
 export function MobileAdArea({
@@ -28,64 +31,82 @@ export function MobileAdArea({
   time,
   className,
   onVideoEnded,
+  onIndexChange,
 }: MobileAdAreaProps) {
   const areaClass = `${styles.mobileAdArea} ${isQuietTime ? styles.mobileAdQuietMode : ""}`;
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const renderMedia = () => {
-    if (!currentAd || !mediaUrl || isQuietTime) return null;
+  // currentIndex が外部（ローテーション）で変わったときスクロール位置を追従
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || ads.length === 0) return;
+    const target = el.clientWidth * currentIndex;
+    if (Math.abs(el.scrollLeft - target) < 2) return;
+    programmaticScrollRef.current = true;
+    el.scrollTo({ left: target, behavior: "smooth" });
+    // スクロールイベントを無視するフラグを一定時間後に解除
+    setTimeout(() => {
+      programmaticScrollRef.current = false;
+    }, 400);
+  }, [currentIndex, ads.length]);
 
-    if (currentAd.type === "video") {
-      const videoEl = (
+  // ユーザースクロールでインデックス同期
+  const handleScroll = () => {
+    if (programmaticScrollRef.current) return;
+    if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
+    scrollDebounceRef.current = setTimeout(() => {
+      const el = scrollerRef.current;
+      if (!el || ads.length === 0) return;
+      const width = el.clientWidth;
+      if (width === 0) return;
+      const idx = Math.round(el.scrollLeft / width);
+      const clamped = Math.max(0, Math.min(ads.length - 1, idx));
+      if (clamped !== currentIndex) {
+        onIndexChange?.(clamped);
+      }
+    }, 120);
+  };
+
+  const renderSlide = (ad: Ad, isActive: boolean) => {
+    if (isQuietTime) return null;
+    // アクティブスライドはキャッシュされた mediaUrl を優先、非アクティブは元 URL
+    const src = isActive && mediaUrl ? mediaUrl : ad.url;
+    const mediaEl =
+      ad.type === "video" ? (
         <video
-          key={currentAd.id}
-          src={mediaUrl}
+          key={ad.id}
+          src={src}
           className={styles.mobileAdMedia}
           muted
-          autoPlay
           playsInline
           loop={false}
-          onEnded={onVideoEnded}
+          autoPlay={isActive}
+          onEnded={isActive ? onVideoEnded : undefined}
+        />
+      ) : (
+        <img
+          key={ad.id}
+          src={src}
+          alt="Advertisement"
+          className={styles.mobileAdMedia}
+          loading={isActive ? "eager" : "lazy"}
         />
       );
-
-      if (currentAd.link_url) {
-        return (
-          <a
-            href={currentAd.link_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.mobileAdLink}
-          >
-            {videoEl}
-          </a>
-        );
-      }
-      return videoEl;
-    }
-
-    // image
-    const imgEl = (
-      <img
-        key={currentAd.id}
-        src={mediaUrl}
-        alt="Advertisement"
-        className={styles.mobileAdMedia}
-      />
-    );
-
-    if (currentAd.link_url) {
+    if (ad.link_url) {
       return (
         <a
-          href={currentAd.link_url}
+          href={ad.link_url}
           target="_blank"
           rel="noopener noreferrer"
           className={styles.mobileAdLink}
         >
-          {imgEl}
+          {mediaEl}
         </a>
       );
     }
-    return imgEl;
+    return mediaEl;
   };
 
   return (
@@ -97,7 +118,28 @@ export function MobileAdArea({
         className={className}
       />
       <div className={styles.mobileAdContainer}>
-        {renderMedia()}
+        {ads.length === 0 || isQuietTime ? (
+          // フォールバック（広告なし or 消音中）: 従来の単一レンダリング
+          <>
+            {currentAd && !isQuietTime && mediaUrl && (
+              <div className={styles.mobileAdSlide}>
+                {renderSlide(currentAd, true)}
+              </div>
+            )}
+          </>
+        ) : (
+          <div
+            ref={scrollerRef}
+            className={styles.mobileAdScroller}
+            onScroll={handleScroll}
+          >
+            {ads.map((ad, idx) => (
+              <div key={ad.id || idx} className={styles.mobileAdSlide}>
+                {renderSlide(ad, idx === currentIndex)}
+              </div>
+            ))}
+          </div>
+        )}
         {ads.length > 1 && !isQuietTime && (
           <div className={styles.mobileAdIndicator}>
             {ads.map((_, idx) => (

@@ -49,11 +49,12 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
 
   const { time, dateText, dayText } = useClock();
   const { isQuietTime } = useQuietHours(quietHours);
-  const { currentAd, currentIndex, mediaUrl, onVideoEnded } = useAdRotation({
-    ads,
-    isQuietTime,
-    imageCache: ImageCache,
-  });
+  const { currentAd, currentIndex, mediaUrl, onVideoEnded, setIndex } =
+    useAdRotation({
+      ads,
+      isQuietTime,
+      imageCache: ImageCache,
+    });
   const { showBanner, enableAudio } = useNotificationSound({
     notices,
     isInitialLoad,
@@ -329,6 +330,7 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
             time={time}
             className={displayClassName}
             onVideoEnded={onVideoEnded}
+            onIndexChange={setIndex}
           />
           <div className={styles.mobileInfoArea}>
             <div className={styles.mobileContentGrid}>

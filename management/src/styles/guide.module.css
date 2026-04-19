@@ -264,7 +264,7 @@
   border-top: var(--border-1);
 }
 
-/* ===== 完了メッセージ ===== */
+/* ===== 完了メッセージ（旧） ===== */
 .successCard {
   background: var(--color-accent-weak);
   border: 1px solid var(--color-accent-line);
@@ -287,6 +287,70 @@
   font-size: var(--fs-sm);
   color: var(--color-text-muted);
   line-height: var(--lh-body);
+}
+
+/* ===== Thanks 画面（送信完了時のフォーム置き換え） ===== */
+.thanksScreen {
+  text-align: center;
+  padding: var(--space-7) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.thanksBadge {
+  display: inline-block;
+  padding: 6px 20px;
+  background: var(--color-accent);
+  color: var(--color-canvas);
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.thanksTitle {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+.thanksMessage {
+  margin: 0;
+  font-size: var(--fs-md);
+  color: var(--color-text-muted);
+  line-height: 1.8;
+}
+
+.thanksActions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+
+.thanksActions .btn {
+  min-width: 160px;
+}
+
+@media (max-width: 480px) {
+  .thanksScreen {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .thanksActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .thanksActions .btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 600px) {

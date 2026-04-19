@@ -1,27 +1,67 @@
 /**
  * handlers/feedback.js
- * 教員用フィードバック受付
+ * 教員・生徒・見学者など誰でも送れるフィードバック受付。
  *
- * コレクション: feedback/{feedbackId}
- *   {
- *     schoolId, classroomLabel,
- *     studentReaction (1-5), studentEpisode,
- *     teacherUtility (1-5), improvement,
- *     submitterUid, submitterEmail,
- *     createdAt
- *   }
+ * 【データ保存】
+ *   feedback/{feedbackId} — システム管理者だけが /manage/admin で閲覧可能
  *
- * メール通知は "Trigger Email from Firestore" 拡張機能を利用。
- * mail/{id} コレクションにドキュメントを書き込むと拡張機能が SMTP 送信する。
- * 拡張機能未設置でも feedback ドキュメントは正しく保存されるので副作用はない。
+ * 【メール通知】
+ *   nodemailer + Gmail SMTP で 20051215kaito@gmail.com に直接送信。
+ *   Gmail アプリパスワードは Firebase の Functions Config に保存して参照する。
+ *
+ *   セットアップ手順（1回のみ）:
+ *     1) https://myaccount.google.com/apppasswords でアプリパスワードを発行
+ *        （Google アカウントで 2段階認証を ON にする必要あり）
+ *     2) firebase functions:config:set gmail.user="<送信元Gmail>" gmail.password="<アプリパスワード>"
+ *     3) firebase deploy --only functions:submitFeedback
+ *
+ *   未設定の場合は送信をスキップするが、フィードバックの Firestore 保存と
+ *   /manage/admin での閲覧は引き続き動作する（受付機能自体は決して壊れない）。
  */
 
 const { functions, admin, db } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 
+let nodemailer;
+try {
+    // eslint-disable-next-line global-require
+    nodemailer = require('nodemailer');
+} catch (_) {
+    nodemailer = null;
+}
+
 const FEEDBACK_RECIPIENT = '20051215kaito@gmail.com';
-const MAIL_COLLECTION = 'mail';
 const FEEDBACK_COLLECTION = 'feedback';
+
+// トランスポーターはコールドスタートごとに1回だけ作れば十分
+let cachedTransporter = null;
+function getTransporter() {
+    if (cachedTransporter) return cachedTransporter;
+    if (!nodemailer) return null;
+
+    let user = null;
+    let pass = null;
+    try {
+        const cfg = functions.config();
+        user = cfg && cfg.gmail && cfg.gmail.user;
+        pass = cfg && cfg.gmail && cfg.gmail.password;
+    } catch (_) {
+        // functions.config() は環境によっては例外を投げる場合がある
+    }
+    // 環境変数フォールバック（ローカル emulator やカスタム deploy 用）
+    user = user || process.env.GMAIL_USER || null;
+    pass = pass || process.env.GMAIL_APP_PASSWORD || null;
+
+    if (!user || !pass) return null;
+
+    cachedTransporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user, pass },
+    });
+    return cachedTransporter;
+}
 
 function clampScore(n) {
     const v = Number(n);
@@ -45,7 +85,6 @@ function buildEmailBody(data) {
         data.improvement || '（記載なし）',
         '',
         '---',
-        `送信者: ${data.submitterEmail || data.submitterUid || '不明'}`,
         `送信日時: ${new Date().toISOString()}`,
     ];
     return lines.join('\n');
@@ -87,7 +126,6 @@ function buildEmailHtml(data) {
   </p>
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
   <p style="color: #6b7280; font-size: 12px;">
-    送信者: ${esc(data.submitterEmail || data.submitterUid || '不明')}<br>
     送信日時: ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
   </p>
 </div>`.trim();
@@ -95,11 +133,7 @@ function buildEmailHtml(data) {
 
 /**
  * submitFeedback
- * フォームから送信。認証は不要（先生・生徒・見学者など誰でも送れる）。
- * ただしクライアント直書きは Firestore ルールで禁止しており、この関数経由のみ。
- * feedback ドキュメントと mail ドキュメント（拡張機能連携）を同時作成。
- *
- * スパム対策: 学校 ID の存在チェック + 入力長さ制限。本格的なレート制限は未実装。
+ * 認証不要。誰でも送信可能。
  */
 exports.submitFeedback = functions.https.onCall(async (data, context) => {
     try {
@@ -119,7 +153,6 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError('invalid-argument', '教室を選んでください');
         }
 
-        // 学校 ID が実在することを確認（任意文字列での投稿を防ぐ最低限の検証）
         const schoolSnap = await db.collection('schools').doc(data.schoolId).get();
         if (!schoolSnap.exists) {
             throw new functions.https.HttpsError('invalid-argument', '選択された学校が見つかりません');
@@ -139,27 +172,41 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
 
         const ref = await db.collection(FEEDBACK_COLLECTION).add(feedbackPayload);
 
-    // メール通知 (Trigger Email extension 連携)
-    // 拡張機能未設置の場合はこのドキュメントが読まれないだけで、エラーにはならない。
+        // メール送信（失敗してもフィードバック保存自体は成功扱い）
+        let emailStatus = 'skipped';
+        let emailError = null;
         try {
-            await db.collection(MAIL_COLLECTION).add({
-                to: FEEDBACK_RECIPIENT,
-                message: {
+            const transporter = getTransporter();
+            if (!transporter) {
+                emailStatus = 'unconfigured';
+                console.warn('Gmail SMTP 未設定のためメール送信をスキップ');
+            } else {
+                const fromUser =
+                    (functions.config().gmail && functions.config().gmail.user) ||
+                    process.env.GMAIL_USER;
+                await transporter.sendMail({
+                    from: `キミテラス フィードバック <${fromUser}>`,
+                    to: FEEDBACK_RECIPIENT,
                     subject: `[キミテラス] 新しいフィードバック: ${feedbackPayload.classroomLabel}`,
                     text: buildEmailBody(feedbackPayload),
                     html: buildEmailHtml(feedbackPayload),
-                },
-                meta: {
-                    feedbackId: ref.id,
-                    schoolId: feedbackPayload.schoolId,
-                },
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+                });
+                emailStatus = 'sent';
+            }
         } catch (e) {
-            console.warn('mail コレクションへの書き込みに失敗（フィードバック自体は保存済み）:', e.message);
+            emailStatus = 'failed';
+            emailError = e.message;
+            console.error('メール送信失敗:', e);
         }
 
-        return { success: true, feedbackId: ref.id };
+        // 送信ステータスを feedback ドキュメントにも記録（運用時の確認用）
+        try {
+            await ref.update({ emailStatus, emailError });
+        } catch (_) {
+            // 記録失敗は致命的ではない
+        }
+
+        return { success: true, feedbackId: ref.id, emailStatus };
     } catch (error) {
         if (error instanceof functions.https.HttpsError) throw error;
         console.error('submitFeedback error:', error);
@@ -194,6 +241,7 @@ exports.listFeedback = functions.https.onCall(withAuth(async (data) => {
             submitterUid: d.submitterUid || null,
             submitterEmail: d.submitterEmail || null,
             createdAt,
+            emailStatus: d.emailStatus || null,
         });
     });
     return { items };

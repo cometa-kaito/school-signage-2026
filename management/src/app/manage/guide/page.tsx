@@ -282,81 +282,47 @@ export default function GuidePage() {
       <Header title="つかい方とフィードバック" />
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>つかい方とフィードバック</h1>
+          <h1 className={styles.pageTitle}>気付いたことを教えてください</h1>
           <p className={styles.pageLead}>
-            キミテラスの画面への入口と、主な使い方のまとめです。
-            実際につかってみて気付いたことを、下のフォームからお知らせください。
-            先生以外の方（生徒・保護者・見学者など）もお送りいただけます。
+            キミテラスを実際につかってみて気付いたことを、下のフォームから
+            お知らせください。先生以外の方（生徒・保護者・見学者など）もお送りいただけます。
+            ログインは不要で、所要 1〜2 分です。
           </p>
         </div>
 
-        {/* 画面リンク */}
+        {/* フィードバックフォーム（最上部） */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>画面への入口</h2>
-          <div className={styles.linkGrid}>
-            {navLinks.map((l) => (
-              <a key={l.href} href={l.href} className={styles.linkCard}>
-                <span className={styles.linkCardTitle}>{l.title}</span>
-                <span className={styles.linkCardDesc}>{l.desc}</span>
-              </a>
-            ))}
-          </div>
-        </section>
-
-        {/* 使い方ステップ */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>連絡を送るまでの流れ</h2>
-          <ol className={styles.steps}>
-            <li className={styles.stepItem}>
-              <span className={styles.stepNumber}>1</span>
-              <div className={styles.stepBody}>
-                <p className={styles.stepTitle}>クラスを選ぶ</p>
-                <p className={styles.stepDesc}>
-                  「連絡をつくる」を開き、学校・学年・クラスを選びます。
-                  次回以降は前回のクラスが自動で開きます。
-                </p>
-              </div>
-            </li>
-            <li className={styles.stepItem}>
-              <span className={styles.stepNumber}>2</span>
-              <div className={styles.stepBody}>
-                <p className={styles.stepTitle}>内容を入れる</p>
-                <p className={styles.stepDesc}>
-                  予定・連絡・提出物のいずれかを選び、内容を入れます。
-                  連絡は「重要にする」で赤く目立たせることができます。
-                </p>
-              </div>
-            </li>
-            <li className={styles.stepItem}>
-              <span className={styles.stepNumber}>3</span>
-              <div className={styles.stepBody}>
-                <p className={styles.stepTitle}>送る</p>
-                <p className={styles.stepDesc}>
-                  「○○組に送る」を押すと、数秒で教室のサイネージに反映されます。
-                  送った後でも「書き直す」「消す」で修正・撤回できます。
-                </p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        {/* フィードバックフォーム */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>気付いたことを教えてください</h2>
           <div className={styles.feedbackCard}>
-            {submitted && (
-              <div className={styles.successCard} role="status">
-                <p className={styles.successTitle}>
-                  送りました。ありがとうございます。
+            {submitted ? (
+              // 送信完了時: フォームを隠して「Thanks」画面に切り替える
+              <div className={styles.thanksScreen} role="status" aria-live="polite">
+                <div className={styles.thanksBadge}>Thanks</div>
+                <h2 className={styles.thanksTitle}>送信が完了しました</h2>
+                <p className={styles.thanksMessage}>
+                  フィードバックをありがとうございます。<br />
+                  いただいた内容は担当者が確認します。
                 </p>
-                <p className={styles.successDesc}>
-                  続けて別の気付きがあれば、同じフォームからまた送れます。
-                </p>
+                <div className={styles.thanksActions}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setSubmitted(false);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    もう一件、送る
+                  </button>
+                  <a href="/manage/editor" className="btn btn-primary">
+                    連絡づくりに戻る
+                  </a>
+                </div>
               </div>
-            )}
-            <p className={styles.feedbackIntro}>
-              ログインは不要です。所要 1〜2 分で送れます。
-            </p>
+            ) : (
+              <>
+                <p className={styles.feedbackIntro}>
+                  全部で 5 つの質問です。学校と教室を先に選んでください。
+                </p>
 
             <form onSubmit={handleSubmit}>
               {/* 0. 学校選択（ログインしていないので最初に選んでもらう） */}
@@ -571,7 +537,59 @@ export default function GuidePage() {
                 </button>
               </div>
             </form>
+              </>
+            )}
           </div>
+        </section>
+
+        {/* 画面リンク（フォームの下に配置） */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>画面への入口</h2>
+          <div className={styles.linkGrid}>
+            {navLinks.map((l) => (
+              <a key={l.href} href={l.href} className={styles.linkCard}>
+                <span className={styles.linkCardTitle}>{l.title}</span>
+                <span className={styles.linkCardDesc}>{l.desc}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        {/* 使い方ステップ（最下部） */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>連絡を送るまでの流れ</h2>
+          <ol className={styles.steps}>
+            <li className={styles.stepItem}>
+              <span className={styles.stepNumber}>1</span>
+              <div className={styles.stepBody}>
+                <p className={styles.stepTitle}>クラスを選ぶ</p>
+                <p className={styles.stepDesc}>
+                  「連絡をつくる」を開き、学校・学年・クラスを選びます。
+                  次回以降は前回のクラスが自動で開きます。
+                </p>
+              </div>
+            </li>
+            <li className={styles.stepItem}>
+              <span className={styles.stepNumber}>2</span>
+              <div className={styles.stepBody}>
+                <p className={styles.stepTitle}>内容を入れる</p>
+                <p className={styles.stepDesc}>
+                  予定・連絡・提出物のいずれかを選び、内容を入れます。
+                  連絡は「重要にする」で赤く目立たせることができます。
+                </p>
+              </div>
+            </li>
+            <li className={styles.stepItem}>
+              <span className={styles.stepNumber}>3</span>
+              <div className={styles.stepBody}>
+                <p className={styles.stepTitle}>送る</p>
+                <p className={styles.stepDesc}>
+                  「○○組に送る」を押すと、数秒で教室のサイネージに反映されます。
+                  送った後でも「書き直す」「消す」で修正・撤回できます。
+                </p>
+              </div>
+            </li>
+          </ol>
         </section>
       </div>
     </>

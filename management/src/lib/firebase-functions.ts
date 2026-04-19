@@ -121,6 +121,7 @@ export const updateGradeFn = httpsCallable<
     departmentId?: string | null;
     name?: string;
     order?: number;
+    hasClasses?: boolean;
   },
   { success: boolean }
 >(functions, "updateGrade");

@@ -255,6 +255,63 @@ export function SchoolDetailView({
     setSaving(false);
   };
 
+  const handleToggleGradeHasClasses = async (
+    grade: Grade,
+    departmentId: string | null,
+    classes: Class[],
+    nextHasClasses: boolean
+  ) => {
+    setSaving(true);
+    setBusyMessage(
+      nextHasClasses ? "クラス運用に変更中..." : "単一運用に変更中..."
+    );
+    try {
+      // クラスなし運用で既存クラスが 0 の場合、代表クラスを自動作成
+      if (!nextHasClasses && classes.length === 0) {
+        await createClassFn({
+          schoolId,
+          gradeId: grade.id,
+          departmentId,
+          name: grade.name,
+        });
+      }
+      if (!nextHasClasses && classes.length > 1) {
+        const proceed = confirm(
+          `クラスが ${classes.length} 件あります。単一運用では先頭のクラス「${classes[0].name}」のみ利用され、その他は保持されますが表示されません。切り替えてよろしいですか？`
+        );
+        if (!proceed) {
+          setBusyMessage(null);
+          setSaving(false);
+          return;
+        }
+      }
+      await updateGradeFn({
+        schoolId,
+        gradeId: grade.id,
+        departmentId,
+        hasClasses: nextHasClasses,
+      });
+      // リロード
+      if (departmentId) {
+        await refreshGradesInDept(departmentId);
+        await refreshClassesInDeptGrade(departmentId, grade.id);
+      } else {
+        const res = await listGradesFn({ schoolId });
+        setGrades(sortGrades(res.data.grades || []));
+      }
+      showToast(
+        nextHasClasses
+          ? "クラス運用に切り替えました"
+          : "単一運用に切り替えました",
+        "success"
+      );
+    } catch (err) {
+      showToast("エラー: " + (err as Error).message, "error");
+    }
+    setBusyMessage(null);
+    setSaving(false);
+  };
+
   const handleDeleteGrade = async (
     gradeId: string,
     departmentId: string | null = null
@@ -1029,6 +1086,8 @@ export function SchoolDetailView({
             if (departmentId) setExpandedDeptGrade(expanded ? null : gKey);
             else setExpandedGrade(expanded ? null : grade.id);
           };
+          // hasClasses が false のとき: 学年自体を1単位として扱う
+          const hasClasses = grade.hasClasses !== false;
           return (
             <div
               key={gKey}
@@ -1053,9 +1112,48 @@ export function SchoolDetailView({
                   }}
                   label="学年名を変更"
                 />
-                <span className={styles.classBadge}>
-                  {classes.length}クラス
-                </span>
+                {hasClasses ? (
+                  <span className={styles.classBadge}>
+                    {classes.length}クラス
+                  </span>
+                ) : (
+                  <span
+                    className="badge"
+                    style={{
+                      background: "#fff8e1",
+                      color: "#b8860b",
+                      marginLeft: 6,
+                    }}
+                  >
+                    単一（クラスなし）
+                  </span>
+                )}
+                <label
+                  style={{
+                    marginLeft: 12,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: "0.85rem",
+                    color: "#555",
+                    cursor: "pointer",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={hasClasses}
+                    onChange={(e) =>
+                      handleToggleGradeHasClasses(
+                        grade,
+                        departmentId,
+                        classes,
+                        e.target.checked
+                      )
+                    }
+                  />
+                  クラスあり
+                </label>
                 <div
                   style={{
                     marginLeft: "auto",
@@ -1076,19 +1174,30 @@ export function SchoolDetailView({
               </div>
               {expanded && (
                 <div className={styles.classesContainer}>
-                  {sortByNameJa(classes).map((cls) =>
-                    renderClassCard(grade.id, cls, departmentId)
+                  {hasClasses ? (
+                    <>
+                      {sortByNameJa(classes).map((cls) =>
+                        renderClassCard(grade.id, cls, departmentId)
+                      )}
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => {
+                          setTargetGradeId(grade.id);
+                          setTargetDepartmentId(departmentId);
+                          setClassModalOpen(true);
+                        }}
+                      >
+                        + クラス追加
+                      </button>
+                    </>
+                  ) : classes.length > 0 ? (
+                    // クラスなし運用: 代表クラス (先頭) のリンクを表示
+                    renderClassCard(grade.id, classes[0], departmentId)
+                  ) : (
+                    <p className="empty-text" style={{ padding: "8px 0" }}>
+                      リンクを生成中...
+                    </p>
                   )}
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => {
-                      setTargetGradeId(grade.id);
-                      setTargetDepartmentId(departmentId);
-                      setClassModalOpen(true);
-                    }}
-                  >
-                    + クラス追加
-                  </button>
                 </div>
               )}
             </div>

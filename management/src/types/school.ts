@@ -13,6 +13,8 @@ export interface Grade {
   id: string;
   name: string;
   order: number;
+  /** false の場合、学年自体が 1 つの単位となりクラス作成は無効 */
+  hasClasses?: boolean;
 }
 
 export interface Department {

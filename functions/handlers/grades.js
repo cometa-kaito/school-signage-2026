@@ -37,10 +37,11 @@ exports.listGrades = functions.https.onCall(withAuth(async (data, context) => {
 }));
 
 exports.updateGrade = functions.https.onCall(withAuth(async (data, context) => {
-    const { schoolId, gradeId, departmentId, name, order } = data;
+    const { schoolId, gradeId, departmentId, name, order, hasClasses } = data;
     const u = {};
     if (name) u.name = name;
     if (order !== undefined) u.order = order;
+    if (hasClasses !== undefined) u.hasClasses = !!hasClasses;
     await gradePathFor(schoolId, gradeId, departmentId || null).update(u);
     return { success: true, message: '学年情報を更新しました' };
 }, async (context, data) => {

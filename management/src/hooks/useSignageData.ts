@@ -277,11 +277,11 @@ export function useSignageData(
       (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
     );
 
-    // 広告の階層マージ（school > grade > department > class の順で連結）
+    // 広告の階層マージ（school > department > grade > class の順で連結）
     const mergedAds: Ad[] = [
       ...schoolAdsRef.current,
-      ...gradeAdsRef.current,
       ...departmentAdsRef.current,
+      ...gradeAdsRef.current,
       ...classConfigRef.current.ads,
     ];
 

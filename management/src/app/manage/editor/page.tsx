@@ -330,12 +330,15 @@ function EditorContent() {
     dateStr: string,
     index: number
   ) => {
-    if (!confirm("削除しますか？")) return;
+    const label =
+      type === "schedule" ? "予定" : type === "notice" ? "連絡" : "提出物";
+    // 対象物の種類を引用し、結果を明記する。色に依存せず文言で意味を伝える。
+    if (!confirm(`この${label}を消しますか？ 消すと元に戻せません。`)) return;
     try {
       await deleteItem(type, dateStr, index);
-      showToast("削除しました", "success");
+      showToast("消しました", "success");
     } catch (err) {
-      showToast("削除エラー: " + (err as Error).message, "error");
+      showToast("消せませんでした: " + (err as Error).message, "error");
     }
   };
 
@@ -383,14 +386,14 @@ function EditorContent() {
     if (isNaN(d.getTime())) return;
     const items = scheduleTemplate[weekdayKeyOf(d)] || [];
     if (items.length === 0) {
-      showToast("この曜日のテンプレートは未設定です", "error");
+      showToast("この曜日の時間割テンプレートはまだありません", "error");
       return;
     }
     const existing = data.weeklySchedules[dateStr]?.length || 0;
     if (
       existing > 0 &&
       !confirm(
-        `${dateStr} には既に ${existing} 件の予定があります。テンプレートを追加しますか？`
+        `${dateStr} にはすでに ${existing} 件の予定があります。テンプレートを追加しますか？`
       )
     ) {
       return;
@@ -404,9 +407,9 @@ function EditorContent() {
         if (item.location) payload.location = item.location;
         await saveItem("schedule", dateStr, null, payload);
       }
-      showToast(`${items.length}件の予定を展開しました`, "success");
+      showToast(`${items.length}件の予定を入れました`, "success");
     } catch (err) {
-      showToast("展開エラー: " + (err as Error).message, "error");
+      showToast("うまくいきませんでした: " + (err as Error).message, "error");
     }
   };
 
@@ -420,7 +423,7 @@ function EditorContent() {
       await saveItem(type, dateStr, index, itemData);
       showToast("保存しました", "success");
     } catch (err) {
-      showToast("保存エラー: " + (err as Error).message, "error");
+      showToast("保存できませんでした: " + (err as Error).message, "error");
       throw err;
     }
   };
@@ -467,15 +470,9 @@ function EditorContent() {
       <div className={styles.header}>
         <a
           href={`/manage/editor?school=${schoolId}`}
-          style={{
-            color: "#667eea",
-            textDecoration: "none",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            marginRight: "auto",
-          }}
+          className={styles.backLink}
         >
-          ← 編集対象選択に戻る
+          ← クラスを選び直す
         </a>
         <EditorModeToggle
           currentBasePath="/manage/editor"
@@ -539,61 +536,34 @@ function EditorContent() {
         </select>
       </div>
 
-      {/* 編集レベル（管理者 / 学校管理者） */}
+      {/* 編集レベル（管理者 / 学校管理者）— 色ではなくラベルで識別 */}
       {canEditMaster && (
         <div className={styles.levelSelector}>
           {(
             hierarchyMode === "department"
               ? ([
-                  { key: "class", label: "クラス", color: "#6c757d" },
-                  {
-                    key: "department",
-                    label: "学科マスター",
-                    color: "#9b59b6",
-                  },
-                  {
-                    key: "grade",
-                    label: "学年マスター",
-                    color: "#28a745",
-                  },
-                  {
-                    key: "school",
-                    label: "学校マスター",
-                    color: "#007bff",
-                  },
+                  { key: "class", label: "クラスだけ" },
+                  { key: "department", label: "学科にまとめて" },
+                  { key: "grade", label: "学年にまとめて" },
+                  { key: "school", label: "学校全体にまとめて" },
                 ] as const)
               : ([
-                  { key: "class", label: "クラス", color: "#6c757d" },
-                  {
-                    key: "grade",
-                    label: "学年マスター",
-                    color: "#28a745",
-                  },
-                  {
-                    key: "school",
-                    label: "学校マスター",
-                    color: "#007bff",
-                  },
+                  { key: "class", label: "クラスだけ" },
+                  { key: "grade", label: "学年にまとめて" },
+                  { key: "school", label: "学校全体にまとめて" },
                 ] as const)
           ).map((l) => {
-            // 必要なコンテキストが揃っていないレベルは編集対象選択画面へ誘導
             const needsGrade = l.key === "grade" && !gradeId;
             const needsDept =
               l.key === "department" && !selectedDepartmentId;
             const needsContext = needsGrade || needsDept;
+            const isActive = editingLevel === l.key;
             return (
               <button
                 key={l.key}
-                className={styles.levelBtn}
-                style={{
-                  borderColor: l.color,
-                  background:
-                    editingLevel === l.key ? l.color : "#fff",
-                  color: editingLevel === l.key ? "#fff" : l.color,
-                }}
+                className={`${styles.levelBtn} ${isActive ? styles.levelBtnActive : ""}`}
                 onClick={() => {
                   if (needsContext) {
-                    // 対象選択画面に戻ってユーザーに学年/学科を選ばせる
                     window.location.href = `/manage/editor?school=${schoolId}`;
                     return;
                   }
@@ -601,11 +571,12 @@ function EditorContent() {
                 }}
                 title={
                   needsGrade
-                    ? "対象学年を選択します"
+                    ? "先に対象学年を選んでください"
                     : needsDept
-                      ? "対象学科を選択します"
+                      ? "先に対象学科を選んでください"
                       : ""
                 }
+                aria-pressed={isActive}
               >
                 {l.label}
               </button>
@@ -615,25 +586,15 @@ function EditorContent() {
       )}
 
       {editingLevel !== "class" && (
-        <div
-          className={styles.levelIndicator}
-          style={{
-            background:
-              editingLevel === "school"
-                ? "#007bff"
-                : editingLevel === "department"
-                  ? "#9b59b6"
-                  : "#28a745",
-          }}
-        >
+        <div className={styles.levelIndicator} role="status">
           <span>
             {editingLevel === "school"
-              ? "学校マスター編集モード — 全クラスに自動反映されます"
+              ? "まとめて編集中 — この学校の全クラスに反映されます"
               : editingLevel === "department"
-                ? "学科マスター編集モード — 同学科に属する全クラスに自動反映されます"
+                ? "まとめて編集中 — 同じ学科の全クラスに反映されます"
                 : hierarchyMode === "department" && gradeSiblings.length > 1
-                  ? `学年マスター編集モード — 全学科の同名学年（${gradeSiblings.length}学年）に反映されます`
-                  : "学年マスター編集モード — 学年内全クラスに自動反映されます"}
+                  ? `まとめて編集中 — 同じ学年名の ${gradeSiblings.length} 学年すべてに反映されます`
+                  : "まとめて編集中 — この学年の全クラスに反映されます"}
           </span>
         </div>
       )}
@@ -739,9 +700,9 @@ function EditorContent() {
       <footer className={styles.branding}>キミテラス by Rebounder（管理者モード）</footer>
     </div>
 
-      {/* 広告プレビューパネル（クラスレベルのみ） */}
+      {/* 広告プレビューパネル（クラスレベルのみ）— 連絡枠と広告枠を物理的にゾーニング */}
       {editingLevel === "class" && (
-        <aside className={styles.adPreview}>
+        <aside className={styles.adPreview} aria-label="広告枠プレビュー">
           <div className={styles.adPreviewContainer}>
             {data.ads.length > 0 ? (
               <img
@@ -750,15 +711,17 @@ function EditorContent() {
                 className={styles.adPreviewImage}
               />
             ) : (
-              <div className={styles.adPreviewPlaceholder}>No Image</div>
+              <div className={styles.adPreviewPlaceholder}>
+                まだ広告がありません
+              </div>
             )}
             <div className={styles.adPreviewOverlay}>
+              <div>ここは広告の枠です（連絡とは分けて管理）</div>
               <a
                 href={`/manage/class-settings?school=${schoolId}&grade=${gradeId}&class=${classId}`}
-                className="btn btn-sm btn-primary"
-                style={{ textDecoration: "none" }}
+                className="btn btn-sm btn-secondary"
               >
-                広告を管理
+                広告を整える
               </a>
             </div>
           </div>

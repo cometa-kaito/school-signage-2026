@@ -78,17 +78,23 @@ export function useAuth(): AuthState {
 
   const refreshMemberships = useCallback(async () => {
     if (!user) return;
+    const freshClaims = await getUserClaims(user, true);
+    setClaims(freshClaims);
+    const admin =
+      freshClaims.admin === true || freshClaims.systemRole === "system_admin";
+    setIsAdmin(admin);
+
     const mems = await loadMemberships();
     setMemberships(mems);
     const schoolAdmin = mems.some((m) => m.role === "school_admin");
     setIsSchoolAdmin(schoolAdmin);
     setIsTeacher(
-      isAdmin ||
-        claims.teacher === true ||
-        claims.editor === true ||
+      admin ||
+        freshClaims.teacher === true ||
+        freshClaims.editor === true ||
         schoolAdmin
     );
-  }, [user, isAdmin, claims, loadMemberships]);
+  }, [user, loadMemberships]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, updateUserState);

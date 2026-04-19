@@ -6,18 +6,12 @@ interface SourceBadgeProps {
   compact?: boolean;
 }
 
-const SOURCE_STYLES: Record<
-  string,
-  { label: string; short: string; color: string; bg: string }
-> = {
-  school: { label: "学校マスター", short: "学校", color: "#fff", bg: "#007bff" },
-  department: {
-    label: "学科マスター",
-    short: "学科",
-    color: "#fff",
-    bg: "#9b59b6",
-  },
-  grade: { label: "学年マスター", short: "学年", color: "#fff", bg: "#28a745" },
+// バッジはラベル文字列で種別を識別する（色のみに依存しない）。
+// 3種とも同じ中立スタイルを使い、違いはテキストで伝える。
+const SOURCE_STYLES: Record<string, { label: string; short: string }> = {
+  school: { label: "学校で共通", short: "学校" },
+  department: { label: "学科で共通", short: "学科" },
+  grade: { label: "学年で共通", short: "学年" },
 };
 
 export function SourceBadge({ source, compact = false }: SourceBadgeProps) {
@@ -28,10 +22,11 @@ export function SourceBadge({ source, compact = false }: SourceBadgeProps) {
     <span
       style={{
         display: "inline-block",
-        background: style.bg,
-        color: style.color,
+        background: "var(--color-surface-muted)",
+        color: "var(--color-text)",
+        border: "1px solid var(--color-line)",
         padding: compact ? "1px 6px" : "2px 8px",
-        borderRadius: 4,
+        borderRadius: 999,
         fontSize: compact ? "0.65rem" : "0.7rem",
         fontWeight: 600,
         marginRight: 6,
@@ -44,8 +39,9 @@ export function SourceBadge({ source, compact = false }: SourceBadgeProps) {
   );
 }
 
+// 既存コードが参照している色マップは、トークン値の文字列に統一する。
 export const SOURCE_COLOR_MAP = {
-  school: "#007bff",
-  department: "#9b59b6",
-  grade: "#28a745",
+  school: "var(--color-accent)",
+  department: "var(--color-accent)",
+  grade: "var(--color-accent)",
 } as const;

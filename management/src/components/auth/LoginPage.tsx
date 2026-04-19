@@ -27,7 +27,7 @@ export function LoginPage({ mode }: LoginPageProps) {
             priority
           />
         </div>
-        <p className={styles.loginSubtitle}>管理画面</p>
+        <p className={styles.loginSubtitle}>先生用 管理画面</p>
 
         {mode === "editor" && (
           <div className={styles.tabBar}>
@@ -81,12 +81,12 @@ function EditorLoginForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="エディターパスワードを入力"
+          placeholder="先生用のパスワード"
           disabled={loading}
         />
       </div>
       <button type="submit" className={styles.btnPrimary} disabled={loading}>
-        {loading ? "ログイン中..." : "ログイン"}
+        {loading ? "ログインしています…" : "ログインする"}
       </button>
     </form>
   );
@@ -131,7 +131,7 @@ function AdminLoginForm() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="メールアドレスを入力"
+          placeholder="メールアドレス"
           disabled={loading}
         />
       </div>
@@ -142,12 +142,12 @@ function AdminLoginForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="パスワードを入力"
+          placeholder="パスワード"
           disabled={loading}
         />
       </div>
       <button type="submit" className={styles.btnPrimary} disabled={loading}>
-        {loading ? "ログイン中..." : "ログイン"}
+        {loading ? "ログインしています…" : "ログインする"}
       </button>
       <div className={styles.divider}>
         <span>または</span>
@@ -158,7 +158,7 @@ function AdminLoginForm() {
         onClick={handleGoogleLogin}
         disabled={loading}
       >
-        Googleでログイン
+        Google でログイン
       </button>
     </form>
   );

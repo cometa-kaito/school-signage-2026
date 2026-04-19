@@ -1711,11 +1711,16 @@ export function SchoolDetailView({
                             <span
                               style={{
                                 marginRight: "6px",
-                                fontSize: "0.75rem",
-                                color: row.disabled ? "#dc3545" : "#28a745",
+                                fontSize: "var(--fs-xs)",
+                                color: row.disabled ? "var(--color-alert)" : "var(--color-text)",
+                                fontWeight: 600,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
                               }}
                             >
-                              {row.disabled ? "無効" : "有効"}
+                              <span aria-hidden="true">{row.disabled ? "●" : "○"}</span>
+                              {row.disabled ? "停止中" : "有効"}
                             </span>
                             <button
                               className={`btn btn-sm ${row.disabled ? "btn-success" : "btn-danger"}`}
@@ -2110,8 +2115,8 @@ export function SchoolDetailView({
                 コピー
               </button>
             </div>
-            <p style={{ color: "#e74c3c", fontSize: "0.8rem", marginTop: 8 }}>
-              このトークンは一度だけ表示されます。安全な場所に保存してください。
+            <p style={{ color: "var(--color-alert)", fontSize: "var(--fs-xs)", marginTop: 8, fontWeight: 500 }}>
+              ⚠ このトークンは一度だけ表示されます。安全な場所に保存してください。
             </p>
           </div>
         ) : (

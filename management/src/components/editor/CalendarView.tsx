@@ -168,7 +168,7 @@ export function CalendarView({
               selectedData.schedules.map((s) => (
                 <div key={s._originalIndex} className={styles.detailItem}>
                   <span>
-                    <strong style={{ color: "#667eea" }}>[{escapeHtml(s.time)}]</strong>{" "}
+                    <strong style={{ color: "var(--color-accent)" }}>[{escapeHtml(s.time)}]</strong>{" "}
                     {escapeHtml(s.content)}
                   </span>
                   <div className={styles.detailActions}>
@@ -192,7 +192,7 @@ export function CalendarView({
               selectedData.notices.map((n) => (
                 <div key={n._originalIndex} className={styles.detailItem}>
                   <span>
-                    {n.is_highlight && <strong style={{ color: "#e74c3c" }}>[重要] </strong>}
+                    {n.is_highlight && <strong style={{ color: "var(--color-alert)" }}>[重要] </strong>}
                     {escapeHtml(n.text)}
                   </span>
                   <div className={styles.detailActions}>

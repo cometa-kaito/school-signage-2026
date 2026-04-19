@@ -22,42 +22,45 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#f8f9fa",
+          background: "#f7f8fa",
           fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif",
+            "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif",
+          color: "#111827",
         }}
       >
         <div
           style={{
             maxWidth: 480,
-            background: "#fff",
+            background: "#ffffff",
             padding: "28px 32px",
-            borderRadius: 12,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+            boxShadow: "0 1px 2px rgba(17,24,39,0.05)",
             textAlign: "center",
           }}
         >
-          <h2 style={{ margin: "0 0 12px", color: "#2c3e50", fontSize: "1.2rem" }}>
-            予期しないエラーが発生しました
+          <h2 style={{ margin: "0 0 12px", color: "#111827", fontSize: 16, fontWeight: 600 }}>
+            予期しないエラーが起きました
           </h2>
-          <p style={{ margin: "0 0 20px", color: "#666", fontSize: "0.9rem" }}>
-            ページを再読み込みしてください。
+          <p style={{ margin: "0 0 20px", color: "#6b7280", fontSize: 13, lineHeight: 1.6 }}>
+            もう一度お試しください。続くときはページを読み直してみてください。
           </p>
           <button
             onClick={() => reset()}
             style={{
               padding: "8px 18px",
-              background: "#667eea",
-              color: "#fff",
-              border: "none",
+              background: "#2c5282",
+              color: "#ffffff",
+              border: "1px solid #2c5282",
               borderRadius: 6,
               cursor: "pointer",
-              fontSize: "0.9rem",
+              fontSize: 13,
               fontWeight: 600,
               marginRight: 8,
+              fontFamily: "inherit",
             }}
           >
-            再試行
+            もう一度
           </button>
           <button
             onClick={() => {
@@ -65,16 +68,17 @@ export default function GlobalError({
             }}
             style={{
               padding: "8px 18px",
-              background: "#fff",
-              color: "#667eea",
-              border: "1px solid #667eea",
+              background: "#ffffff",
+              color: "#111827",
+              border: "1px solid #d1d5db",
               borderRadius: 6,
               cursor: "pointer",
-              fontSize: "0.9rem",
+              fontSize: 13,
               fontWeight: 600,
+              fontFamily: "inherit",
             }}
           >
-            再読み込み
+            ページを読み直す
           </button>
         </div>
       </body>

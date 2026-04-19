@@ -102,9 +102,12 @@ export async function loginAsEditor(
 }
 
 /** ユーザーのカスタムクレームを取得 */
-export async function getUserClaims(user: User): Promise<Claims> {
+export async function getUserClaims(
+  user: User,
+  forceRefresh = false
+): Promise<Claims> {
   try {
-    const result = await user.getIdTokenResult();
+    const result = await user.getIdTokenResult(forceRefresh);
     return result.claims as Claims;
   } catch {
     return {};

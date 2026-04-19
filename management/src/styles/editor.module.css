@@ -1,32 +1,35 @@
-/* editor.module.css */
+/* editor.module.css — 教員用エディター（PC/タブレット） */
 
 /* 2カラムレイアウト（デスクトップ: メイン + 広告プレビュー） */
 .editorLayout {
   display: flex;
   min-height: 100vh;
+  background: var(--color-surface-muted);
 }
 
 .pageContainer {
   flex: 1;
-  max-width: 1000px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--space-5) var(--space-5) var(--space-7);
 }
 
 /* ブランディングフッター */
 .branding {
   text-align: center;
-  color: #999;
-  font-size: 0.8rem;
-  padding: 16px 0;
-  margin-top: 20px;
+  color: var(--color-text-subtle);
+  font-size: var(--fs-xs);
+  padding: var(--space-5) 0 var(--space-4);
+  margin-top: var(--space-5);
+  letter-spacing: 0.02em;
 }
 
-/* 広告プレビューパネル */
+/* 広告プレビューパネル — ゾーニングで「ここは広告枠」を明示 */
 .adPreview {
-  width: 280px;
-  min-width: 280px;
-  background: #2c3e50;
+  width: 300px;
+  min-width: 300px;
+  background: var(--color-surface-sunken);
+  border-left: var(--border-1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -42,166 +45,265 @@
   height: 100%;
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: var(--space-4);
+  gap: var(--space-3);
 }
 
 .adPreviewImage {
   width: 100%;
-  height: 100%;
+  max-height: 60%;
   object-fit: contain;
+  border-radius: var(--radius-md);
+  border: var(--border-1);
+  background: var(--color-canvas);
 }
 
 .adPreviewPlaceholder {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 1.5rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
+  width: 100%;
+  flex: 1;
+  max-height: 60%;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  background: var(--color-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .adPreviewOverlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.6);
-  color: rgba(255, 255, 255, 0.8);
+  width: 100%;
   text-align: center;
-  padding: 10px;
-  font-size: 0.8rem;
+  padding: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
 }
 
+/* ヘッダー行 */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   flex-wrap: wrap;
 }
 
 .className {
-  font-size: 1.3rem;
-  font-weight: bold;
+  font-size: var(--fs-xl);
+  font-weight: 600;
   margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
 .clock {
-  font-size: 1.1rem;
-  color: #667eea;
-  font-weight: 600;
+  font-size: var(--fs-md);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
-/* セレクタ */
+/* 戻るリンク */
+.backLink {
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  margin-right: auto;
+}
+
+.backLink:hover {
+  color: var(--color-text);
+}
+
+/* コンテキストバー（今、どのクラスに送っているかを常時明示） */
 .selectorRow {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   align-items: center;
   flex-wrap: wrap;
-  font-size: 14px;
-  margin-bottom: 16px;
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-4);
+  padding: 10px 14px;
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
 }
 
 .selectorRow select {
-  padding: 6px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: var(--border-1);
+  background: var(--color-canvas);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  transition: border-color 0.15s ease;
+}
+
+.selectorRow select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.selectorRow select:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 
 .selectorLabel {
-  color: #888;
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .selectorDivider {
-  color: #ccc;
+  color: var(--color-text-subtle);
 }
 
-/* 編集レベル */
+/* 編集レベル（マスター編集 — 色ではなくラベルで識別） */
 .levelSelector {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
+  background: var(--color-surface-sunken);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  width: fit-content;
 }
 
 .levelBtn {
   padding: 6px 14px;
-  font-size: 13px;
-  border-radius: 20px;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  border: 2px solid;
-  font-weight: 600;
-  transition: all 0.2s;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+  min-height: 30px;
 }
 
+.levelBtn:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.levelBtnActive {
+  background: var(--color-canvas);
+  color: var(--color-text);
+  border-color: var(--color-line);
+  box-shadow: var(--shadow-1);
+}
+
+/* マスター編集中の告知バナー（全面色塗りではなく、左縦線＋アイコン風で視覚的ノイズを抑制） */
 .levelIndicator {
-  padding: 10px 16px;
-  border-radius: 8px;
-  color: white;
-  font-size: 13px;
-  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-weak);
+  color: var(--color-text);
+  border: 1px solid var(--color-accent-line);
+  border-left: 3px solid var(--color-accent);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
+  line-height: var(--lh-body);
+}
+
+.levelIndicator::before {
+  /* 色に依存しないインジケーター: 記号で警告であることを示す */
+  content: "●";
+  color: var(--color-accent);
+  font-size: 10px;
+  flex-shrink: 0;
 }
 
 /* セクション */
 .section {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  margin-bottom: 20px;
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  /* シャドウは完全に排除、1pxラインで区切る */
 }
 
 .sectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-1);
 }
 
 .sectionHeader h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
 /* スケジュールグリッド */
 .scheduleGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .scheduleColumn {
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: var(--color-surface-muted);
+  border: var(--border-1);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .scheduleColumn.isToday {
-  border: 2px solid #667eea;
+  border-color: var(--color-accent);
+  background: var(--color-canvas);
 }
 
 .scheduleDateHeader {
   padding: 8px 12px;
-  background: #e9ecef;
+  background: var(--color-surface-sunken);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   text-align: center;
+  color: var(--color-text);
+  border-bottom: var(--border-1);
 }
 
 .isToday .scheduleDateHeader {
-  background: #667eea;
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-canvas);
+  border-bottom-color: var(--color-accent);
 }
 
 .scheduleItems {
@@ -211,14 +313,14 @@
 
 .scheduleItem {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.2s;
-  margin-bottom: 6px;
-  border-bottom: 1px solid #dde3ec;
+  transition: background 0.15s ease;
+  margin-bottom: 4px;
+  border-bottom: var(--border-1);
 }
 
 .scheduleItem:last-child {
@@ -227,25 +329,28 @@
 }
 
 .scheduleItem:hover {
-  background: #e9ecef;
+  background: var(--color-surface-muted);
 }
 
 .scheduleTime {
-  color: #667eea;
+  color: var(--color-accent);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .scheduleContent {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
 }
 
 .scheduleLocation {
   display: block;
-  font-size: 0.75rem;
-  color: #888;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
 }
 
 /* 連絡リスト */
@@ -257,27 +362,40 @@
 
 .noticeItem {
   padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: var(--border-1);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+}
+
+.noticeItem:last-child {
+  border-bottom: none;
 }
 
 .noticeItem:hover {
-  background: #f8f9fa;
+  background: var(--color-surface-muted);
 }
 
+/* ハイライト: 色に加えて左縦線＋「重要」バッジで識別 */
 .noticeItem.highlight {
-  background: #fff3e0;
+  background: var(--color-alert-weak);
+  border-left: 3px solid var(--color-alert);
+  padding-left: 9px;
 }
 
 .importantBadge {
-  color: #e74c3c;
+  color: var(--color-alert);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
+  padding: 2px 6px;
+  background: var(--color-canvas);
+  border: 1px solid #f4c7c7;
+  border-radius: var(--radius-sm);
 }
 
 /* 提出物テーブル */
@@ -292,82 +410,96 @@
 
 .assignmentTable th {
   text-align: left;
-  padding: 8px 12px;
-  border-bottom: 2px solid #e9ecef;
-  font-size: 0.85rem;
-  color: #888;
+  padding: 10px 12px;
+  border-bottom: var(--border-1);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .assignmentTable td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 0.9rem;
+  padding: 10px 12px;
+  border-bottom: var(--border-1);
+  font-size: var(--fs-sm);
+  color: var(--color-text);
 }
 
 .assignmentRow {
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s ease;
 }
 
 .assignmentRow:hover {
-  background: #f8f9fa;
+  background: var(--color-surface-muted);
 }
 
+/* 期限切れ: 色のみでなく左縦線も併用 */
 .assignmentRow.overdue {
-  background: #fff5f5;
+  background: var(--color-alert-weak);
+  border-left: 3px solid var(--color-alert);
 }
 
 .daysUrgent {
-  color: #e74c3c;
+  color: var(--color-alert);
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
 }
 
 .daysLeft {
-  color: #27ae60;
-  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
 }
 
 /* 共通 */
 .deleteBtn {
   background: none;
   border: none;
-  color: #ccc;
+  color: var(--color-text-subtle);
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0 4px;
+  font-size: 16px;
+  padding: 4px 6px;
   line-height: 1;
   flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .deleteBtn:hover {
-  color: #e74c3c;
+  color: var(--color-alert);
+  background: var(--color-alert-weak);
 }
 
 .addButton {
   display: block;
   width: 100%;
   padding: 10px;
-  margin-top: 8px;
-  background: none;
-  border: 1px dashed #ccc;
-  border-radius: 6px;
-  color: #888;
+  margin-top: var(--space-2);
+  background: var(--color-canvas);
+  border: 1px dashed var(--color-line-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  font-weight: 500;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  min-height: 40px;
 }
 
 .addButton:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--color-accent);
+  border-style: solid;
+  color: var(--color-accent);
+  background: var(--color-accent-weak);
 }
 
 .emptyMessage {
-  color: #999;
+  color: var(--color-text-muted);
   text-align: center;
-  padding: 20px;
-  font-size: 0.9rem;
+  padding: var(--space-5);
+  font-size: var(--fs-sm);
 }
 
 /* レスポンシブ */
@@ -379,7 +511,7 @@
 
 @media (max-width: 768px) {
   .pageContainer {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .scheduleGrid {
@@ -392,99 +524,89 @@
   }
 
   .className {
-    font-size: 1.1rem;
+    font-size: var(--fs-lg);
   }
 
   .section {
-    padding: 14px;
-    border-radius: 8px;
-    margin-bottom: 14px;
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
   }
 
   .sectionHeader h2 {
-    font-size: 1rem;
+    font-size: var(--fs-md);
   }
 
   .levelSelector {
-    gap: 6px;
+    width: 100%;
   }
 
   .levelBtn {
-    padding: 5px 10px;
-    font-size: 12px;
+    flex: 1;
+    padding: 6px 10px;
+    font-size: var(--fs-xs);
   }
 
   .levelIndicator {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 10px 12px;
+    font-size: var(--fs-xs);
     flex-wrap: wrap;
   }
 
   .selectorRow {
     gap: 6px;
-    font-size: 13px;
+    font-size: var(--fs-xs);
   }
 
   .selectorRow select {
     max-width: 140px;
-    font-size: 13px;
+    font-size: var(--fs-xs);
   }
 
   .scheduleItem {
     padding: 6px;
     gap: 6px;
+    min-height: 44px;
   }
 
   .scheduleTime {
-    font-size: 0.8rem;
+    font-size: var(--fs-xs);
   }
 
   .scheduleContent {
-    font-size: 0.85rem;
+    font-size: var(--fs-sm);
   }
 
   .noticeItem {
-    padding: 8px 10px;
-    font-size: 0.85rem;
+    padding: 10px;
+    font-size: var(--fs-sm);
+    min-height: 44px;
   }
 
   .assignmentTable th,
   .assignmentTable td {
-    padding: 6px 8px;
-    font-size: 0.8rem;
-  }
-
-  .addButton {
-    padding: 8px;
-    font-size: 0.85rem;
-    min-height: 44px;
-  }
-
-  .emptyMessage {
-    padding: 14px;
-    font-size: 0.85rem;
-  }
-
-  /* モバイル: タッチターゲット最適化 */
-  .scheduleItem {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-  }
-
-  .noticeItem {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
+    padding: 8px 10px;
+    font-size: var(--fs-xs);
   }
 
   .assignmentTable td {
     min-height: 44px;
   }
 
+  .addButton {
+    padding: 10px;
+    font-size: var(--fs-sm);
+    min-height: 44px;
+  }
+
+  .emptyMessage {
+    padding: var(--space-4);
+    font-size: var(--fs-sm);
+  }
+
   /* モバイル: 提出物テーブルをカード風に */
   .assignmentTable {
-    font-size: 0.8rem;
+    font-size: var(--fs-xs);
   }
 
   .assignmentTable thead {
@@ -494,8 +616,8 @@
   .assignmentTable tbody tr {
     display: flex;
     flex-wrap: wrap;
-    padding: 8px;
-    border-bottom: 1px solid #eee;
+    padding: var(--space-2);
+    border-bottom: var(--border-1);
     gap: 4px;
   }
 
@@ -505,14 +627,14 @@
   }
 
   .assignmentTable tbody td:first-child {
-    font-weight: 700;
-    color: #2c3e50;
+    font-weight: 600;
+    color: var(--color-text);
     flex-basis: 100%;
   }
 
   .assignmentTable tbody td:nth-child(2) {
-    color: #3498db;
-    font-weight: 600;
+    color: var(--color-accent);
+    font-weight: 500;
   }
 
   .assignmentTable tbody td:last-child {
@@ -522,16 +644,16 @@
 
 @media (max-width: 480px) {
   .pageContainer {
-    padding: 8px;
+    padding: var(--space-2);
   }
 
   .headerLeft {
-    gap: 8px;
+    gap: var(--space-2);
     width: 100%;
   }
 
   .clock {
-    font-size: 0.95rem;
+    font-size: var(--fs-sm);
   }
 
   .selectorRow {
@@ -550,7 +672,7 @@
   }
 
   .selectorLabel {
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
 
   .levelSelector {

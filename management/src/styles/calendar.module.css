@@ -1,34 +1,37 @@
-/* calendar.module.css */
+/* calendar.module.css — カレンダーモーダル */
 
 .calendarNav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .monthLabel {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--fs-md);
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .calendarGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .calendarHeader {
   text-align: center;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
   padding: 6px 0;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
-.calendarHeader.sunday { color: #e74c3c; }
-.calendarHeader.saturday { color: #3498db; }
+/* 曜日色: 色だけでなく意味は「日/土」というテキスト自体が担う */
+.calendarHeader.sunday { color: var(--color-alert); }
+.calendarHeader.saturday { color: var(--color-accent); }
 
 .calendarCellEmpty {
   min-height: 40px;
@@ -39,33 +42,36 @@
   padding: 4px;
   text-align: center;
   cursor: pointer;
-  border-radius: 6px;
-  transition: background 0.15s;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, border-color 0.15s ease;
   position: relative;
+  border: 1px solid transparent;
 }
 
 .calendarCell:hover {
-  background: #f0f0f0;
+  background: var(--color-surface-muted);
 }
 
 .calendarCell.today {
-  background: #667eea15;
-  border: 1px solid #667eea;
+  background: var(--color-accent-weak);
+  border-color: var(--color-accent);
 }
 
 .calendarCell.selected {
-  background: #667eea;
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-canvas);
+  border-color: var(--color-accent);
 }
 
-.calendarCell.sunday { color: #e74c3c; }
-.calendarCell.saturday { color: #3498db; }
+.calendarCell.sunday { color: var(--color-alert); }
+.calendarCell.saturday { color: var(--color-accent); }
 .calendarCell.selected.sunday,
-.calendarCell.selected.saturday { color: white; }
+.calendarCell.selected.saturday { color: var(--color-canvas); }
 
 .dayNumber {
-  font-size: 0.85rem;
+  font-size: var(--fs-xs);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .eventDots {
@@ -75,49 +81,52 @@
   margin-top: 2px;
 }
 
+/* ドットは同色の濃淡ではなく、後述の legend+テキストで区別する前提（色のみに依存しない） */
 .dotSchedule {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #667eea;
+  background: var(--color-accent);
 }
 
 .dotNotice {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #f39c12;
+  background: var(--color-text);
 }
 
 .dotAssignment {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #27ae60;
+  background: var(--color-alert);
 }
 
 /* 日付詳細 */
 .dayDetail {
-  border-top: 1px solid #e1e1e1;
-  padding-top: 12px;
+  border-top: var(--border-1);
+  padding-top: var(--space-3);
 }
 
 .dayDetailTitle {
-  margin: 0 0 8px;
-  font-size: 1rem;
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .detailSection {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .detailSectionHeader {
-  font-weight: bold;
-  font-size: 0.85rem;
-  color: #555;
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
   padding: 6px 8px;
-  background: #fafafa;
-  border-bottom: 1px solid #eee;
+  background: var(--color-surface-muted);
+  border-bottom: var(--border-1);
 }
 
 .detailItem {
@@ -125,13 +134,18 @@
   justify-content: space-between;
   align-items: center;
   padding: 6px 8px;
-  border-bottom: 1px solid #f0f0f0;
-  gap: 8px;
-  font-size: 0.85rem;
+  border-bottom: var(--border-1);
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.detailItem:last-child {
+  border-bottom: none;
 }
 
 .detailItem span {
   flex: 1;
+  color: var(--color-text);
 }
 
 .detailActions {
@@ -141,38 +155,43 @@
 }
 
 .detailActions button {
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 2px 6px;
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .detailActions button:hover {
-  background: #f0f0f0;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .detailEmpty {
   padding: 6px 8px;
-  color: #999;
-  font-size: 0.8rem;
+  color: var(--color-text-subtle);
+  font-size: var(--fs-xs);
 }
 
 .detailAdd {
   background: none;
   border: none;
-  color: #667eea;
+  color: var(--color-accent);
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
   padding: 4px 8px;
+  font-family: inherit;
+  font-weight: 500;
 }
 
 .detailAdd:hover {
   text-decoration: underline;
 }
 
-/* レスポンシブ */
 @media (max-width: 768px) {
   .calendarCell {
     min-height: 34px;
@@ -180,7 +199,7 @@
   }
 
   .dayNumber {
-    font-size: 0.8rem;
+    font-size: var(--fs-xs);
   }
 
   .eventDots {
@@ -195,19 +214,19 @@
   }
 
   .detailItem {
-    font-size: 0.8rem;
+    font-size: var(--fs-xs);
     padding: 5px 6px;
   }
 
   .detailActions button {
-    font-size: 0.8rem;
-    padding: 2px 5px;
+    font-size: var(--fs-xs);
+    padding: 2px 6px;
   }
 }
 
 @media (max-width: 480px) {
   .calendarHeader {
-    font-size: 0.7rem;
+    font-size: var(--fs-xs);
     padding: 4px 0;
   }
 
@@ -216,6 +235,6 @@
   }
 
   .dayNumber {
-    font-size: 0.75rem;
+    font-size: var(--fs-xs);
   }
 }

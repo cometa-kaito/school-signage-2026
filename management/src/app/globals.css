@@ -1,4 +1,9 @@
-/* globals.css - common.css からの移植 + Next.js用リセット */
+/* globals.css — キミテラス 管理画面 デザイントークン & 共通スタイル
+ *
+ * 目指す水準: Notion の余白、Linear の端正なタイポ、Vercel の抑制された配色。
+ * 5色に厳選したマットパレット。色だけに依存しない状態表現。
+ * 既存の掲示板（signage 表示）は signage.module.css に隔離しており、ここでは管理画面のみを対象とする。
+ */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -9,15 +14,75 @@
 }
 
 :root {
-  --primary: #667eea;
-  --primary-dark: #5a67d8;
-  --danger: #e74c3c;
-  --success: #27ae60;
-  --warning: #f39c12;
-  --border: #e1e1e1;
-  --text: #333333;
-  --text-light: #666666;
-  --card-bg: #ffffff;
+  /* ===== カラー（マットトーン・5色体系） ===== */
+  /* 白 / ベース */
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f8fa;    /* Mist Gray — セクション背景 */
+  --color-surface-sunken: #f2f3f5;   /* わずかに沈んだ背景 */
+
+  /* 鼠色 / グレー */
+  --color-line: #e5e7eb;             /* 罫線・枠線 */
+  --color-line-strong: #d1d5db;      /* 強調罫線 */
+  --color-text-muted: #6b7280;       /* 補助テキスト（on 白で 4.83:1 AA） */
+  --color-text-subtle: #9ca3af;      /* さらに淡いサブテキスト（大きめ文字限定） */
+
+  /* 黒 / メインテキスト */
+  --color-text: #111827;             /* Ink Black（on 白で 17.7:1 AAA） */
+  --color-text-strong: #030712;
+
+  /* マットインディゴ / ポジティブアクション（提案色） */
+  --color-accent: #2c5282;           /* Signal Indigo（on 白で 8.2:1 AAA） */
+  --color-accent-hover: #234069;     /* ホバー（ブライトネス 0.95 相当） */
+  --color-accent-weak: #eaf0f7;      /* 極薄の選択状態背景 */
+  --color-accent-line: #c6d4e6;      /* 選択状態の細い枠 */
+
+  /* 赤 / アラート・破壊操作 */
+  --color-alert: #b91c1c;            /* Brick Red（on 白で 6.5:1 AAA） */
+  --color-alert-hover: #991b1b;
+  --color-alert-weak: #fdecec;       /* 極薄の警告背景 */
+
+  /* ===== 形状・余白 ===== */
+  --radius-sm: 4px;
+  --radius-md: 6px;                  /* 標準（Linear 準拠） */
+  --radius-lg: 8px;                  /* カード・モーダル外縁 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+
+  /* 罫線・影 */
+  --border-1: 1px solid var(--color-line);
+  --border-strong: 1px solid var(--color-line-strong);
+  --shadow-1: 0 1px 2px rgba(17, 24, 39, 0.05);      /* モーダル・ドロップダウン */
+  --shadow-2: 0 4px 12px rgba(17, 24, 39, 0.08);     /* オーバーレイ */
+
+  /* タイポ */
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;                     /* 本文 */
+  --fs-lg: 16px;                     /* 入力欄（iOS自動ズーム防止） */
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --lh-body: 1.6;
+  --lh-tight: 1.4;
+
+  /* ===== レガシー互換（既存 CSS Module が参照する変数） ===== */
+  --primary: var(--color-accent);
+  --primary-dark: var(--color-accent-hover);
+  --danger: var(--color-alert);
+  --success: var(--color-accent);      /* 成功もアクセント色に統一（色だけで分岐しない） */
+  --warning: var(--color-text);        /* 警告は黒+アイコン表現に寄せる */
+  --border: var(--color-line);
+  --text: var(--color-text);
+  --text-light: var(--color-text-muted);
+  --card-bg: var(--color-surface);
 }
 
 html {
@@ -31,13 +96,13 @@ html, body {
 
 body {
   min-height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
-  color: var(--text);
-  background: #f5f7fa;
-  line-height: 1.6;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-surface-muted);
+  line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: var(--fs-md);
 }
 
 a {
@@ -45,91 +110,163 @@ a {
   text-decoration: none;
 }
 
-/* ボタン共通 */
+/* フォーカスリング（キーボード操作の可視化 — WCAG 2.4.7） */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ===== ボタン共通 ===== */
 .btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   cursor: pointer;
+  font-family: inherit;
   font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+  font-size: var(--fs-md);
+  line-height: 1.2;
+  letter-spacing: 0;
   white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  min-height: 40px;
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 一次アクション: 送る / 保存する */
 .btn-primary {
-  background: var(--primary);
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-canvas);
+  border-color: var(--color-accent);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
 }
 
-.btn-primary:hover {
-  background: var(--primary-dark);
-}
-
+/* 二次アクション: キャンセル / やめる */
 .btn-secondary {
-  background: #e9ecef;
-  color: #495057;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-line-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  border-color: var(--color-text-muted);
 }
 
-.btn-secondary:hover {
-  background: #dee2e6;
-}
-
+/* 破壊アクション: 消す / 削除する（赤は塗り、右配置のみに限定） */
 .btn-danger {
-  background: var(--danger);
-  color: white;
+  background: var(--color-alert);
+  color: var(--color-canvas);
+  border-color: var(--color-alert);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-alert-hover);
+  border-color: var(--color-alert-hover);
 }
 
-.btn-danger:hover {
-  background: #c0392b;
+/* ゴースト: テキストリンク的な弱いアクション */
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-muted);
 }
 
 .btn-sm {
   padding: 6px 12px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
+  min-height: 32px;
 }
 
 .btn-icon {
-  padding: 5px 8px;
+  padding: 6px 8px;
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s;
+  font-size: var(--fs-md);
+  min-height: 32px;
+  min-width: 32px;
 }
 
-.btn-icon:hover {
-  background: #f8f9fa;
+.btn-icon:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
-/* バッジ */
+/* ===== バッジ（ステータスはアイコン/ラベルと併用） ===== */
 .badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
   font-weight: 600;
+  line-height: 1.4;
   white-space: nowrap;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
 }
 
-.badge-admin { background: #667eea20; color: #667eea; }
-.badge-user { background: #9e9e9e20; color: #757575; }
-.badge-active { background: #27ae6020; color: #27ae60; }
-.badge-disabled { background: #e74c3c20; color: #e74c3c; }
-.badge-editor { background: #e8f5e9; color: #2e7d32; }
+/* ドット＋テキスト形式で色以外の手がかりを追加（ユーザーコピー側で「● 配信中」等として運用） */
+.badge-admin {
+  background: var(--color-accent-weak);
+  color: var(--color-accent);
+  border-color: var(--color-accent-line);
+}
+.badge-user {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  border-color: var(--color-line);
+}
+.badge-active {
+  background: var(--color-accent-weak);
+  color: var(--color-accent);
+  border-color: var(--color-accent-line);
+}
+.badge-disabled {
+  background: var(--color-alert-weak);
+  color: var(--color-alert);
+  border-color: #f4c7c7;
+}
+.badge-editor {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border-color: var(--color-line);
+}
 
-/* フォーム */
+/* ===== フォーム ===== */
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: var(--space-4);
 }
 
 .form-group label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: #555;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
 }
 
 .form-group input[type="text"],
@@ -143,24 +280,61 @@ a {
 .form-group textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  color: var(--color-text);
+  background: var(--color-canvas);
   box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--color-text-subtle);
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.15);
 }
 
-/* ユーティリティ */
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* ===== ユーティリティ ===== */
 .hidden { display: none; }
-.error-text { color: var(--danger); }
+
+.error-text {
+  color: var(--color-alert);
+  font-size: var(--fs-sm);
+}
+
 .empty-text {
-  color: var(--text-light);
+  color: var(--color-text-muted);
   text-align: center;
-  padding: 20px;
+  padding: var(--space-5);
+  font-size: var(--fs-sm);
+}
+
+/* スクリーンリーダー専用テキスト（アイコンのみボタンの意味補完用） */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

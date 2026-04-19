@@ -302,11 +302,9 @@ function SchoolHubView({
                         style={{
                           marginLeft: "auto",
                           textDecoration: "none",
-                          background: "#9b59b6",
-                          borderColor: "#9b59b6",
                         }}
                       >
-                        学科マスターを編集
+                        学科にまとめて編集
                       </a>
                     </div>
                     {dExpanded && (
@@ -323,10 +321,10 @@ function SchoolHubView({
                               <div
                                 key={grade.id}
                                 style={{
-                                  border: "1px solid #eee",
-                                  borderRadius: 6,
+                                  border: "1px solid var(--color-line)",
+                                  borderRadius: "var(--radius-sm)",
                                   marginBottom: 8,
-                                  background: "#f8fbff",
+                                  background: "var(--color-surface-muted)",
                                 }}
                               >
                                 <div

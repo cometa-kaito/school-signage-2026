@@ -31,20 +31,20 @@ export function EditorModeToggle({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 4,
-        padding: "4px 10px",
-        borderRadius: 6,
-        border: "1px solid #667eea",
-        color: "#667eea",
-        background: "#fff",
+        gap: 6,
+        padding: "6px 12px",
+        borderRadius: "var(--radius-sm)",
+        border: "1px solid var(--color-line-strong)",
+        color: "var(--color-text)",
+        background: "var(--color-canvas)",
         textDecoration: "none",
-        fontSize: "0.85rem",
-        fontWeight: 600,
+        fontSize: "var(--fs-sm)",
+        fontWeight: 500,
         ...style,
       }}
-      title={`${otherLabel}エディターに切替`}
+      title={`${otherLabel}の画面に切り替える`}
     >
-      {currentBasePath === "/manage/editor" ? "📱" : "🖥️"} {otherLabel}に切替
+      {currentBasePath === "/manage/editor" ? "📱" : "🖥"} {otherLabel}に切り替え
     </a>
   );
 }

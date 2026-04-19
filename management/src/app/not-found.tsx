@@ -8,26 +8,29 @@ export default function NotFound() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#f0f2f5",
-        fontFamily: "sans-serif",
+        background: "var(--color-surface-muted)",
+        fontFamily: "var(--font-sans)",
+        padding: 24,
       }}
     >
       <div
         style={{
-          background: "white",
-          borderRadius: "16px",
-          padding: "40px",
-          maxWidth: "440px",
+          background: "var(--color-canvas)",
+          borderRadius: "var(--radius-lg)",
+          padding: 40,
+          maxWidth: 440,
           width: "90%",
           textAlign: "center",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+          border: "1px solid var(--color-line)",
+          boxShadow: "var(--shadow-1)",
         }}
       >
         <h1
           style={{
-            fontSize: "4rem",
-            fontWeight: 700,
-            color: "#667eea",
+            fontSize: "3.5rem",
+            fontWeight: 600,
+            color: "var(--color-text)",
+            letterSpacing: "-0.02em",
             margin: "0 0 8px",
           }}
         >
@@ -35,30 +38,38 @@ export default function NotFound() {
         </h1>
         <h2
           style={{
-            fontSize: "1.2rem",
-            color: "#333",
+            fontSize: "var(--fs-lg)",
+            color: "var(--color-text)",
+            fontWeight: 600,
             margin: "0 0 12px",
           }}
         >
-          ページが見つかりません
+          ページが見つかりませんでした
         </h2>
-        <p style={{ color: "#888", fontSize: "0.9rem", marginBottom: "24px" }}>
-          お探しのページは移動または削除された可能性があります。
+        <p
+          style={{
+            color: "var(--color-text-muted)",
+            fontSize: "var(--fs-sm)",
+            marginBottom: 24,
+            lineHeight: 1.6,
+          }}
+        >
+          お探しのページは移動したか、見つけられませんでした。
         </p>
         <Link
           href="/"
           style={{
             display: "inline-block",
-            padding: "10px 28px",
-            background: "#667eea",
-            color: "white",
-            borderRadius: "8px",
+            padding: "10px 24px",
+            background: "var(--color-accent)",
+            color: "var(--color-canvas)",
+            borderRadius: "var(--radius-md)",
             textDecoration: "none",
             fontWeight: 600,
-            fontSize: "0.9rem",
+            fontSize: "var(--fs-md)",
           }}
         >
-          トップページへ
+          トップに戻る
         </Link>
       </div>
     </div>

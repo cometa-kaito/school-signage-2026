@@ -111,7 +111,9 @@ function snapshotToMap(
   const map: Record<string, DocumentData> = {};
   snapshot.forEach((docSnap) => {
     const data = docSnap.data();
-    map[data.date] = data;
+    if (data && typeof data.date === "string" && data.date) {
+      map[data.date] = data;
+    }
   });
   return map;
 }
@@ -268,9 +270,13 @@ export function useSignageData(
       }
     }
 
-    newAssignments.sort(
-      (a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-    );
+    newAssignments.sort((a, b) => {
+      const ta = new Date(a.deadline).getTime();
+      const tb = new Date(b.deadline).getTime();
+      const va = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY;
+      const vb = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY;
+      return va - vb;
+    });
 
     // 広告の階層マージ（school > department > grade > class の順で連結）
     const mergedAdsBase: Ad[] = [
@@ -624,13 +630,15 @@ export function useSignageData(
             newWeeklySchedules[dateKey] = d.schedules as Schedule[];
           }
 
-          if (dateKey === todayStr && d.notices && (d.notices as Notice[]).length > 0) {
+          if (d.notices && (d.notices as Notice[]).length > 0) {
             const filteredNotices = filterByDisplayRange(
               d.notices as Notice[],
               todayStr,
               dateKey
             );
-            newNotices = newNotices.concat(filteredNotices);
+            if (filteredNotices.length > 0) {
+              newNotices = newNotices.concat(filteredNotices);
+            }
           }
 
           if (d.assignments && (d.assignments as Assignment[]).length > 0) {
@@ -640,10 +648,13 @@ export function useSignageData(
           }
         });
 
-        newAssignments.sort(
-          (a, b) =>
-            new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-        );
+        newAssignments.sort((a, b) => {
+          const ta = new Date(a.deadline).getTime();
+          const tb = new Date(b.deadline).getTime();
+          const va = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY;
+          const vb = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY;
+          return va - vb;
+        });
 
         setData({
           schoolName: config.schoolName || "School Name",

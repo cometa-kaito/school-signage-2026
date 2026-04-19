@@ -46,42 +46,58 @@ export default function Error({
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
-        background: "#f8f9fa",
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif",
+        background: "var(--color-surface-muted)",
+        fontFamily: "var(--font-sans)",
       }}
     >
       <div
         style={{
           maxWidth: 480,
-          background: "#fff",
+          background: "var(--color-canvas)",
           padding: "28px 32px",
-          borderRadius: 12,
-          boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+          borderRadius: "var(--radius-lg)",
+          border: "1px solid var(--color-line)",
+          boxShadow: "var(--shadow-1)",
           textAlign: "center",
         }}
       >
-        <h2 style={{ margin: "0 0 12px", color: "#2c3e50", fontSize: "1.2rem" }}>
-          画面の表示中にエラーが発生しました
+        <h2
+          style={{
+            margin: "0 0 12px",
+            color: "var(--color-text)",
+            fontSize: "var(--fs-lg)",
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          画面をうまく開けませんでした
         </h2>
-        <p style={{ margin: "0 0 20px", color: "#666", fontSize: "0.9rem" }}>
-          ページを再読み込みすると復旧する場合があります。
+        <p
+          style={{
+            margin: "0 0 20px",
+            color: "var(--color-text-muted)",
+            fontSize: "var(--fs-sm)",
+            lineHeight: 1.6,
+          }}
+        >
+          もう一度お試しください。直らないときはページを読み直すと戻ることがあります。
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
           <button
             onClick={() => reset()}
             style={{
               padding: "8px 18px",
-              background: "#667eea",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
+              background: "var(--color-accent)",
+              color: "var(--color-canvas)",
+              border: "1px solid var(--color-accent)",
+              borderRadius: "var(--radius-md)",
               cursor: "pointer",
-              fontSize: "0.9rem",
+              fontSize: "var(--fs-sm)",
               fontWeight: 600,
+              fontFamily: "inherit",
             }}
           >
-            再試行
+            もう一度
           </button>
           <button
             onClick={() => {
@@ -89,24 +105,25 @@ export default function Error({
             }}
             style={{
               padding: "8px 18px",
-              background: "#fff",
-              color: "#667eea",
-              border: "1px solid #667eea",
-              borderRadius: 6,
+              background: "var(--color-canvas)",
+              color: "var(--color-text)",
+              border: "1px solid var(--color-line-strong)",
+              borderRadius: "var(--radius-md)",
               cursor: "pointer",
-              fontSize: "0.9rem",
+              fontSize: "var(--fs-sm)",
               fontWeight: 600,
+              fontFamily: "inherit",
             }}
           >
-            ページを再読み込み
+            ページを読み直す
           </button>
         </div>
         {error?.digest && (
           <p
             style={{
               margin: "16px 0 0",
-              color: "#999",
-              fontSize: "0.75rem",
+              color: "var(--color-text-subtle)",
+              fontSize: "var(--fs-xs)",
               fontFamily: "monospace",
             }}
           >

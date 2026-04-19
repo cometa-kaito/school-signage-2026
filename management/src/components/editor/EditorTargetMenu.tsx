@@ -82,17 +82,23 @@ export function EditorTargetMenu({
     router.push(`${basePath}?${qs}`);
   };
 
-  const btnStyle = (color: string): React.CSSProperties => ({
-    padding: "16px 20px",
-    borderRadius: 10,
-    border: `2px solid ${color}`,
-    background: "#fff",
-    color,
-    fontSize: "1rem",
+  // 全ボタン同一スタイル。意味はラベル文字列で区別（色に依存しない）。
+  // variant は視覚的な「強さ」のみを表し、レベルの種類とは独立している。
+  const btnStyle = (variant: "primary" | "secondary" = "secondary"): React.CSSProperties => ({
+    padding: "14px 18px",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--color-line-strong)",
+    background:
+      variant === "primary" ? "var(--color-text)" : "var(--color-canvas)",
+    color:
+      variant === "primary" ? "var(--color-canvas)" : "var(--color-text)",
+    fontSize: "var(--fs-md)",
     fontWeight: 600,
     cursor: "pointer",
     textAlign: "left",
     minWidth: 180,
+    fontFamily: "inherit",
+    transition: "background 0.15s ease, border-color 0.15s ease",
   });
 
   const sectionStyle: React.CSSProperties = {
@@ -149,12 +155,13 @@ export function EditorTargetMenu({
           <a
             href={basePath}
             style={{
-              color: "#666",
+              color: "var(--color-text-muted)",
               textDecoration: "none",
-              fontSize: "0.9rem",
+              fontSize: "var(--fs-sm)",
+              fontWeight: 500,
             }}
           >
-            ← 学校選択に戻る
+            ← 学校を選び直す
           </a>
           <EditorModeToggle
             currentBasePath={
@@ -164,38 +171,44 @@ export function EditorTargetMenu({
             }
           />
         </div>
-        <h2 style={{ margin: "8px 0 0" }}>{schoolName}</h2>
-        <p style={{ color: "#888", fontSize: "0.9rem" }}>
-          編集対象を選択してください
+        <h2 style={{ margin: "8px 0 0", fontSize: "var(--fs-xl)", fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.01em" }}>
+          {schoolName}
+        </h2>
+        <p style={{ color: "var(--color-text-muted)", fontSize: "var(--fs-sm)" }}>
+          どこに送りますか？
         </p>
       </div>
 
       {canEditMaster && (
         <div style={sectionStyle}>
-          <h3 style={{ marginBottom: 8 }}>学校マスター</h3>
-          <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: 8 }}>
-            全クラスに自動反映されます
+          <h3 style={{ marginBottom: 6, fontSize: "var(--fs-md)", fontWeight: 600, color: "var(--color-text)" }}>
+            学校全体にまとめて
+          </h3>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "var(--fs-sm)", marginBottom: 10 }}>
+            この学校の全クラスに反映されます
           </p>
           <button
-            style={btnStyle("#007bff")}
+            style={btnStyle("primary")}
             onClick={() => nav({ level: "school" })}
           >
-            学校マスターを編集
+            学校全体にまとめて送る
           </button>
         </div>
       )}
 
       {canEditMaster && isDept && departments.length > 0 && (
         <div style={sectionStyle}>
-          <h3 style={{ marginBottom: 8 }}>学科マスター</h3>
-          <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: 8 }}>
-            同学科に属する全クラスに反映されます
+          <h3 style={{ marginBottom: 6, fontSize: "var(--fs-md)", fontWeight: 600, color: "var(--color-text)" }}>
+            学科にまとめて
+          </h3>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "var(--fs-sm)", marginBottom: 10 }}>
+            同じ学科の全クラスに反映されます
           </p>
           <div style={gridStyle}>
             {departments.map((d) => (
               <button
                 key={d.id}
-                style={btnStyle("#9b59b6")}
+                style={btnStyle("secondary")}
                 onClick={() =>
                   nav({ level: "department", department: d.id })
                 }
@@ -209,9 +222,11 @@ export function EditorTargetMenu({
 
       {canEditMaster && (
         <div style={sectionStyle}>
-          <h3 style={{ marginBottom: 8 }}>学年マスター</h3>
-          <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: 8 }}>
-            学年内の全クラスに反映されます
+          <h3 style={{ marginBottom: 6, fontSize: "var(--fs-md)", fontWeight: 600, color: "var(--color-text)" }}>
+            学年にまとめて
+          </h3>
+          <p style={{ color: "var(--color-text-muted)", fontSize: "var(--fs-sm)", marginBottom: 10 }}>
+            この学年の全クラスに反映されます
           </p>
           <div style={gridStyle}>
             {isDept
@@ -238,7 +253,7 @@ export function EditorTargetMenu({
                     return (
                       <button
                         key={`grade-name:${name}`}
-                        style={btnStyle("#28a745")}
+                        style={btnStyle("secondary")}
                         onClick={() =>
                           nav({
                             level: "grade",
@@ -257,8 +272,8 @@ export function EditorTargetMenu({
                           <span
                             style={{
                               marginLeft: 8,
-                              fontSize: "0.75rem",
-                              color: "#666",
+                              fontSize: "var(--fs-xs)",
+                              color: "var(--color-text-muted)",
                             }}
                           >
                             ({pairs.length}学科共通)
@@ -271,7 +286,7 @@ export function EditorTargetMenu({
               : grades.map((g) => (
                   <button
                     key={g.id}
-                    style={btnStyle("#28a745")}
+                    style={btnStyle("secondary")}
                     onClick={() => nav({ level: "grade", grade: g.id })}
                   >
                     {g.name}
@@ -282,9 +297,11 @@ export function EditorTargetMenu({
       )}
 
       <div style={sectionStyle}>
-        <h3 style={{ marginBottom: 8 }}>各クラス</h3>
+        <h3 style={{ marginBottom: 6, fontSize: "var(--fs-md)", fontWeight: 600, color: "var(--color-text)" }}>
+          クラスを選ぶ
+        </h3>
         {allClasses.length === 0 ? (
-          <p className="empty-text">クラスがありません</p>
+          <p className="empty-text">クラスがまだありません</p>
         ) : (
           <div style={gridStyle}>
             {allClasses.map(
@@ -301,14 +318,13 @@ export function EditorTargetMenu({
                   class: cls.id,
                 };
                 if (deptId) params.department = deptId;
-                // クラスなし運用の場合はクラス名を省略（学年名と重複するため）
                 const label = gradeHasClasses
                   ? `${deptName ? deptName + " / " : ""}${gradeName} / ${cls.name}`
                   : `${deptName ? deptName + " / " : ""}${gradeName}`;
                 return (
                   <button
                     key={`${deptId || ""}:${gradeId}:${cls.id}`}
-                    style={btnStyle("#6c757d")}
+                    style={btnStyle("secondary")}
                     onClick={() => nav(params)}
                   >
                     {label}

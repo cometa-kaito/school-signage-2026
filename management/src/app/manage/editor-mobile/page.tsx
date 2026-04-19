@@ -74,11 +74,11 @@ function EditorMobileContent() {
   const isMaster = editingLevel !== "class";
   const headerLabel = isMaster
     ? editingLevel === "school"
-      ? "学校マスター"
+      ? "学校全体にまとめて"
       : editingLevel === "department"
-        ? "学科マスター"
-        : "学年マスター"
-    : data.className || "連絡登録";
+        ? "学科にまとめて"
+        : "学年にまとめて"
+    : data.className || "連絡を送る";
 
   // タブ
   const [activeTab, setActiveTab] = useState<TabType>("schedule");
@@ -145,28 +145,31 @@ function EditorMobileContent() {
     setSubmitting(true);
     try {
       if (activeTab === "schedule") {
-        const time =
-          schedTimeSelect === "その他" ? schedTimeCustom : schedTimeSelect;
-        if (!time || !schedContent) {
-          showToast("時限と内容は必須です", "error");
+        const time = (
+          schedTimeSelect === "その他" ? schedTimeCustom : schedTimeSelect
+        ).trim();
+        const content = schedContent.trim();
+        if (!time || !content) {
+          showToast("時限と内容を入れてください", "error");
           return;
         }
         const item: Record<string, unknown> = {
           time,
-          content: schedContent,
+          content,
         };
-        if (schedLocation) item.location = schedLocation;
+        if (schedLocation.trim()) item.location = schedLocation.trim();
         if (schedDisplayStart) item.display_start = schedDisplayStart;
         if (schedDisplayEnd) item.display_end = schedDisplayEnd;
         await saveItem("schedule", targetDate, null, item);
         clearScheduleForm();
       } else if (activeTab === "notice") {
-        if (!noticeText) {
-          showToast("連絡内容は必須です", "error");
+        const text = noticeText.trim();
+        if (!text) {
+          showToast("連絡内容を入れてください", "error");
           return;
         }
         const item: Record<string, unknown> = {
-          text: noticeText,
+          text,
           is_highlight: noticeHighlight,
           play_sound: noticeSound,
           display_start: noticeDisplayStart || targetDate,
@@ -175,21 +178,23 @@ function EditorMobileContent() {
         await saveItem("notice", targetDate, null, item);
         clearNoticeForm();
       } else {
-        if (!assignDeadline || !assignSubject || !assignTask) {
-          showToast("締切・教科・課題名は必須です", "error");
+        const subject = assignSubject.trim();
+        const task = assignTask.trim();
+        if (!assignDeadline || !subject || !task) {
+          showToast("締切・教科・課題名を入れてください", "error");
           return;
         }
         const item: Record<string, unknown> = {
           deadline: assignDeadline,
-          subject: assignSubject,
-          task: assignTask,
+          subject,
+          task,
         };
         await saveItem("assignment", assignDeadline, null, item);
         clearAssignmentForm();
       }
-      showToast("登録しました", "success");
+      showToast("送りました", "success");
     } catch (err) {
-      showToast("登録エラー: " + (err as Error).message, "error");
+      showToast("送れませんでした: " + (err as Error).message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -205,36 +210,19 @@ function EditorMobileContent() {
 
   return (
     <div className={styles.pageContainer}>
-      {/* ヘッダー */}
+      {/* ヘッダー — 今どこに送るかを常時明示 */}
       <div className={styles.appHeader}>
         <div className={styles.headerLeft}>
           <a
             href={`/manage/editor-mobile?school=${schoolId}`}
-            style={{
-              fontSize: "0.8rem",
-              color: "#667eea",
-              textDecoration: "none",
-              fontWeight: 600,
-              marginRight: 8,
-            }}
+            className={styles.backLink}
           >
-            ← クラス一覧
+            ← クラスを選び直す
           </a>
           <span className={styles.contextLabel}>{headerLabel}</span>
           {roleLabel && <span className={styles.roleBadge}>{roleLabel}</span>}
           {isMaster && (
-            <span
-              style={{
-                marginLeft: 6,
-                fontSize: "0.7rem",
-                padding: "2px 6px",
-                borderRadius: 6,
-                background: "#fff3cd",
-                color: "#8a6d3b",
-              }}
-            >
-              マスター編集
-            </span>
+            <span className={styles.masterBadge}>まとめて編集</span>
           )}
         </div>
         <div className={styles.headerRight}>
@@ -280,7 +268,7 @@ function EditorMobileContent() {
       {/* 予定フォーム */}
       {activeTab === "schedule" && (
         <div className={styles.card}>
-          <div className={styles.cardTitle}>予定を登録</div>
+          <div className={styles.cardTitle}>予定を送る</div>
 
           <label className={styles.formLabel}>時限</label>
           <select
@@ -364,7 +352,7 @@ function EditorMobileContent() {
       {/* 連絡フォーム */}
       {activeTab === "notice" && (
         <div className={styles.card}>
-          <div className={styles.cardTitle}>連絡を登録</div>
+          <div className={styles.cardTitle}>連絡を送る</div>
 
           <label className={styles.formLabel}>連絡内容</label>
           <textarea
@@ -382,7 +370,7 @@ function EditorMobileContent() {
               checked={noticeHighlight}
               onChange={(e) => setNoticeHighlight(e.target.checked)}
             />
-            <label htmlFor="notice-highlight">重要（赤文字で表示）</label>
+            <label htmlFor="notice-highlight">重要にする（赤で目立たせる）</label>
           </div>
 
           <div className={styles.checkboxRow}>
@@ -392,7 +380,7 @@ function EditorMobileContent() {
               checked={noticeSound}
               onChange={(e) => setNoticeSound(e.target.checked)}
             />
-            <label htmlFor="notice-sound">通知音を鳴らす</label>
+            <label htmlFor="notice-sound">お知らせ音を鳴らす</label>
           </div>
 
           {/* 表示期間（折りたたみ） */}
@@ -433,7 +421,7 @@ function EditorMobileContent() {
       {/* 提出物フォーム */}
       {activeTab === "assignment" && (
         <div className={styles.card}>
-          <div className={styles.cardTitle}>提出物を登録</div>
+          <div className={styles.cardTitle}>提出物を送る</div>
 
           <label className={styles.formLabel}>締切日</label>
           <input
@@ -467,20 +455,24 @@ function EditorMobileContent() {
         </div>
       )}
 
-      {/* 登録ボタン */}
+      {/* 送信ボタン — 対象クラスを含めて「どこに送るか」を明示 */}
       <button
         className={styles.submitBtn}
         onClick={handleSubmit}
         disabled={submitting}
+        aria-label={`${headerLabel} に送る`}
       >
-        {submitting ? "送信中..." : "登録する"}
+        {submitting
+          ? "送っています…"
+          : isMaster
+            ? `${headerLabel}に送る`
+            : `${headerLabel} に送る`}
       </button>
 
-      {/* ローディングオーバーレイ */}
       {submitting && (
         <div className={styles.loadingOverlay}>
           <div className={styles.spinner} />
-          <span className={styles.loadingText}>処理中...</span>
+          <span className={styles.loadingText}>送っています…</span>
         </div>
       )}
     </div>

@@ -9,19 +9,20 @@ export function LogoutButton() {
   if (!user) return null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-      <span style={{ fontSize: "0.85rem", color: "#666" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <span style={{ fontSize: "var(--fs-sm)", color: "var(--color-text-muted)" }}>
         {user.displayName || user.email}
         {roleLabel && (
           <span
             style={{
-              marginLeft: "8px",
+              marginLeft: 8,
               padding: "2px 8px",
-              borderRadius: "4px",
-              fontSize: "0.75rem",
+              borderRadius: 999,
+              fontSize: "var(--fs-xs)",
               fontWeight: 600,
-              background: "#667eea20",
-              color: "#667eea",
+              background: "var(--color-accent-weak)",
+              color: "var(--color-accent)",
+              border: "1px solid var(--color-accent-line)",
             }}
           >
             {roleLabel}
@@ -32,11 +33,13 @@ export function LogoutButton() {
         onClick={() => logout()}
         style={{
           padding: "6px 14px",
-          border: "1px solid #ddd",
-          borderRadius: "6px",
-          background: "white",
+          border: "1px solid var(--color-line-strong)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--color-canvas)",
+          color: "var(--color-text)",
           cursor: "pointer",
-          fontSize: "0.8rem",
+          fontSize: "var(--fs-sm)",
+          fontFamily: "inherit",
         }}
       >
         ログアウト

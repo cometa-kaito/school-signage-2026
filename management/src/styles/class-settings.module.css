@@ -1,106 +1,121 @@
-/* class-settings.module.css */
+/* class-settings.module.css — クラス設定（広告・静寂時間） */
 
 .pageContainer {
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--space-5);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .backLink {
-  color: #667eea;
+  color: var(--color-text-muted);
   text-decoration: none;
-  font-size: 0.9rem;
-  margin-bottom: 16px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  margin-bottom: var(--space-4);
   display: inline-block;
+  transition: color 0.15s ease;
 }
 
 .backLink:hover {
-  text-decoration: underline;
+  color: var(--color-text);
 }
 
 .classInfo {
-  margin-bottom: 20px;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: var(--space-5);
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
 }
 
 .classTitle {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .classSubtitle {
-  color: #888;
-  font-size: 13px;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
   margin: 4px 0 0;
 }
 
 /* カード */
 .card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  margin-bottom: 20px;
+  background: var(--color-canvas);
+  border: var(--border-1);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
 .cardHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .cardHeader h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .settingDescription {
-  color: #888;
-  font-size: 0.85rem;
-  margin-bottom: 16px;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-4);
+  line-height: var(--lh-body);
 }
 
 /* 広告リスト */
 .adList {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .adItem {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
+  padding: var(--space-3);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  border: var(--border-1);
 }
 
 .adDragHandle {
   cursor: grab;
-  color: #ccc;
-  font-size: 1.2rem;
+  color: var(--color-text-subtle);
+  font-size: 18px;
   user-select: none;
+  padding: 0 4px;
+}
+
+.adDragHandle:hover {
+  color: var(--color-text-muted);
 }
 
 .adThumbnail {
   width: 80px;
   height: 60px;
   object-fit: cover;
-  border-radius: 6px;
-  background: #eee;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  border: var(--border-1);
 }
 
 .adDetails {
@@ -111,6 +126,8 @@
 .adLabel {
   margin: 0 0 6px;
   font-weight: 500;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
 }
 
 .adSettingRow {
@@ -121,26 +138,37 @@
 }
 
 .adSettingLabel {
-  font-size: 11px;
-  color: #888;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .adSettingInput {
   flex: 1;
-  font-size: 12px;
-  padding: 4px 6px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  font-size: var(--fs-xs);
+  padding: 4px 8px;
+  border: var(--border-1);
+  border-radius: var(--radius-sm);
   min-width: 0;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.adSettingInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
 }
 
 .adDurationInput {
   width: 60px;
-  font-size: 12px;
-  padding: 4px 6px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  font-size: var(--fs-xs);
+  padding: 4px 8px;
+  border: var(--border-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: inherit;
 }
 
 .adActions {
@@ -152,25 +180,32 @@
 /* 授業時間 */
 .quietHourRow {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
   margin-bottom: 6px;
 }
 
 .timeInput {
   padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
+  border: var(--border-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.timeInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
 }
 
 .masterNote {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #888;
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
 }
 
-/* レスポンシブ */
 @media (max-width: 600px) {
   .adItem {
     flex-wrap: wrap;

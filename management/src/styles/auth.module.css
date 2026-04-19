@@ -1,26 +1,29 @@
-/* auth.module.css - 認証画面スタイル */
+/* auth.module.css — ログイン画面 */
 
 .loginContainer {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  /* グラデーション廃止: Mist Gray のフラット背景 */
+  background: var(--color-surface-muted);
+  padding: var(--space-5);
 }
 
 .loginCard {
-  background: white;
-  border-radius: 16px;
+  background: var(--color-canvas);
+  border-radius: var(--radius-lg);
   padding: 40px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  /* シャドウは1段のみ */
+  border: var(--border-1);
+  box-shadow: var(--shadow-1);
 }
 
 .logoContainer {
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .logoContainer img {
@@ -30,21 +33,23 @@
 .loginTitle {
   text-align: center;
   margin: 0 0 4px;
-  font-size: 1.8rem;
-  color: #333;
+  font-size: var(--fs-2xl);
+  color: var(--color-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .loginSubtitle {
   text-align: center;
-  margin: 0 0 30px;
-  color: #888;
-  font-size: 0.9rem;
+  margin: 0 0 var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
 }
 
 .tabBar {
   display: flex;
-  margin-bottom: 24px;
-  border-bottom: 2px solid #e1e1e1;
+  margin-bottom: var(--space-5);
+  border-bottom: var(--border-1);
 }
 
 .tab {
@@ -53,22 +58,27 @@
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 600;
-  color: #999;
-  transition: all 0.2s;
+  color: var(--color-text-muted);
+  transition: color 0.15s ease, border-color 0.15s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--color-text);
 }
 
 .tabActive {
-  color: #667eea;
-  border-bottom: 2px solid #667eea;
-  margin-bottom: -2px;
+  color: var(--color-text);
+  border-bottom-color: var(--color-text);
 }
 
 .loginForm {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .formGroup {
@@ -79,54 +89,60 @@
 
 .formGroup label {
   font-weight: 600;
-  font-size: 0.9rem;
-  color: #555;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
 }
 
 .formGroup input {
   padding: 10px 12px;
-  border: 1px solid #e1e1e1;
-  border-radius: 6px;
-  font-size: 16px;
+  border: var(--border-1);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-lg);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .formGroup input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.15);
 }
 
 .btnPrimary {
   padding: 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
+  background: var(--color-accent);
+  color: var(--color-canvas);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
-  font-size: 1rem;
-  transition: background 0.2s;
+  font-size: var(--fs-md);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-height: 44px;
 }
 
-.btnPrimary:hover {
-  background: #5a67d8;
+.btnPrimary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
 }
 
 .btnPrimary:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .divider {
   text-align: center;
   position: relative;
-  margin: 8px 0;
+  margin: 4px 0;
 }
 
 .divider span {
-  background: white;
+  background: var(--color-canvas);
   padding: 0 12px;
-  color: #999;
-  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
   position: relative;
   z-index: 1;
 }
@@ -137,35 +153,37 @@
   left: 0;
   right: 0;
   top: 50%;
-  border-top: 1px solid #e1e1e1;
+  border-top: var(--border-1);
 }
 
 .btnGoogle {
   padding: 12px;
-  background: white;
-  color: #333;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.95rem;
-  transition: background 0.2s;
+  font-size: var(--fs-md);
+  transition: background 0.15s ease;
+  min-height: 44px;
 }
 
-.btnGoogle:hover {
-  background: #f8f9fa;
+.btnGoogle:hover:not(:disabled) {
+  background: var(--color-surface-muted);
 }
 
 .btnGoogle:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .errorMsg {
-  background: #fee;
-  color: #c00;
+  background: var(--color-alert-weak);
+  color: var(--color-alert);
   padding: 12px;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
   text-align: center;
+  border: 1px solid #f4c7c7;
 }

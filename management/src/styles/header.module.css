@@ -1,12 +1,12 @@
-/* header.module.css */
+/* header.module.css — 管理画面共通ヘッダー */
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  background: white;
-  border-bottom: 1px solid #e9ecef;
+  background: var(--color-canvas);
+  border-bottom: var(--border-1);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -15,34 +15,35 @@
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .logo {
-  height: 28px;
+  height: 24px;
   width: auto;
   object-fit: contain;
 }
 
 .title {
   margin: 0;
-  font-size: 1.1rem;
-  color: #333;
+  font-size: var(--fs-md);
+  color: var(--color-text);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 @media (max-width: 600px) {
   .header {
     padding: 10px 14px;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .logo {
-    height: 24px;
+    height: 20px;
   }
 
   .title {
-    font-size: 0.95rem;
+    font-size: var(--fs-sm);
   }
 }

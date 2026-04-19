@@ -440,8 +440,20 @@ export function SchoolListView() {
                           <Loading inline message={userBusy} />
                         </span>
                       )}
-                      <span style={{ marginRight: "6px", fontSize: "0.75rem", color: u.disabled ? "#dc3545" : "#28a745" }}>
-                        {u.disabled ? "無効" : "有効"}
+                      {/* 色のみに依存しない: アイコン(●/○)+テキストで状態を伝える */}
+                      <span
+                        style={{
+                          marginRight: "6px",
+                          fontSize: "var(--fs-xs)",
+                          color: u.disabled ? "var(--color-alert)" : "var(--color-text)",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <span aria-hidden="true">{u.disabled ? "●" : "○"}</span>
+                        {u.disabled ? "停止中" : "有効"}
                       </span>
                       <button
                         className={`btn btn-sm ${u.disabled ? "btn-success" : "btn-danger"}`}

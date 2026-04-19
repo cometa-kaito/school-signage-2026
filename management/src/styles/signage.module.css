@@ -22,21 +22,41 @@
  */
 
 /* =====================
-   1. CSSカスタムプロパティ
+   1. CSSカスタムプロパティ — マットトーン統一パレット
+   （表示サイズ・レイアウトは既存のまま、色のみ刷新）
    ===================== */
 .signageRoot {
-  --bg-color: #ffffff;
-  --primary-color: #2c3e50;
-  --accent-color: #3498db;
-  --urgent-color: #e74c3c;
-  --text-color: #333;
-  --text-muted: #999;
-  --border-color: #eee;
-  --font-base: "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.08);
-  --radius-sm: 8px;
-  --radius-md: 12px;
+  /* ベース */
+  --bg-color: #ffffff;             /* 白 */
+  --surface-muted: #f7f8fa;        /* Mist Gray（日付ヘッダー等） */
+  --surface-sunken: #f2f3f5;
+
+  /* テキスト */
+  --primary-color: #111827;        /* Ink Black — 見出し・日付ヘッダー */
+  --text-color: #111827;           /* 本文 */
+  --text-muted: #6b7280;           /* 補助テキスト */
+
+  /* 罫線 */
+  --border-color: #e5e7eb;
+
+  /* アクセント（提案色: マットインディゴ） — 予定の時限、カレンダー、リンク */
+  --accent-color: #2c5282;
+  --accent-color-hover: #234069;
+  --accent-weak: #eaf0f7;
+
+  /* アラート（赤） — 重要連絡・期限切れ */
+  --urgent-color: #b91c1c;
+  --urgent-weak: #fdecec;
+
+  /* 広告ゾーン背景（教室の遠目でも情報領域と区別できる沈んだ黒） */
+  --ad-bg: #111827;
+
+  --font-base: "Inter", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+  /* シャドウは基本使わない。区切りは 1px ラインで担う */
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-md: 0 2px 4px rgba(17, 24, 39, 0.06);
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --content-gap: 8px;
   --scale-factor: 1;
   --base-font-size: 16px;
@@ -220,10 +240,10 @@
 }
 
 .scheduleDayColumn {
-  background-color: #f8f9fa;
+  background-color: var(--surface-muted);
   border-radius: var(--radius-sm);
   padding: 0.4vmin;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -261,7 +281,7 @@
 .scheduleListItem {
   font-size: clamp(1.05rem, 1.6vw, 1.5rem);
   padding: 0.2rem 0;
-  border-bottom: 1px dotted #ccc;
+  border-bottom: 1px dotted var(--border-color);
   line-height: 1.3;
 }
 
@@ -297,16 +317,17 @@
 .calendarToggleBtn {
   float: right;
   background: var(--accent-color);
-  border: none;
-  border-radius: 6px;
+  border: 1px solid var(--accent-color);
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.5rem;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
   color: white;
 }
 
 .calendarToggleBtn:hover {
-  background: #2980b9;
+  background: var(--accent-color-hover);
+  border-color: var(--accent-color-hover);
 }
 
 .calendarIcon {
@@ -315,10 +336,12 @@
 
 /* =====================
    8. 連絡セクション
+   カード上部の色は 3セクションで異なるが、各カードの見出し（📅予定 / 📢連絡 / 📝提出物）で
+   既に識別可能なので、色は視覚的な補助に留める。連絡はニュートラルな Ink 系。
    ===================== */
 .noticeSection {
   composes: card;
-  border-top-color: #27ae60;
+  border-top-color: var(--primary-color);
 }
 
 .listGroup {
@@ -351,7 +374,7 @@
 .highlight {
   color: var(--urgent-color);
   font-weight: bold;
-  background-color: #fff5f5;
+  background-color: var(--urgent-weak);
   border-left: 4px solid var(--urgent-color);
   padding-left: 10px !important;
   margin-left: -1.5rem;
@@ -384,7 +407,7 @@
 }
 
 .taskTable th {
-  background: #f8f9fa;
+  background: var(--surface-muted);
   padding: 0.2rem 0.4rem;
   text-align: left;
   font-size: clamp(0.7rem, 1vw, 0.85rem);
@@ -424,7 +447,9 @@
 }
 
 .overdueRow {
-  background-color: rgba(231, 76, 60, 0.1);
+  background-color: var(--urgent-weak);
+  /* 色だけでなく左縦線でも期限切れを明示 */
+  box-shadow: inset 3px 0 0 0 var(--urgent-color);
 }
 
 .overdueRow td {
@@ -436,7 +461,7 @@
    ===================== */
 .adArea {
   grid-area: ad;
-  background: #2c3e50;
+  background: var(--ad-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -613,7 +638,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background: rgba(102, 126, 234, 0.95);
+  background: var(--accent-color);
   color: white;
   text-align: center;
   padding: 8px;
@@ -651,12 +676,13 @@
 
 .calendarModalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: 90%;
   max-width: 450px;
   max-height: 85vh;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.08);
   animation: slideUp 0.3s ease;
 }
 
@@ -740,11 +766,11 @@
 }
 
 .calendarWeekdaySunday {
-  color: #e74c3c;
+  color: var(--urgent-color);
 }
 
 .calendarWeekdaySaturday {
-  color: #3498db;
+  color: var(--accent-color);
 }
 
 .calendarDays {
@@ -769,11 +795,11 @@
 }
 
 .calendarDay:hover {
-  background: #f0f0f0;
+  background: var(--surface-muted);
 }
 
 .calendarDayOtherMonth {
-  color: #ccc;
+  color: #9ca3af;
 }
 
 .calendarDayToday {
@@ -783,7 +809,7 @@
 }
 
 .calendarDaySelected {
-  background: #2c3e50;
+  background: var(--primary-color);
   color: white;
 }
 
@@ -794,7 +820,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #27ae60;
+  background: var(--accent-color);
 }
 
 .calendarDayToday.calendarDayHasSchedule::after,
@@ -803,11 +829,11 @@
 }
 
 .calendarDaySunday {
-  color: #e74c3c;
+  color: var(--urgent-color);
 }
 
 .calendarDaySaturday {
-  color: #3498db;
+  color: var(--accent-color);
 }
 
 .calendarDayOtherMonth.calendarDaySunday,
@@ -817,8 +843,8 @@
 
 .calendarScheduleDetail {
   padding: 1rem;
-  background: #f8f9fa;
-  border-top: 1px solid #eee;
+  background: var(--surface-muted);
+  border-top: 1px solid var(--border-color);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -841,7 +867,7 @@
   display: flex;
   gap: 0.5rem;
   padding: 0.4rem 0;
-  border-bottom: 1px dotted #ddd;
+  border-bottom: 1px dotted var(--border-color);
   font-size: 0.9rem;
 }
 
@@ -873,13 +899,13 @@
   top: 20px;
   left: 50%;
   transform: translateX(-50%) translateY(-100px);
-  background: #667eea;
+  background: var(--accent-color);
   color: white;
   padding: 12px 25px;
-  border-radius: 50px;
+  border-radius: 999px;
   font-size: 1rem;
-  font-weight: bold;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.15);
   z-index: 9999;
   opacity: 0;
   transition: transform 0.5s ease, opacity 0.3s ease;
@@ -900,7 +926,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: #1a1a2e;
+  background: var(--ad-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -927,7 +953,8 @@
 .startupContent h1 {
   font-size: 2rem;
   margin-bottom: 0.5rem;
-  color: #667eea;
+  color: var(--accent-color);
+  letter-spacing: -0.01em;
 }
 
 .startupContent p {
@@ -944,9 +971,10 @@
 
 .startupCountdown {
   font-size: 3rem;
-  font-weight: bold;
+  font-weight: 600;
   margin: 1rem 0;
-  color: #667eea;
+  color: var(--accent-color);
+  font-variant-numeric: tabular-nums;
 }
 
 .startupContent::after {
@@ -970,7 +998,7 @@
   min-height: 100vh;
   align-items: center;
   justify-content: flex-start;
-  background: #2c3e50;
+  background: var(--ad-bg);
   flex-shrink: 0;
   position: relative;
   overflow: hidden;

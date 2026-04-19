@@ -481,6 +481,31 @@
   overflow: hidden;
 }
 
+/* 広告の背景を同じ画像のブラーで埋める（余白の紺色を隠す） */
+.adBackdrop,
+.adArea .adBackdrop,
+.mobileAdArea .adBackdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important;
+  filter: blur(32px) saturate(1.15) brightness(0.85);
+  transform: scale(1.15); /* ブラーのエッジ見切れ防止 */
+  z-index: 1;
+  pointer-events: none;
+}
+
+.adForeground {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .adArea img {
   width: 100%;
   height: 100%;
@@ -979,6 +1004,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .mobileAdLink {

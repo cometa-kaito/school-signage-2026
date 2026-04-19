@@ -73,6 +73,27 @@ export function MobileAdArea({
     if (isQuietTime) return null;
     // アクティブスライドはキャッシュされた mediaUrl を優先、非アクティブは元 URL
     const src = isActive && mediaUrl ? mediaUrl : ad.url;
+    const backdrop =
+      ad.type === "video" ? (
+        <video
+          key={`bd-${ad.id}`}
+          className={styles.adBackdrop}
+          src={src}
+          muted
+          playsInline
+          loop
+          autoPlay={isActive}
+          aria-hidden="true"
+        />
+      ) : (
+        <img
+          key={`bd-${ad.id}`}
+          className={styles.adBackdrop}
+          src={src}
+          alt=""
+          aria-hidden="true"
+        />
+      );
     const mediaEl =
       ad.type === "video" ? (
         <video
@@ -94,19 +115,24 @@ export function MobileAdArea({
           loading={isActive ? "eager" : "lazy"}
         />
       );
-    if (ad.link_url) {
-      return (
-        <a
-          href={ad.link_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.mobileAdLink}
-        >
-          {mediaEl}
-        </a>
-      );
-    }
-    return mediaEl;
+    const foreground = ad.link_url ? (
+      <a
+        href={ad.link_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={styles.mobileAdLink}
+      >
+        {mediaEl}
+      </a>
+    ) : (
+      mediaEl
+    );
+    return (
+      <>
+        {backdrop}
+        {foreground}
+      </>
+    );
   };
 
   return (

@@ -14,6 +14,33 @@ interface AdDisplayProps {
 export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onImageLoad, onVideoEnded }: AdDisplayProps) {
   const areaClass = `${styles.adArea} ${isQuietTime ? styles.quietMode : ""}`;
 
+  const renderBackdrop = () => {
+    if (!currentAd || !mediaUrl || isQuietTime) return null;
+    if (currentAd.type === "video") {
+      return (
+        <video
+          key={`bd-${currentAd.id}`}
+          className={styles.adBackdrop}
+          src={mediaUrl}
+          muted
+          autoPlay
+          playsInline
+          loop
+          aria-hidden="true"
+        />
+      );
+    }
+    return (
+      <img
+        key={`bd-${currentAd.id}`}
+        className={styles.adBackdrop}
+        src={mediaUrl}
+        alt=""
+        aria-hidden="true"
+      />
+    );
+  };
+
   const renderMedia = () => {
     if (!currentAd || !mediaUrl || isQuietTime) return null;
 
@@ -62,7 +89,10 @@ export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onImageLoad, onVid
 
   return (
     <aside className={areaClass}>
-      <div className={styles.adContainer}>{renderMedia()}</div>
+      <div className={styles.adContainer}>
+        {renderBackdrop()}
+        <div className={styles.adForeground}>{renderMedia()}</div>
+      </div>
     </aside>
   );
 }

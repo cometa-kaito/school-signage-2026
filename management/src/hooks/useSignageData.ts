@@ -96,32 +96,9 @@ interface UseSignageDataResult extends SignageData {
 // 内部ヘルパー
 // ========================================
 
-const FIRESTORE_PROJECT_ID = "school-signage-2026";
 const STATIC_JSON_BASE =
   "https://storage.googleapis.com/school-signage-2026.firebasestorage.app/signage-data";
 const POLLING_INTERVAL = 3000;
-
-/**
- * Firestore接続をテスト
- */
-async function testFirestoreConnection(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents`,
-      { method: "GET", signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
-
-    return (
-      response.ok || response.status === 401 || response.status === 403
-    );
-  } catch {
-    return false;
-  }
-}
 
 /**
  * QuerySnapshotをdateキーのマップに変換
@@ -689,33 +666,41 @@ export function useSignageData(
 
     let cleanup: (() => void) | undefined;
     let cancelled = false;
+    let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
-    (async () => {
-      if (forceStatic) {
-        console.log("強制静的JSONモードで起動");
-        modeRef.current = "static";
-        const fn = startStaticJsonPolling();
-        if (cancelled) { fn(); return; }
-        cleanup = fn;
-        return;
-      }
+    if (forceStatic) {
+      console.log("強制静的JSONモードで起動");
+      modeRef.current = "static";
+      cleanup = startStaticJsonPolling();
+    } else {
+      // 事前の接続テストを行わず即座に Firestore リスナーを起動
+      console.log("Firestoreモードで即時起動");
+      modeRef.current = "firestore";
+      const firestoreCleanup = startFirestoreListeners();
 
-      const firestoreAvailable = await testFirestoreConnection();
-      if (cancelled) return;
+      // 一定時間内にデータが届かなければ静的 JSON へフォールバック
+      const FALLBACK_MS = 7000;
+      watchdogTimer = setTimeout(() => {
+        if (cancelled) return;
+        if (isInitialLoadRef.current) {
+          console.warn(
+            `Firestore からのデータ受信が ${FALLBACK_MS}ms 以内に来なかったため静的 JSON にフォールバック`
+          );
+          firestoreCleanup();
+          modeRef.current = "static";
+          cleanup = startStaticJsonPolling();
+        }
+      }, FALLBACK_MS);
 
-      if (firestoreAvailable) {
-        console.log("Firestoreモードで起動");
-        modeRef.current = "firestore";
-        cleanup = startFirestoreListeners();
-      } else {
-        console.log("静的JSONモードにフォールバック");
-        modeRef.current = "static";
-        cleanup = startStaticJsonPolling();
-      }
-    })();
+      cleanup = () => {
+        if (watchdogTimer) clearTimeout(watchdogTimer);
+        firestoreCleanup();
+      };
+    }
 
     return () => {
       cancelled = true;
+      if (watchdogTimer) clearTimeout(watchdogTimer);
       cleanup?.();
     };
   }, [schoolId, gradeId, classId, forceStatic, startFirestoreListeners, startStaticJsonPolling]);

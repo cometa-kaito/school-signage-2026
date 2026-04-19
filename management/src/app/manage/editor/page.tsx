@@ -6,6 +6,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ContextSelector } from "@/components/context/ContextSelector";
 import { EditorSchoolPicker } from "@/components/editor/EditorSchoolPicker";
 import { EditorTargetMenu } from "@/components/editor/EditorTargetMenu";
+import { EditorModeToggle } from "@/components/editor/EditorModeToggle";
 import { ScheduleSection } from "@/components/editor/ScheduleSection";
 import { NoticeSection } from "@/components/editor/NoticeSection";
 import { AssignmentSection } from "@/components/editor/AssignmentSection";
@@ -380,6 +381,10 @@ function EditorContent() {
         >
           ← 編集対象選択に戻る
         </a>
+        <EditorModeToggle
+          currentBasePath="/manage/editor"
+          style={{ marginRight: 12 }}
+        />
         <span className={styles.clock}>{currentTime}</span>
       </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { listSchoolsPublicFn } from "@/lib/firebase-functions";
 import { Loading } from "@/components/ui/Loading";
+import { EditorModeToggle } from "@/components/editor/EditorModeToggle";
 import styles from "@/styles/admin.module.css";
 
 interface SchoolOption {
@@ -48,7 +49,23 @@ export function EditorSchoolPicker({ basePath }: EditorSchoolPickerProps) {
 
   return (
     <div className={styles.pageContainer} style={{ maxWidth: 720 }}>
-      <h2 style={{ marginBottom: 8 }}>編集する学校を選択</h2>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>編集する学校を選択</h2>
+        <EditorModeToggle
+          currentBasePath={
+            basePath === "/manage/editor-mobile"
+              ? "/manage/editor-mobile"
+              : "/manage/editor"
+          }
+        />
+      </div>
       <p style={{ color: "#666", marginBottom: 20 }}>
         学校を選ぶと、ログイン画面に進みます。
       </p>

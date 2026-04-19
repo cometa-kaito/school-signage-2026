@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSchoolDetailFn } from "@/lib/firebase-functions";
 import { Loading } from "@/components/ui/Loading";
+import { EditorModeToggle } from "@/components/editor/EditorModeToggle";
 import { useAuthContext } from "@/providers/AuthProvider";
 import type {
   Grade,
@@ -106,35 +107,63 @@ export function EditorTargetMenu({
   const isDept = mode === "department";
   const allClasses = isDept
     ? departments.flatMap((d) =>
-        (gradesByDept[d.id] || []).flatMap((g) =>
-          (classesByDeptGrade[d.id]?.[g.id] || []).map((c) => ({
+        (gradesByDept[d.id] || []).flatMap((g) => {
+          const gradeClasses = classesByDeptGrade[d.id]?.[g.id] || [];
+          // hasClasses=false の学年は先頭クラスのみ（学年が単位）
+          const list =
+            g.hasClasses === false ? gradeClasses.slice(0, 1) : gradeClasses;
+          return list.map((c) => ({
             deptId: d.id,
             deptName: d.name,
             gradeId: g.id,
             gradeName: g.name,
+            gradeHasClasses: g.hasClasses !== false,
             cls: c,
-          }))
-        )
+          }));
+        })
       )
-    : grades.flatMap((g) =>
-        (classesMap[g.id] || []).map((c) => ({
+    : grades.flatMap((g) => {
+        const gradeClasses = classesMap[g.id] || [];
+        const list =
+          g.hasClasses === false ? gradeClasses.slice(0, 1) : gradeClasses;
+        return list.map((c) => ({
           deptId: null as string | null,
           deptName: "",
           gradeId: g.id,
           gradeName: g.name,
+          gradeHasClasses: g.hasClasses !== false,
           cls: c,
-        }))
-      );
+        }));
+      });
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: 20 }}>
       <div style={{ marginBottom: 24 }}>
-        <a
-          href={basePath}
-          style={{ color: "#666", textDecoration: "none", fontSize: "0.9rem" }}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
         >
-          ← 学校選択に戻る
-        </a>
+          <a
+            href={basePath}
+            style={{
+              color: "#666",
+              textDecoration: "none",
+              fontSize: "0.9rem",
+            }}
+          >
+            ← 学校選択に戻る
+          </a>
+          <EditorModeToggle
+            currentBasePath={
+              basePath === "/manage/editor-mobile"
+                ? "/manage/editor-mobile"
+                : "/manage/editor"
+            }
+          />
+        </div>
         <h2 style={{ margin: "8px 0 0" }}>{schoolName}</h2>
         <p style={{ color: "#888", fontSize: "0.9rem" }}>
           編集対象を選択してください
@@ -258,23 +287,35 @@ export function EditorTargetMenu({
           <p className="empty-text">クラスがありません</p>
         ) : (
           <div style={gridStyle}>
-            {allClasses.map(({ deptId, deptName, gradeId, gradeName, cls }) => {
-              const params: Record<string, string> = {
-                grade: gradeId,
-                class: cls.id,
-              };
-              if (deptId) params.department = deptId;
-              return (
-                <button
-                  key={`${deptId || ""}:${gradeId}:${cls.id}`}
-                  style={btnStyle("#6c757d")}
-                  onClick={() => nav(params)}
-                >
-                  {deptName ? `${deptName} / ` : ""}
-                  {gradeName} / {cls.name}
-                </button>
-              );
-            })}
+            {allClasses.map(
+              ({
+                deptId,
+                deptName,
+                gradeId,
+                gradeName,
+                gradeHasClasses,
+                cls,
+              }) => {
+                const params: Record<string, string> = {
+                  grade: gradeId,
+                  class: cls.id,
+                };
+                if (deptId) params.department = deptId;
+                // クラスなし運用の場合はクラス名を省略（学年名と重複するため）
+                const label = gradeHasClasses
+                  ? `${deptName ? deptName + " / " : ""}${gradeName} / ${cls.name}`
+                  : `${deptName ? deptName + " / " : ""}${gradeName}`;
+                return (
+                  <button
+                    key={`${deptId || ""}:${gradeId}:${cls.id}`}
+                    style={btnStyle("#6c757d")}
+                    onClick={() => nav(params)}
+                  >
+                    {label}
+                  </button>
+                );
+              }
+            )}
           </div>
         )}
       </div>

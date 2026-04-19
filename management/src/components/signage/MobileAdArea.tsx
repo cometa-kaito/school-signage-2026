@@ -127,10 +127,12 @@ export function MobileAdArea({
     ) : (
       mediaEl
     );
+    const caption = (ad.caption || "").trim();
     return (
       <>
         {backdrop}
         {foreground}
+        {caption && <div className={styles.mobileAdCaption}>{caption}</div>}
       </>
     );
   };

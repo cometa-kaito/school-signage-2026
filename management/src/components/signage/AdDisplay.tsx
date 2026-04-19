@@ -86,11 +86,14 @@ export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onVideoEnded }: Ad
     return imgEl;
   };
 
+  const caption = hasMedia ? (currentAd?.caption || "").trim() : "";
+
   return (
     <aside className={areaClass}>
       <div className={styles.adContainer}>
         {renderBackdrop()}
         <div className={styles.adForeground}>{renderMedia()}</div>
+        {caption && <div className={styles.adCaption}>{caption}</div>}
       </div>
     </aside>
   );

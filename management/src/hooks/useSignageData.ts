@@ -65,6 +65,8 @@ export interface Ad {
   type: "image" | "video";
   duration_sec?: number;
   link_url?: string;
+  /** 広告下部に表示する任意のキャプション（企業名・大学名等） */
+  caption?: string;
 }
 
 export interface QuietHour {

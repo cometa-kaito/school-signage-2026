@@ -18,6 +18,7 @@ export interface AdItem {
   url: string;
   link_url?: string;
   duration_sec?: number;
+  caption?: string;
 }
 
 interface AdManagerProps {
@@ -125,8 +126,12 @@ export function AdManager({
     const durationInput = document.getElementById(
       `ad-duration-${uid}`
     ) as HTMLInputElement | null;
+    const captionInput = document.getElementById(
+      `ad-caption-${uid}`
+    ) as HTMLInputElement | null;
     const linkUrl = (linkInput?.value || "").trim();
     const duration = parseInt(durationInput?.value || "10", 10);
+    const caption = (captionInput?.value || "").trim().slice(0, 60);
 
     if (linkUrl && !/^https?:\/\//.test(linkUrl)) {
       showToast("URLは http:// または https:// で始めてください", "error");
@@ -140,6 +145,7 @@ export function AdManager({
         ...ad,
         link_url: linkUrl,
         duration_sec: Math.max(3, Math.min(120, duration)),
+        caption,
       };
       await saveAds(newAds);
       onAdsChange(newAds);
@@ -273,6 +279,17 @@ export function AdManager({
                       id={`ad-link-${uid}`}
                       placeholder="https://example.com"
                       defaultValue={ad.link_url || ""}
+                      className={styles.adSettingInput}
+                    />
+                  </div>
+                  <div className={styles.adSettingRow}>
+                    <span className={styles.adSettingLabel}>キャプション:</span>
+                    <input
+                      type="text"
+                      id={`ad-caption-${uid}`}
+                      placeholder="例: 〇〇大学／株式会社〇〇（任意・60字以内）"
+                      defaultValue={ad.caption || ""}
+                      maxLength={60}
                       className={styles.adSettingInput}
                     />
                   </div>

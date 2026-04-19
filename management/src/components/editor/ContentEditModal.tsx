@@ -139,8 +139,8 @@ export function ContentEditModal({
       }
       await onSave(type, dateStr, index, data);
       onClose();
-    } catch (err) {
-      alert("保存エラー: " + (err as Error).message);
+    } catch {
+      // 親側で toast を表示済み。モーダルは閉じずに入力値を保持する。
     }
     setSaving(false);
   };

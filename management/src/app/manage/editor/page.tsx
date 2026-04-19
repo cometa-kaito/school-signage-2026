@@ -290,7 +290,11 @@ function EditorContent() {
     setModalOpen(true);
   };
 
-  const openAddModal = (type: ContentType, dateStr: string) => {
+  const openAddModal = (
+    type: ContentType,
+    dateStr: string,
+    overrideData?: Record<string, unknown>
+  ) => {
     const today = getTodayString();
     const defaults: Record<string, Record<string, unknown>> = {
       schedule: { display_start: dateStr, display_end: dateStr },
@@ -301,7 +305,7 @@ function EditorContent() {
     setModalMode("add");
     setModalDateStr(dateStr);
     setModalIndex(null);
-    setModalInitialData(defaults[type]);
+    setModalInitialData({ ...defaults[type], ...(overrideData || {}) });
     setModalOpen(true);
   };
 
@@ -325,8 +329,13 @@ function EditorContent() {
     index: number | null,
     itemData: Record<string, unknown>
   ) => {
-    await saveItem(type, dateStr, index, itemData);
-    showToast("保存しました", "success");
+    try {
+      await saveItem(type, dateStr, index, itemData);
+      showToast("保存しました", "success");
+    } catch (err) {
+      showToast("保存エラー: " + (err as Error).message, "error");
+      throw err;
+    }
   };
 
   const handleGradeChange = (newGradeId: string) => {
@@ -602,25 +611,16 @@ function EditorContent() {
         notices={data.allNotices}
         assignments={data.allAssignments}
         onReuseNotice={(text, isHighlight) => {
-          openAddModal("notice", getTodayString());
-          setTimeout(() => {
-            setModalInitialData({
-              text,
-              is_highlight: isHighlight,
-              display_start: getTodayString(),
-              display_end: getTodayString(),
-            });
-          }, 50);
+          openAddModal("notice", getTodayString(), {
+            text,
+            is_highlight: isHighlight,
+          });
         }}
         onReuseAssignment={(subject, task) => {
-          openAddModal("assignment", getTodayString());
-          setTimeout(() => {
-            setModalInitialData({
-              subject,
-              task,
-              deadline: getTodayString(),
-            });
-          }, 50);
+          openAddModal("assignment", getTodayString(), {
+            subject,
+            task,
+          });
         }}
       />
 

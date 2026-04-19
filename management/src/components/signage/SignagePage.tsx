@@ -243,42 +243,7 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
     };
   }, [refetch]);
 
-  // ========================================
-  // 広告画像に応じた動的グリッド幅調整
-  // ========================================
-  const containerRef = useRef<HTMLDivElement>(null);
-  const gridAdjustedRef = useRef(false);
-
-  // ads変更時にリセット
-  useEffect(() => {
-    gridAdjustedRef.current = false;
-    if (containerRef.current) {
-      containerRef.current.style.gridTemplateColumns = "";
-    }
-  }, [ads]);
-
-  const handleAdImageLoad = useCallback(
-    (event: React.SyntheticEvent<HTMLImageElement>) => {
-      if (gridAdjustedRef.current || isMobile) return;
-      const img = event.currentTarget;
-      const imgW = img.naturalWidth;
-      const imgH = img.naturalHeight;
-      if (!imgW || !imgH) return;
-
-      const container = containerRef.current;
-      if (!container) return;
-
-      const adHeader = document.querySelector(`.${styles.adHeader}`);
-      const headerH = adHeader
-        ? adHeader.getBoundingClientRect().height
-        : 24;
-      const imageAreaH = window.innerHeight - headerH;
-      const adNeededW = Math.ceil(imageAreaH * (imgW / imgH));
-      container.style.gridTemplateColumns = `1fr ${adNeededW}px`;
-      gridAdjustedRef.current = true;
-    },
-    [isMobile]
-  );
+  // コンテンツ 7 : 広告 3 の比率は CSS (.container) で固定する。
 
   // ========================================
   // 表示クラス名
@@ -353,12 +318,11 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
             className={className}
             gradeName={gradeName}
           />
-          <div className={styles.container} ref={containerRef}>
+          <div className={styles.container}>
             <AdDisplay
               currentAd={currentAd}
               mediaUrl={mediaUrl}
               isQuietTime={isQuietTime}
-              onImageLoad={handleAdImageLoad}
               onVideoEnded={onVideoEnded}
             />
             <main className={styles.infoArea} onClick={toggleDetailMode}>

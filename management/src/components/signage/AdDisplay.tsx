@@ -7,11 +7,10 @@ interface AdDisplayProps {
   currentAd: Ad | null;
   mediaUrl: string;
   isQuietTime: boolean;
-  onImageLoad?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
   onVideoEnded?: () => void;
 }
 
-export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onImageLoad, onVideoEnded }: AdDisplayProps) {
+export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onVideoEnded }: AdDisplayProps) {
   const hasMedia = !!currentAd && !!mediaUrl && !isQuietTime;
   const areaClass = `${styles.adArea} ${isQuietTime ? styles.quietMode : ""} ${hasMedia ? styles.adAreaHasMedia : ""}`;
 
@@ -74,7 +73,6 @@ export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onImageLoad, onVid
         key={currentAd.id}
         src={mediaUrl}
         alt="Advertisement"
-        onLoad={onImageLoad}
       />
     );
 

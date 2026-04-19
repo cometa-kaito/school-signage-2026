@@ -368,6 +368,18 @@ function EditorContent() {
       <div className={styles.pageContainer}>
       {/* 時計 */}
       <div className={styles.header}>
+        <a
+          href={`/manage/editor?school=${schoolId}`}
+          style={{
+            color: "#667eea",
+            textDecoration: "none",
+            fontSize: "0.9rem",
+            fontWeight: 600,
+            marginRight: "auto",
+          }}
+        >
+          ← 編集対象選択に戻る
+        </a>
         <span className={styles.clock}>{currentTime}</span>
       </div>
 

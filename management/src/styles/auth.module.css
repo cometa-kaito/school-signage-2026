@@ -2,12 +2,15 @@
 
 .loginContainer {
   min-height: 100vh;
+  /* モバイル: アドレスバー開閉でも安定する動的ビューポート */
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: center;
   /* グラデーション廃止: Mist Gray のフラット背景 */
   background: var(--color-surface-muted);
   padding: var(--space-5);
+  box-sizing: border-box;
 }
 
 .loginCard {
@@ -16,6 +19,7 @@
   padding: 40px;
   width: 100%;
   max-width: 400px;
+  box-sizing: border-box;
   /* シャドウは1段のみ */
   border: var(--border-1);
   box-shadow: var(--shadow-1);
@@ -186,4 +190,34 @@
   font-size: var(--fs-sm);
   text-align: center;
   border: 1px solid #f4c7c7;
+  word-break: break-word;
+}
+
+/* ===== レスポンシブ ===== */
+/* 狭い画面でカードの余白・ロゴを縮小 */
+@media (max-width: 480px) {
+  .loginContainer {
+    padding: var(--space-3);
+  }
+
+  .loginCard {
+    padding: var(--space-6) var(--space-4);
+    border-radius: var(--radius-md);
+  }
+
+  .logoContainer img {
+    width: 104px;
+    height: 104px;
+  }
+
+  .loginSubtitle {
+    margin-bottom: var(--space-5);
+  }
+}
+
+/* 横向きスマホなど高さが低い画面ではスクロール可能にする */
+@media (max-height: 640px) {
+  .loginContainer {
+    align-items: flex-start;
+  }
 }

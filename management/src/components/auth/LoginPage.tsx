@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { login, loginWithGoogle, loginAsEditor } from "@/lib/auth";
 import { useSchoolContextValue } from "@/providers/SchoolContextProvider";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import styles from "@/styles/auth.module.css";
 
 interface LoginPageProps {
@@ -76,13 +77,13 @@ function EditorLoginForm() {
       {error && <div className={styles.errorMsg}>{error}</div>}
       <div className={styles.formGroup}>
         <label htmlFor="editor-password">パスワード</label>
-        <input
+        <PasswordInput
           id="editor-password"
-          type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="先生用のパスワード"
           disabled={loading}
+          autoComplete="current-password"
         />
       </div>
       <button type="submit" className={styles.btnPrimary} disabled={loading}>
@@ -137,13 +138,13 @@ function AdminLoginForm() {
       </div>
       <div className={styles.formGroup}>
         <label htmlFor="admin-password">パスワード</label>
-        <input
+        <PasswordInput
           id="admin-password"
-          type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="パスワード"
           disabled={loading}
+          autoComplete="current-password"
         />
       </div>
       <button type="submit" className={styles.btnPrimary} disabled={loading}>

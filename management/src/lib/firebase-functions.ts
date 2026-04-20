@@ -28,7 +28,7 @@ export const setAdminRoleFn = httpsCallable<
   { success: boolean }
 >(functions, "setAdminRole");
 export const updateUserFn = httpsCallable<
-  { uid: string; displayName?: string; email?: string },
+  { uid: string; displayName?: string; email?: string; password?: string },
   { success: boolean }
 >(functions, "updateUser");
 export const deleteUserFn = httpsCallable<

@@ -21,7 +21,9 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { Loading } from "@/components/ui/Loading";
 import { EditIconButton } from "@/components/ui/EditIconButton";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/components/ui/Toast";
+import { useAuthContext } from "@/providers/AuthProvider";
 import type { School, HierarchyMode } from "@/types/school";
 import type { UserInfo, Membership } from "@/types/auth";
 import styles from "@/styles/admin.module.css";
@@ -42,6 +44,7 @@ const ROLE_LABELS: Record<string, string> = {
 export function SchoolListView() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { isAdmin: isSystemAdmin } = useAuthContext();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -218,12 +221,18 @@ export function SchoolListView() {
 
   const handleUpdateGlobalUser = async () => {
     if (!editingUser) return;
+    if (newUserPassword && newUserPassword.length < 6) {
+      showToast("パスワードは6文字以上で設定してください", "error");
+      return;
+    }
     setSaving(true);
     try {
       await runBusy("ユーザーを更新中...", async () => {
         await updateUserFn({
           uid: editingUser.uid,
           displayName: newUserDisplayName || undefined,
+          password:
+            isSystemAdmin && newUserPassword ? newUserPassword : undefined,
         });
         const wasAdmin = editingUser.isAdmin ?? false;
         if (wasAdmin !== newUserIsAdmin) {
@@ -473,6 +482,7 @@ export function SchoolListView() {
                             setEditingUser(u);
                             setNewUserDisplayName(u.displayName || "");
                             setNewUserIsAdmin(!!u.isAdmin);
+                            setNewUserPassword("");
                             const ms = membershipsMap[u.uid] || [];
                             setNewUserMembership(
                               ms.length > 0 ? `${ms[0].schoolId}:${ms[0].role}` : ""
@@ -648,12 +658,25 @@ export function SchoolListView() {
         {!editingUser && (
           <div className="form-group">
             <label>パスワード</label>
-            <input
-              type="password"
+            <PasswordInput
               value={newUserPassword}
-              onChange={(e) => setNewUserPassword(e.target.value)}
+              onChange={setNewUserPassword}
               placeholder="6文字以上"
             />
+          </div>
+        )}
+        {editingUser && isSystemAdmin && (
+          <div className="form-group">
+            <label>新しいパスワード</label>
+            <PasswordInput
+              value={newUserPassword}
+              onChange={setNewUserPassword}
+              placeholder="変更する場合のみ入力（6文字以上）"
+            />
+            <p style={{ color: "#888", fontSize: "0.8rem", marginTop: 4 }}>
+              空欄の場合はパスワードを変更しません。Firebase Auth の仕様上、
+              既存パスワードの表示はできません。目のボタンで入力中の値を確認できます。
+            </p>
           </div>
         )}
         <div className="form-group">

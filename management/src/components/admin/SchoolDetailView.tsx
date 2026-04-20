@@ -43,6 +43,7 @@ import {
 import { HierarchicalAdsTab } from "./HierarchicalAdsTab";
 import { Modal } from "@/components/ui/Modal";
 import { Loading } from "@/components/ui/Loading";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/components/ui/Toast";
 import type {
   Grade,
@@ -667,11 +668,16 @@ export function SchoolDetailView({
   // ユーザー編集
   const handleUpdateUser = async () => {
     if (!editingUser) return;
+    if (newUserPassword && newUserPassword.length < 6) {
+      showToast("パスワードは6文字以上で設定してください", "error");
+      return;
+    }
     setSaving(true);
     try {
       await updateUserFn({
         uid: editingUser.uid,
         displayName: newUserDisplayName || undefined,
+        password: isSystemAdmin && newUserPassword ? newUserPassword : undefined,
       });
       const wasAdmin = editingUser.isAdmin ?? false;
       if (wasAdmin !== newUserIsAdmin) {
@@ -679,6 +685,7 @@ export function SchoolDetailView({
       }
       showToast("ユーザーを更新しました", "success");
       setEditingUser(null);
+      setNewUserPassword("");
       const userRes = await listUsersFn();
       setUsers(userRes.data.users || []);
     } catch (err) {
@@ -1592,6 +1599,7 @@ export function SchoolDetailView({
                                     });
                                     setNewUserDisplayName(row.displayName || "");
                                     setNewUserIsAdmin(!!row.isAdmin);
+                                    setNewUserPassword("");
                                     setUserModalOpen(true);
                                   }}
                                 >
@@ -1646,19 +1654,19 @@ export function SchoolDetailView({
             <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: 12 }}>
               教員・エディターがログインするためのパスワードを設定します。
             </p>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input
-                type="password"
-                value={editorPassword}
-                onChange={(e) => setEditorPassword(e.target.value)}
-                placeholder="新しいパスワード"
-                style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  border: "1px solid #ddd",
-                  borderRadius: "6px",
-                }}
-              />
+            <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+              <div style={{ flex: 1 }}>
+                <PasswordInput
+                  value={editorPassword}
+                  onChange={setEditorPassword}
+                  placeholder="新しいパスワード"
+                  inputStyle={{
+                    padding: "8px 12px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                  }}
+                />
+              </div>
               <button
                 className="btn btn-primary"
                 onClick={handleSetEditorPassword}
@@ -2002,12 +2010,25 @@ export function SchoolDetailView({
         {!editingUser && (
           <div className="form-group">
             <label>パスワード</label>
-            <input
-              type="password"
+            <PasswordInput
               value={newUserPassword}
-              onChange={(e) => setNewUserPassword(e.target.value)}
+              onChange={setNewUserPassword}
               placeholder="6文字以上"
             />
+          </div>
+        )}
+        {editingUser && isSystemAdmin && (
+          <div className="form-group">
+            <label>新しいパスワード</label>
+            <PasswordInput
+              value={newUserPassword}
+              onChange={setNewUserPassword}
+              placeholder="変更する場合のみ入力（6文字以上）"
+            />
+            <p style={{ color: "#888", fontSize: "0.8rem", marginTop: 4 }}>
+              空欄の場合はパスワードを変更しません。Firebase Auth の仕様上、
+              既存パスワードの表示はできません。目のボタンで入力中の値を確認できます。
+            </p>
           </div>
         )}
         <div className="form-group">

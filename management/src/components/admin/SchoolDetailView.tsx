@@ -70,7 +70,7 @@ export function SchoolDetailView({
   const [schoolName, setSchoolName] = useState("");
   const [hierarchyMode, setHierarchyMode] = useState<HierarchyMode>("class");
   const [activeTab, setActiveTab] = useState<
-    "grades" | "departments" | "users" | "ads" | "settings"
+    "grades" | "users" | "ads" | "settings"
   >("grades");
   const [loading, setLoading] = useState(true);
 
@@ -819,9 +819,6 @@ export function SchoolDetailView({
       key: "grades" as const,
       label: isDeptMode ? "学年・学科・クラス" : "学年・クラス",
     },
-    ...(isDeptMode
-      ? [{ key: "departments" as const, label: "学科" }]
-      : []),
     { key: "users" as const, label: "ユーザー" },
     { key: "ads" as const, label: "広告" },
     { key: "settings" as const, label: "設定" },
@@ -1334,77 +1331,6 @@ export function SchoolDetailView({
         );
       })()}
 
-
-      {/* 学科 */}
-      {activeTab === "departments" && isDeptMode && (
-        <div>
-          <div className={styles.sectionHeader}>
-            <h3>学科一覧</h3>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setEditingDepartmentId(null);
-                setNewDepartmentName("");
-                setDepartmentModalOpen(true);
-              }}
-            >
-              + 学科追加
-            </button>
-          </div>
-          <p className={styles.sectionLead}>
-            学科マスターで追加したコンテンツ・広告は、その学科配下の全学年・全クラスに自動反映されます。
-          </p>
-          {departments.length === 0 ? (
-            <p className="empty-text">学科が登録されていません</p>
-          ) : (
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th>学科名</th>
-                  <th>学年数</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortByNameJa(departments).map((d) => {
-                  const g = gradesByDept[d.id] || [];
-                  return (
-                    <tr key={d.id}>
-                      <td>
-                        <strong>{d.name}</strong>
-                        <EditIconButton
-                          onClick={() => {
-                            setEditingDepartmentId(d.id);
-                            setNewDepartmentName(d.name);
-                            setDepartmentModalOpen(true);
-                          }}
-                          label="学科名を変更"
-                        />
-                      </td>
-                      <td>
-                        <span
-                          className="badge"
-                          style={{ background: "#f0e8ff", color: "#5a2ea6" }}
-                        >
-                          {g.length}学年
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleDeleteDepartment(d.id)}
-                        >
-                          削除
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
 
       {/* ユーザー（ロール管理統合） */}
       {activeTab === "users" && (() => {

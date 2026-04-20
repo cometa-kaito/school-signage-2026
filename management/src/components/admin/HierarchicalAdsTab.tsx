@@ -99,7 +99,8 @@ export function HierarchicalAdsTab({
   >("school");
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedGradeId, setSelectedGradeId] = useState<string | null>(null);
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  /** クラス別セクションで現在開いている行のキー（dept:grade:class / grade:class） */
+  const [openClassRowKey, setOpenClassRowKey] = useState<string | null>(null);
   /** 学科モード: 学年マスターを学年名単位で扱うための選択状態 */
   const [selectedGradeName, setSelectedGradeName] = useState<string | null>(
     null
@@ -202,27 +203,6 @@ export function HierarchicalAdsTab({
     loadGradeAds,
   ]);
 
-  // クラス広告ロード
-  useEffect(() => {
-    if (selectedGradeId && selectedClassId) {
-      const deptId = isDeptMode ? selectedDeptId : null;
-      const key = deptId
-        ? `${deptId}:${selectedGradeId}:${selectedClassId}`
-        : `${selectedGradeId}:${selectedClassId}`;
-      if (classAds[key] === undefined) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        loadClassAds(selectedGradeId, selectedClassId, deptId);
-      }
-    }
-  }, [
-    selectedGradeId,
-    selectedClassId,
-    selectedDeptId,
-    classAds,
-    loadClassAds,
-    isDeptMode,
-  ]);
-
   const gradeAdsTotal = Object.values(gradeAds).reduce(
     (s, a) => s + a.length,
     0
@@ -309,7 +289,6 @@ export function HierarchicalAdsTab({
                       onChange={(e) => {
                         setSelectedDeptId(e.target.value || null);
                         setSelectedGradeId(null);
-                        setSelectedClassId(null);
                       }}
                     >
                       <option value="">-- 学科を選択 --</option>
@@ -517,133 +496,165 @@ export function HierarchicalAdsTab({
             そのクラスのみに表示
           </span>
         </div>
-        {expandedSection === "class" && (
-          <div style={{ padding: "12px 14px 0" }}>
-            <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-              {isDeptMode && (
-                <div>
-                  <label style={{ marginRight: 8, fontWeight: 600 }}>
-                    学科:
-                  </label>
-                  <select
-                    value={selectedDeptId || ""}
-                    onChange={(e) => {
-                      setSelectedDeptId(e.target.value || null);
-                      setSelectedGradeId(null);
-                      setSelectedClassId(null);
+        {expandedSection === "class" && (() => {
+          type ClassRow = {
+            key: string;
+            title: string;
+            gradeId: string;
+            classId: string;
+            departmentId: string | null;
+          };
+          const rows: ClassRow[] = [];
+          if (isDeptMode) {
+            departments.forEach((d) => {
+              (gradesByDept[d.id] || []).forEach((g) => {
+                (classesByDeptGrade[d.id]?.[g.id] || []).forEach((c) => {
+                  rows.push({
+                    key: `${d.id}:${g.id}:${c.id}`,
+                    title: `${d.name} / ${g.name} / ${c.name}`,
+                    gradeId: g.id,
+                    classId: c.id,
+                    departmentId: d.id,
+                  });
+                });
+              });
+            });
+          } else {
+            grades.forEach((g) => {
+              (classesMap[g.id] || []).forEach((c) => {
+                rows.push({
+                  key: `${g.id}:${c.id}`,
+                  title:
+                    g.hasClasses === false ? g.name : `${g.name} / ${c.name}`,
+                  gradeId: g.id,
+                  classId: c.id,
+                  departmentId: null,
+                });
+              });
+            });
+          }
+          if (rows.length === 0) {
+            return (
+              <div style={{ padding: "12px 14px" }}>
+                <p className="empty-text">クラスが登録されていません</p>
+              </div>
+            );
+          }
+          return (
+            <div
+              style={{
+                padding: "12px 14px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              {rows.map((row) => {
+                const open = openClassRowKey === row.key;
+                const gKey = gradeKey(row.gradeId, row.departmentId);
+                const clsCacheKey = row.departmentId
+                  ? `${row.departmentId}:${row.gradeId}:${row.classId}`
+                  : `${row.gradeId}:${row.classId}`;
+                return (
+                  <div
+                    key={row.key}
+                    style={{
+                      border: "1px solid #eee",
+                      borderRadius: 6,
                     }}
                   >
-                    <option value="">-- 選択 --</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label style={{ marginRight: 8, fontWeight: 600 }}>
-                  学年:
-                </label>
-                <select
-                  value={selectedGradeId || ""}
-                  onChange={(e) => {
-                    setSelectedGradeId(e.target.value || null);
-                    setSelectedClassId(null);
-                  }}
-                  disabled={isDeptMode && !selectedDeptId}
-                >
-                  <option value="">-- 選択 --</option>
-                  {(isDeptMode
-                    ? (selectedDeptId && gradesByDept[selectedDeptId]) || []
-                    : grades
-                  ).map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ marginRight: 8, fontWeight: 600 }}>
-                  クラス:
-                </label>
-                <select
-                  value={selectedClassId || ""}
-                  onChange={(e) =>
-                    setSelectedClassId(e.target.value || null)
-                  }
-                  disabled={!selectedGradeId}
-                >
-                  <option value="">-- 選択 --</option>
-                  {(isDeptMode
-                    ? (selectedDeptId &&
-                        selectedGradeId &&
-                        classesByDeptGrade[selectedDeptId]?.[
-                          selectedGradeId
-                        ]) ||
-                      []
-                    : (selectedGradeId && classesMap[selectedGradeId]) || []
-                  ).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {selectedGradeId &&
-              selectedClassId &&
-              (!isDeptMode || selectedDeptId) &&
-              (() => {
-                const deptId = isDeptMode ? selectedDeptId : null;
-                const gKey = gradeKey(selectedGradeId, deptId);
-                const clsKey = deptId
-                  ? `${deptId}:${selectedGradeId}:${selectedClassId}`
-                  : `${selectedGradeId}:${selectedClassId}`;
-                const className = isDeptMode
-                  ? classesByDeptGrade[selectedDeptId!]?.[selectedGradeId]?.find(
-                      (c) => c.id === selectedClassId
-                    )?.name
-                  : classesMap[selectedGradeId]?.find(
-                      (c) => c.id === selectedClassId
-                    )?.name;
-                return (
-                  <>
-                    <ReadOnlyAdList
-                      title="学校全体の広告（継承）"
-                      ads={schoolAds}
-                    />
-                    {isDeptMode && selectedDeptId && (
-                      <ReadOnlyAdList
-                        title="学科全体の広告（継承）"
-                        ads={deptAds[selectedDeptId] || []}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (open) {
+                          setOpenClassRowKey(null);
+                          return;
+                        }
+                        setOpenClassRowKey(row.key);
+                        if (
+                          row.departmentId &&
+                          deptAds[row.departmentId] === undefined
+                        ) {
+                          loadDeptAds(row.departmentId);
+                        }
+                        if (gradeAds[gKey] === undefined) {
+                          loadGradeAds(row.gradeId, row.departmentId);
+                        }
+                        if (classAds[clsCacheKey] === undefined) {
+                          loadClassAds(
+                            row.gradeId,
+                            row.classId,
+                            row.departmentId
+                          );
+                        }
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        padding: "8px 12px",
+                        background: open ? "#f5faff" : "#fafafa",
+                        border: "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontWeight: 500,
+                        fontSize: "0.9rem",
+                        borderRadius: 6,
+                      }}
+                    >
+                      <span>{open ? "▼" : "▶"}</span>
+                      <span>{row.title}</span>
+                      <AdCountBadge
+                        count={(classAds[clsCacheKey] || []).length}
                       />
+                    </button>
+                    {open && (
+                      <div
+                        style={{
+                          padding: "10px 14px 12px",
+                          borderTop: "1px solid #eee",
+                        }}
+                      >
+                        <ReadOnlyAdList
+                          title="学校全体の広告（継承）"
+                          ads={schoolAds}
+                        />
+                        {row.departmentId && (
+                          <ReadOnlyAdList
+                            title="学科全体の広告（継承）"
+                            ads={deptAds[row.departmentId] || []}
+                          />
+                        )}
+                        <ReadOnlyAdList
+                          title="学年全体の広告（継承）"
+                          ads={gradeAds[gKey] || []}
+                        />
+                        <AdManager
+                          docRef={classDocRef(
+                            schoolId,
+                            row.gradeId,
+                            row.classId,
+                            row.departmentId
+                          )}
+                          ads={classAds[clsCacheKey] || []}
+                          onAdsChange={(ads) =>
+                            setClassAds((prev) => ({
+                              ...prev,
+                              [clsCacheKey]: ads,
+                            }))
+                          }
+                          title={`クラス広告 — ${row.title}`}
+                          description="このクラスのサイネージにのみ表示される広告です。"
+                        />
+                      </div>
                     )}
-                    <ReadOnlyAdList
-                      title="学年全体の広告（継承）"
-                      ads={gradeAds[gKey] || []}
-                    />
-                    <AdManager
-                      docRef={classDocRef(
-                        schoolId,
-                        selectedGradeId,
-                        selectedClassId,
-                        deptId
-                      )}
-                      ads={classAds[clsKey] || []}
-                      onAdsChange={(ads) =>
-                        setClassAds((prev) => ({ ...prev, [clsKey]: ads }))
-                      }
-                      title={`クラス広告 — ${className || selectedClassId}`}
-                      description="このクラスのサイネージにのみ表示される広告です。"
-                    />
-                  </>
+                  </div>
                 );
-              })()}
-          </div>
-        )}
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

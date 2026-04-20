@@ -41,6 +41,7 @@ import {
   gradeConfigRef,
 } from "@/lib/paths";
 import { HierarchicalAdsTab } from "./HierarchicalAdsTab";
+import { ClassQuietHoursEditor } from "./ClassQuietHoursEditor";
 import { Modal } from "@/components/ui/Modal";
 import { Loading } from "@/components/ui/Loading";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -125,6 +126,7 @@ export function SchoolDetailView({
 
   // Class URL expansion
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
+  const [classQuietOpen, setClassQuietOpen] = useState<string | null>(null);
 
   // Inline class settings
   const [settingsClassKey, setSettingsClassKey] = useState<string | null>(null); // "gradeId:classId"
@@ -1837,6 +1839,116 @@ export function SchoolDetailView({
               </div>
             </div>
           )}
+
+          {/* クラス別 音声オフ */}
+          {(() => {
+            const rows: {
+              key: string;
+              title: string;
+              description?: string;
+              docRef: ReturnType<typeof classDocRef>;
+            }[] = [];
+            if (isDeptMode) {
+              sortByNameJa(departments).forEach((d) => {
+                sortByNameJa(gradesByDept[d.id] || []).forEach((g) => {
+                  sortByNameJa(
+                    classesByDeptGrade[d.id]?.[g.id] || []
+                  ).forEach((c) => {
+                    rows.push({
+                      key: `${d.id}:${g.id}:${c.id}`,
+                      title: `${d.name} / ${g.name} / ${c.name}`,
+                      docRef: classDocRef(schoolId, g.id, c.id, d.id),
+                    });
+                  });
+                });
+              });
+            } else {
+              sortByNameJa(grades).forEach((g) => {
+                sortByNameJa(classesMap[g.id] || []).forEach((c) => {
+                  const hideClsName = g.hasClasses === false;
+                  rows.push({
+                    key: `${g.id}:${c.id}`,
+                    title: hideClsName ? g.name : `${g.name} / ${c.name}`,
+                    docRef: classDocRef(schoolId, g.id, c.id, null),
+                  });
+                });
+              });
+            }
+            if (rows.length === 0) return null;
+            return (
+              <div className={styles.settingCard} style={{ marginTop: 20 }}>
+                <h3>クラス別 音声オフ</h3>
+                <p
+                  style={{
+                    color: "#888",
+                    fontSize: "0.85rem",
+                    marginBottom: 12,
+                  }}
+                >
+                  クラスごとの個別設定。ここで設定した時間帯は、そのクラスのみに適用され、
+                  上位マスター設定より優先されます。未設定の場合は学年→学科→学校の順に
+                  マスター設定が適用されます。
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  {rows.map((row) => {
+                    const open = classQuietOpen === row.key;
+                    return (
+                      <div
+                        key={row.key}
+                        style={{
+                          border: "1px solid #eee",
+                          borderRadius: 6,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setClassQuietOpen(open ? null : row.key)
+                          }
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            width: "100%",
+                            padding: "8px 12px",
+                            background: open ? "#f5faff" : "#fafafa",
+                            border: "none",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            fontWeight: 500,
+                            fontSize: "0.9rem",
+                            borderRadius: 6,
+                          }}
+                        >
+                          <span>{open ? "▼" : "▶"}</span>
+                          <span>{row.title}</span>
+                        </button>
+                        {open && (
+                          <div
+                            style={{
+                              padding: "10px 14px 12px",
+                              borderTop: "1px solid #eee",
+                            }}
+                          >
+                            <ClassQuietHoursEditor
+                              docRef={row.docRef}
+                              title={row.title}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -767,7 +767,7 @@ export function SchoolDetailView({
     departmentId: string | null = null
   ) => {
     const key = departmentId
-      ? `${gradeId}:${departmentId}:${classId}`
+      ? `${departmentId}:${gradeId}:${classId}`
       : `${gradeId}:${classId}`;
     if (settingsClassKey === key) {
       setSettingsClassKey(null);
@@ -907,30 +907,60 @@ export function SchoolDetailView({
                 )}
                 <div className={styles.classActions}>
                   <div className={styles.classLinks}>
-                    <a
-                      href={signageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${styles.linkBtn} ${styles.linkSignage}`}
-                    >
-                      サイネージ
-                    </a>
-                    <a
-                      href={editorUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${styles.linkBtn} ${styles.linkEditor}`}
-                    >
-                      PC編集
-                    </a>
-                    <a
-                      href={mobileEditorUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${styles.linkBtn} ${styles.linkMobile}`}
-                    >
-                      スマホ編集
-                    </a>
+                    <span className={styles.linkGroup}>
+                      <a
+                        href={signageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${styles.linkBtn} ${styles.linkSignage}`}
+                      >
+                        サイネージ
+                      </a>
+                      <button
+                        type="button"
+                        className={styles.copyBtn}
+                        onClick={() => copyToClipboard(signageUrl)}
+                        title="URLをコピー"
+                      >
+                        コピー
+                      </button>
+                    </span>
+                    <span className={styles.linkGroup}>
+                      <a
+                        href={editorUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${styles.linkBtn} ${styles.linkEditor}`}
+                      >
+                        PC編集
+                      </a>
+                      <button
+                        type="button"
+                        className={styles.copyBtn}
+                        onClick={() => copyToClipboard(editorUrl)}
+                        title="URLをコピー"
+                      >
+                        コピー
+                      </button>
+                    </span>
+                    <span className={styles.linkGroup}>
+                      <a
+                        href={mobileEditorUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${styles.linkBtn} ${styles.linkMobile}`}
+                      >
+                        スマホ編集
+                      </a>
+                      <button
+                        type="button"
+                        className={styles.copyBtn}
+                        onClick={() => copyToClipboard(mobileEditorUrl)}
+                        title="URLをコピー"
+                      >
+                        コピー
+                      </button>
+                    </span>
                     <button
                       className={`${styles.linkBtn} ${styles.linkSettings} ${settingsClassKey === settingsKey ? styles.linkSettingsActive : ""}`}
                       onClick={() =>

@@ -37,10 +37,128 @@ function formatDateTime(iso: string | null): string {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
 }
 
+function average(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function distribution(nums: number[]): Record<number, number> {
+  const d: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  nums.forEach((n) => {
+    if (d[n] !== undefined) d[n] += 1;
+  });
+  return d;
+}
+
+interface StatsCardProps {
+  title: string;
+  values: number[];
+  labels: Record<number, string>;
+}
+
+function StatsCard({ title, values, labels }: StatsCardProps) {
+  const avg = average(values);
+  const dist = distribution(values);
+  const total = values.length;
+  return (
+    <div
+      style={{
+        background: "var(--color-canvas)",
+        border: "var(--border-1)",
+        borderRadius: "var(--radius-md)",
+        padding: "var(--space-4) var(--space-5)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "var(--fs-xs)",
+          color: "var(--color-text-muted)",
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <strong style={{ fontSize: "1.6rem", color: "var(--color-text)" }}>
+          {total > 0 ? avg.toFixed(2) : "-"}
+        </strong>
+        <span
+          style={{ fontSize: "var(--fs-xs)", color: "var(--color-text-muted)" }}
+        >
+          / 5 ・ 回答 {total} 件
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {[5, 4, 3, 2, 1].map((score) => {
+          const count = dist[score] || 0;
+          const pct = total > 0 ? (count / total) * 100 : 0;
+          return (
+            <div
+              key={score}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "16px 1fr 36px",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "var(--fs-xs)",
+              }}
+              title={labels[score]}
+            >
+              <span
+                style={{
+                  color: "var(--color-text-muted)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {score}
+              </span>
+              <span
+                style={{
+                  height: 8,
+                  background: "var(--color-surface-muted)",
+                  borderRadius: 4,
+                  overflow: "hidden",
+                  position: "relative",
+                }}
+              >
+                <span
+                  style={{
+                    display: "block",
+                    height: "100%",
+                    width: `${pct}%`,
+                    background: "var(--color-accent)",
+                  }}
+                />
+              </span>
+              <span
+                style={{
+                  color: "var(--color-text-muted)",
+                  fontVariantNumeric: "tabular-nums",
+                  textAlign: "right",
+                }}
+              >
+                {count}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function FeedbackListView() {
   const { showToast } = useToast();
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listVisible, setListVisible] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +181,11 @@ export function FeedbackListView() {
 
   if (loading) return <Loading message="フィードバックを読み込み中…" />;
 
+  const studentReactions = items.map((it) => it.studentReaction);
+  const teacherUtilities = items.map((it) => it.teacherUtility);
+  const episodeCount = items.filter((it) => it.studentEpisode?.trim()).length;
+  const improvementCount = items.filter((it) => it.improvement?.trim()).length;
+
   return (
     <div>
       <div className={styles.sectionHeader}>
@@ -79,8 +202,84 @@ export function FeedbackListView() {
       {items.length === 0 ? (
         <p className="empty-text">まだフィードバックはありません</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {items.map((it) => (
+        <>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 12,
+              marginBottom: 12,
+            }}
+          >
+            <StatsCard
+              title="生徒の反応（平均）"
+              values={studentReactions}
+              labels={STUDENT_REACTION_LABELS}
+            />
+            <StatsCard
+              title="先生の負担・利便性（平均）"
+              values={teacherUtilities}
+              labels={TEACHER_UTILITY_LABELS}
+            />
+            <div
+              style={{
+                background: "var(--color-canvas)",
+                border: "var(--border-1)",
+                borderRadius: "var(--radius-md)",
+                padding: "var(--space-4) var(--space-5)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "var(--fs-xs)",
+                  color: "var(--color-text-muted)",
+                  marginBottom: 6,
+                }}
+              >
+                回答数
+              </div>
+              <strong style={{ fontSize: "1.6rem", color: "var(--color-text)" }}>
+                {items.length}
+              </strong>
+              <span
+                style={{
+                  fontSize: "var(--fs-xs)",
+                  color: "var(--color-text-muted)",
+                  marginLeft: 6,
+                }}
+              >
+                件
+              </span>
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: "var(--fs-xs)",
+                  color: "var(--color-text-muted)",
+                  lineHeight: 1.8,
+                }}
+              >
+                自由記述（エピソード）: {episodeCount} 件
+                <br />
+                自由記述（改善要望）: {improvementCount} 件
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setListVisible((v) => !v)}
+              aria-expanded={listVisible}
+            >
+              {listVisible
+                ? `▼ フィードバック一覧を隠す（${items.length} 件）`
+                : `▶ フィードバック一覧を表示（${items.length} 件）`}
+            </button>
+          </div>
+
+          {listVisible && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {items.map((it) => (
             <article
               key={it.id}
               style={{
@@ -254,9 +453,11 @@ export function FeedbackListView() {
                   </div>
                 </div>
               )}
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

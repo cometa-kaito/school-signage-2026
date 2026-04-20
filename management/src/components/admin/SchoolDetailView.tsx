@@ -169,6 +169,7 @@ export function SchoolDetailView({
 
   // Editor password
   const [editorPassword, setEditorPassword] = useState("");
+  const [editorPwdSaving, setEditorPwdSaving] = useState(false);
 
   // School quiet hours
   const [schoolQuietHours, setSchoolQuietHours] = useState<
@@ -730,14 +731,14 @@ export function SchoolDetailView({
       showToast("パスワードは6文字以上で設定してください", "error");
       return;
     }
-    setSaving(true);
+    setEditorPwdSaving(true);
     try {
       await setEditorPasswordFn({ schoolId, password: editorPassword });
       showToast("エディターパスワードを設定しました", "success");
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
-    setSaving(false);
+    setEditorPwdSaving(false);
   };
 
   const handleAddQuietHour = () => {
@@ -1598,9 +1599,24 @@ export function SchoolDetailView({
               <button
                 className="btn btn-primary"
                 onClick={handleSetEditorPassword}
-                disabled={saving}
+                disabled={editorPwdSaving}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                設定
+                {editorPwdSaving && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: "inline-block",
+                      width: 14,
+                      height: 14,
+                      border: "2px solid currentColor",
+                      borderTopColor: "transparent",
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                )}
+                {editorPwdSaving ? "設定中..." : "設定"}
               </button>
             </div>
           </div>

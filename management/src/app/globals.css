@@ -13,6 +13,10 @@
   padding: 0;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 :root {
   /* ===== カラー（マットトーン・5色体系） ===== */
   /* 白 / ベース */

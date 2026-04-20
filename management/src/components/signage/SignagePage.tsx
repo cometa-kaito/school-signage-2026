@@ -5,6 +5,7 @@ import { useSignageData } from "@/hooks/useSignageData";
 import { useClock } from "@/hooks/useClock";
 import { useQuietHours } from "@/hooks/useQuietHours";
 import { useAdRotation } from "@/hooks/useAdRotation";
+import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ImageCache } from "@/lib/image-cache";
 import { debounce } from "@/lib/utils";
@@ -61,8 +62,14 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
     isQuietTime,
   });
 
-  // 自動スクロール用ref
+  // 自動スクロール — 連絡事項がオーバーフローしたら双方向スクロール
   const noticeListRef = useRef<HTMLUListElement>(null);
+  const { restart: restartNoticeScroll } = useAutoScroll(noticeListRef);
+
+  // 連絡が更新されたらスクロール位置をリセット＆再開
+  useEffect(() => {
+    restartNoticeScroll();
+  }, [notices, restartNoticeScroll]);
 
   // ========================================
   // scrollRestoration制御
@@ -103,11 +110,12 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
   // ========================================
   const [showStartup, setShowStartup] = useState(true);
 
-  // kiosk/autostart パラメータチェック
+  // kiosk/autostart パラメータチェック（URL パラメータの初回検知）
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("kiosk") === "1" || params.get("autostart") === "1") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowStartup(false);
       enableAudio();
     }
@@ -207,7 +215,6 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
   useEffect(() => {
     const timerId = setInterval(() => {
       if (ads.length > 0) {
-        console.log("画像キャッシュを更新チェック...");
         const syncCache = async () => {
           for (const ad of ads) {
             if (ad.type === "image") {
@@ -232,7 +239,6 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("タブがアクティブになりました");
         refetch();
       }
     };

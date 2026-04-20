@@ -717,12 +717,10 @@ export function useSignageData(
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
     if (forceStatic) {
-      console.log("強制静的JSONモードで起動");
       modeRef.current = "static";
       cleanup = startStaticJsonPolling();
     } else {
       // 事前の接続テストを行わず即座に Firestore リスナーを起動
-      console.log("Firestoreモードで即時起動");
       modeRef.current = "firestore";
       const firestoreCleanup = startFirestoreListeners();
 

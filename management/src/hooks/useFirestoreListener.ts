@@ -32,6 +32,8 @@ export function useFirestoreDoc<T = DocumentData>(
 
   useEffect(() => {
     if (!docRef) {
+      // docRef が外れた場合の状態リセット（購読解除相当）
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(null);
       setLoading(false);
       return;
@@ -72,6 +74,8 @@ export function useFirestoreCollection<T = DocumentData>(
 
   useEffect(() => {
     if (!query) {
+      // query が外れた場合の状態リセット
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData([]);
       setLoading(false);
       return;

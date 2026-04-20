@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  management:
+    name: Frontend (lint + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: management
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: management/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Build (Next.js static export, includes typecheck)
+        run: npx next build
+
+      - name: Check static export output
+        run: test -d out && test -f out/index.html
+
+  security:
+    name: Secret & rules sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure serviceAccountKey.json is not tracked
+        run: |
+          if git ls-files --error-unmatch serviceAccountKey.json 2>/dev/null; then
+            echo "::error::serviceAccountKey.json is tracked in git. Remove it and rotate the key."
+            exit 1
+          fi
+
+      - name: Ensure firestore.rules and storage.rules exist
+        run: |
+          test -f firestore.rules || (echo "::error::firestore.rules missing" && exit 1)
+          test -f storage.rules   || (echo "::error::storage.rules missing"   && exit 1)

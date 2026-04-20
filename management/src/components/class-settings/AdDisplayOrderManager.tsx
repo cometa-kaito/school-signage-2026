@@ -89,6 +89,8 @@ export function AdDisplayOrderManager({
         })
       );
     } else {
+      // 学科モード無効時は学科広告を空に
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeptAds([]);
     }
     unsubs.push(

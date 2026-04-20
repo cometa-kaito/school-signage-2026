@@ -7,6 +7,7 @@ import { ContextSelector } from "@/components/context/ContextSelector";
 import { EditorSchoolPicker } from "@/components/editor/EditorSchoolPicker";
 import { EditorTargetMenu } from "@/components/editor/EditorTargetMenu";
 import { EditorModeToggle } from "@/components/editor/EditorModeToggle";
+import { MasterCopyButton } from "@/components/editor/MasterCopyButton";
 import { ScheduleSection } from "@/components/editor/ScheduleSection";
 import {
   ScheduleTemplateModal,
@@ -586,7 +587,17 @@ function EditorContent() {
       )}
 
       {editingLevel !== "class" && (
-        <div className={styles.levelIndicator} role="status">
+        <div
+          className={styles.levelIndicator}
+          role="status"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           <span>
             {editingLevel === "school"
               ? "まとめて編集中 — この学校の全クラスに反映されます"
@@ -596,6 +607,16 @@ function EditorContent() {
                   ? `まとめて編集中 — 同じ学年名の ${gradeSiblings.length} 学年すべてに反映されます`
                   : "まとめて編集中 — この学年の全クラスに反映されます"}
           </span>
+          {(editingLevel === "school" || editingLevel === "grade") &&
+            schoolId && (
+              <MasterCopyButton
+                schoolId={schoolId}
+                gradeId={
+                  editingLevel === "grade" ? gradeId ?? undefined : undefined
+                }
+                sourceLevel={editingLevel === "school" ? "school" : "grade"}
+              />
+            )}
         </div>
       )}
 

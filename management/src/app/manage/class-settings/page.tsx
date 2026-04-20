@@ -80,6 +80,8 @@ function ClassSettingsContent() {
 
   useEffect(() => {
     if (hasFullContext) {
+      // loadClassData は async、setState は await 後で実行される
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadClassData();
     } else {
       setLoading(false);

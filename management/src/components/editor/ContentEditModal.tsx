@@ -96,6 +96,7 @@ export function ContentEditModal({
   );
 
   // モーダルを開くたびに initialData から再初期化（前回の入力を持ち越さない）
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isOpen) return;
     const t = (initialData?.time as string) || "";
@@ -113,6 +114,7 @@ export function ContentEditModal({
     setDisplayStart((initialData?.display_start as string) || "");
     setDisplayEnd((initialData?.display_end as string) || "");
   }, [isOpen, initialData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = async () => {
     setSaving(true);

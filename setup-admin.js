@@ -1,40 +1,75 @@
 // setup-admin.js
 // 初回の管理者ユーザーにカスタムクレームを設定するスクリプト
-// 
+//
 // 使用方法:
 // 1. Firebase コンソールからサービスアカウントキーをダウンロード
-// 2. serviceAccountKey.json としてこのファイルと同じディレクトリに配置
-// 3. npm install firebase-admin
-// 4. ADMIN_EMAIL を設定したいメールアドレスに変更
-// 5. node setup-admin.js を実行
+// 2. リポジトリ外の安全な場所に保存（例: ~/.kimiterrace-credentials/serviceAccountKey.json）
+// 3. 環境変数を設定:
+//      export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.kimiterrace-credentials/serviceAccountKey.json"
+//    または ADMIN_EMAIL と KIMITERRACE_CREDENTIALS_PATH を個別に設定
+// 4. npm install firebase-admin
+// 5. node setup-admin.js [add|remove|list] [email]
 
 const admin = require('firebase-admin');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 // ========================================
-// 設定
+// 設定（環境変数から読み込み）
 // ========================================
 
-// 管理者に設定するメールアドレス（※ここを変更）
-const ADMIN_EMAIL = '20051215kaito@gmail.com';
+// 管理者に設定するメールアドレス
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
-// サービスアカウントキーのパス
-const SERVICE_ACCOUNT_PATH = './serviceAccountKey.json';
+// サービスアカウントキーの解決順序:
+//  1. GOOGLE_APPLICATION_CREDENTIALS (Google 標準)
+//  2. KIMITERRACE_CREDENTIALS_PATH (プロジェクト固有)
+//  3. ~/.kimiterrace-credentials/serviceAccountKey.json (デフォルト)
+function resolveCredentialsPath() {
+    const candidates = [
+        process.env.GOOGLE_APPLICATION_CREDENTIALS,
+        process.env.KIMITERRACE_CREDENTIALS_PATH,
+        path.join(os.homedir(), '.kimiterrace-credentials', 'serviceAccountKey.json')
+    ].filter(Boolean);
+
+    for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
+}
 
 // ========================================
 // 初期化
 // ========================================
 
-let serviceAccount;
-try {
-    serviceAccount = require(SERVICE_ACCOUNT_PATH);
-} catch (error) {
-    console.error('❌ エラー: serviceAccountKey.json が見つかりません');
+const credentialsPath = resolveCredentialsPath();
+
+if (!credentialsPath) {
+    console.error('❌ エラー: サービスアカウントキーが見つかりません');
     console.log('');
-    console.log('以下の手順でサービスアカウントキーを取得してください：');
+    console.log('以下の手順でサービスアカウントキーを取得して安全に配置してください：');
     console.log('1. Firebase コンソール (https://console.firebase.google.com/) にアクセス');
     console.log('2. プロジェクトの設定 → サービスアカウント');
     console.log('3. 「新しい秘密鍵の生成」をクリック');
-    console.log('4. ダウンロードしたJSONファイルを serviceAccountKey.json として保存');
+    console.log('4. ダウンロードしたJSONを **リポジトリ外** に保存');
+    console.log('   推奨パス: ~/.kimiterrace-credentials/serviceAccountKey.json');
+    console.log('5. 環境変数 GOOGLE_APPLICATION_CREDENTIALS にフルパスを設定');
+    process.exit(1);
+}
+
+if (!ADMIN_EMAIL) {
+    console.error('❌ エラー: 環境変数 ADMIN_EMAIL が未設定です');
+    console.log('例: ADMIN_EMAIL=admin@example.com node setup-admin.js');
+    process.exit(1);
+}
+
+let serviceAccount;
+try {
+    serviceAccount = require(credentialsPath);
+} catch (error) {
+    console.error(`❌ サービスアカウントキーの読み込みに失敗: ${credentialsPath}`);
+    console.error(error.message);
     process.exit(1);
 }
 

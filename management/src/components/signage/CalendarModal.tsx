@@ -18,6 +18,8 @@ export function CalendarModal({ weeklySchedules, onClose }: CalendarModalProps) 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  // React Compiler が setCurrentYear を依存として推論するため明示的に含める
+  // （React の保証により setState 関数は安定なので動作は同一）
   const goToPrevMonth = useCallback(() => {
     setCurrentMonth((prev) => {
       if (prev === 0) {
@@ -27,7 +29,7 @@ export function CalendarModal({ weeklySchedules, onClose }: CalendarModalProps) 
       return prev - 1;
     });
     setSelectedDate(null);
-  }, []);
+  }, [setCurrentYear]);
 
   const goToNextMonth = useCallback(() => {
     setCurrentMonth((prev) => {
@@ -38,7 +40,7 @@ export function CalendarModal({ weeklySchedules, onClose }: CalendarModalProps) 
       return prev + 1;
     });
     setSelectedDate(null);
-  }, []);
+  }, [setCurrentYear]);
 
   // カレンダー日付セルの生成
   const calendarDays = useMemo(() => {

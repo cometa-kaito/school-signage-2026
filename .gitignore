@@ -70,5 +70,8 @@ node_modules/
 # dataconnect generated files
 .dataconnect
 
-serviceAccountKey.json.claude/
+# Firebase Admin サービスアカウント鍵（漏洩厳禁）
 serviceAccountKey.json
+
+# Claude Code のローカル設定
+.claude/

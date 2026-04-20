@@ -552,6 +552,19 @@ export default function GuidePage() {
                 </button>
               </div>
             </form>
+
+            <p className={styles.altFormNote}>
+              このフォームの代わりに、外部フォーム（Microsoft Forms）からも送れます。
+              <br />
+              <a
+                href="https://forms.office.com/r/yNJ2wrwmx9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.altFormLink}
+              >
+                Microsoft Forms で回答する →
+              </a>
+            </p>
               </>
             )}
           </div>

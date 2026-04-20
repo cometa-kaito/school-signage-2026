@@ -133,7 +133,9 @@ export function useNotificationSound({
 
     previousHashRef.current = currentHash;
 
-    // 更新バナーを表示
+    // 通知データ（props）変化への反応。useEffectEvent が stable 化されるまで
+    // この位置での呼び出しが必要。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     showUpdateBanner();
 
     // play_soundの通知があり、Quiet Timeでなければ音を鳴らす

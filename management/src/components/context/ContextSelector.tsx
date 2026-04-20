@@ -122,6 +122,8 @@ export function ContextSelector({ onSelected }: ContextSelectorProps) {
   // 学校選択時に学年を取得
   useEffect(() => {
     if (!selectedSchool) {
+      // 親コンテキスト解除時に従属ドロップダウンをクリア
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGrades([]);
       setClasses([]);
       return;
@@ -144,6 +146,8 @@ export function ContextSelector({ onSelected }: ContextSelectorProps) {
   // 学年選択時にクラスを取得
   useEffect(() => {
     if (!selectedSchool || !selectedGrade) {
+      // 親コンテキスト解除時に従属ドロップダウンをクリア
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClasses([]);
       return;
     }

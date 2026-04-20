@@ -61,6 +61,8 @@ export function useAdRotation({
     const prevIds = adsRef.current.map((a) => a.id).join(",");
     const newIds = ads.map((a) => a.id).join(",");
     if (prevIds !== newIds) {
+      // 広告セット差替時の正常なリセット
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentIndex(0);
     }
     adsRef.current = ads;
@@ -102,6 +104,8 @@ export function useAdRotation({
   // メディアURLの解決
   useEffect(() => {
     if (ads.length === 0) {
+      // 広告が空になったら表示URLをクリア
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaUrl("");
       return;
     }

@@ -43,6 +43,8 @@ export function useSchoolContext(): SchoolContextState {
     const resolvedClass =
       urlClass || localStorage.getItem("selectedClassId") || null;
 
+    // URL / localStorage からの初期化は SSR 後にのみ可能（localStorage は client-only）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSchoolId(resolvedSchool);
     setGradeId(resolvedGrade);
     setClassId(resolvedClass);

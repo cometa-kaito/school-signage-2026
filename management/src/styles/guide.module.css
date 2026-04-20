@@ -137,6 +137,29 @@
   line-height: var(--lh-body);
 }
 
+/* 外部フォーム（Microsoft Forms）への代替導線 */
+.altFormNote {
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: var(--border-1);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  line-height: var(--lh-body);
+  text-align: center;
+}
+
+.altFormLink {
+  display: inline-block;
+  margin-top: var(--space-2);
+  color: var(--color-text);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.altFormLink:hover {
+  text-decoration: none;
+}
+
 .field {
   margin-bottom: var(--space-5);
 }

@@ -159,9 +159,10 @@ export function HierarchicalAdsTab({
     [schoolId]
   );
 
-  // 学科広告ロード
+  // 学科広告ロード（load* は async、setState は await 後の継続で実行される＝実質コールバック）
   useEffect(() => {
     if (selectedDeptId && deptAds[selectedDeptId] === undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadDeptAds(selectedDeptId);
     }
   }, [selectedDeptId, deptAds, loadDeptAds]);
@@ -171,6 +172,7 @@ export function HierarchicalAdsTab({
     if (selectedGradeId) {
       const key = gradeKey(selectedGradeId, isDeptMode ? selectedDeptId : null);
       if (gradeAds[key] === undefined) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadGradeAds(selectedGradeId, isDeptMode ? selectedDeptId : null);
       }
     }
@@ -188,6 +190,7 @@ export function HierarchicalAdsTab({
     if (!primary) return;
     const key = gradeKey(primary.gradeId, primary.departmentId);
     if (gradeAds[key] === undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadGradeAds(primary.gradeId, primary.departmentId);
     }
   }, [
@@ -207,6 +210,7 @@ export function HierarchicalAdsTab({
         ? `${deptId}:${selectedGradeId}:${selectedClassId}`
         : `${selectedGradeId}:${selectedClassId}`;
       if (classAds[key] === undefined) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadClassAds(selectedGradeId, selectedClassId, deptId);
       }
     }

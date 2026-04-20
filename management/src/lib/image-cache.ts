@@ -38,7 +38,6 @@ class ImageCacheClass {
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log("ImageCache: IndexedDB initialized");
         resolve(this.db);
       };
 
@@ -51,7 +50,6 @@ class ImageCacheClass {
 
         const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
         store.createIndex("cachedAt", "cachedAt", { unique: false });
-        console.log("ImageCache: Object store created");
       };
     });
   }
@@ -66,8 +64,6 @@ class ImageCacheClass {
   async cacheImage(id: string, url: string): Promise<boolean> {
     try {
       await this.init();
-
-      console.log(`ImageCache: Fetching image ${id} from ${url}`);
 
       const blob = await this.fetchImageBlob(url);
       if (!blob) return false;
@@ -99,7 +95,6 @@ class ImageCacheClass {
       }
 
       const blob = await response.blob();
-      console.log(`ImageCache: Got blob, size: ${blob.size} bytes`);
       return blob;
     } catch (error: unknown) {
       clearTimeout(timeoutId);
@@ -137,7 +132,6 @@ class ImageCacheClass {
       const request = store.put(record);
 
       request.onsuccess = () => {
-        console.log(`ImageCache: Cached image ${id}`);
         resolve(true);
       };
 
@@ -175,7 +169,6 @@ class ImageCacheClass {
           if (record?.blob) {
             const blobUrl = URL.createObjectURL(record.blob);
             this.blobUrls.set(id, blobUrl);
-            console.log(`ImageCache: Retrieved image ${id} from cache`);
             resolve(blobUrl);
           } else {
             resolve(null);
@@ -240,10 +233,7 @@ class ImageCacheClass {
         const store = transaction.objectStore(STORE_NAME);
         const request = store.delete(id);
 
-        request.onsuccess = () => {
-          console.log(`ImageCache: Removed image ${id}`);
-          resolve(true);
-        };
+        request.onsuccess = () => resolve(true);
         request.onerror = () => resolve(false);
       });
     } catch {
@@ -279,15 +269,9 @@ class ImageCacheClass {
               this.revokeBlobUrl(id);
               cursor.delete();
               removedCount++;
-              console.log(`ImageCache: Cleaned up old image ${id}`);
             }
             cursor.continue();
           } else {
-            if (removedCount > 0) {
-              console.log(
-                `ImageCache: Cleanup complete, removed ${removedCount} images`
-              );
-            }
             resolve(removedCount);
           }
         };
@@ -321,10 +305,7 @@ class ImageCacheClass {
         const store = transaction.objectStore(STORE_NAME);
         const request = store.clear();
 
-        request.onsuccess = () => {
-          console.log("ImageCache: All cache cleared");
-          resolve(true);
-        };
+        request.onsuccess = () => resolve(true);
         request.onerror = () => resolve(false);
       });
     } catch (error) {

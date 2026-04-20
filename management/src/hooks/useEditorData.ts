@@ -155,6 +155,8 @@ export function useEditorData(
       (editingLevel === "class" && schoolId && gradeId && classId);
 
     if (!hasRequiredContext) {
+      // コンテキスト未充足時は loading を解除してスピナーを消す
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }

@@ -42,7 +42,8 @@ export function useQuietHours(quietHours: QuietHour[]): { isQuietTime: boolean }
       return false;
     }
 
-    // 初回チェック
+    // 初回チェック（初期 state=false と実際の時刻の乖離を埋める）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsQuietTime(check());
 
     // 30秒ごとに再チェック

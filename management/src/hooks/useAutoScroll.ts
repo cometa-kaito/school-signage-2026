@@ -30,6 +30,10 @@ export function useAutoScroll(
   const isPausedRef = useRef(false);
   const isUserPausedRef = useRef(false);
   const lastTimeRef = useRef(0);
+  // animate と checkAndScroll は互いに・自身を setTimeout 内で呼び出すため、
+  // useCallback 間で循環依存が発生する。ref 経由で最新の実装を参照し循環を断つ。
+  const animateRef = useRef<() => void>(() => {});
+  const checkAndScrollRef = useRef<() => void>(() => {});
 
   const clearTimers = useCallback(() => {
     if (animationIdRef.current !== null) {
@@ -58,7 +62,7 @@ export function useAutoScroll(
     if (overflow <= OVERFLOW_THRESHOLD) {
       timeoutIdRef.current = setTimeout(() => {
         if (!isPausedRef.current && !isUserPausedRef.current) {
-          animate();
+          animateRef.current();
         }
       }, RECHECK_INTERVAL);
       return;
@@ -84,7 +88,10 @@ export function useAutoScroll(
       if (directionRef.current === 1 && el.scrollTop >= currentOverflow) {
         el.scrollTop = currentOverflow;
         directionRef.current = -1;
-        timeoutIdRef.current = setTimeout(() => animate(), PAUSE_AT_ENDS);
+        timeoutIdRef.current = setTimeout(
+          () => animateRef.current(),
+          PAUSE_AT_ENDS
+        );
         return;
       }
 
@@ -92,7 +99,10 @@ export function useAutoScroll(
       if (directionRef.current === -1 && el.scrollTop <= 0) {
         el.scrollTop = 0;
         directionRef.current = 1;
-        timeoutIdRef.current = setTimeout(() => animate(), PAUSE_AT_ENDS);
+        timeoutIdRef.current = setTimeout(
+          () => animateRef.current(),
+          PAUSE_AT_ENDS
+        );
         return;
       }
 
@@ -111,7 +121,7 @@ export function useAutoScroll(
     const overflow = el.scrollHeight - el.clientHeight;
     if (overflow <= OVERFLOW_THRESHOLD) {
       timeoutIdRef.current = setTimeout(
-        () => checkAndScroll(),
+        () => checkAndScrollRef.current(),
         RECHECK_INTERVAL
       );
       return;
@@ -119,6 +129,12 @@ export function useAutoScroll(
 
     animate();
   }, [elementRef, animate]);
+
+  // ref を常に最新の実装に同期（循環依存を断つため）
+  useEffect(() => {
+    animateRef.current = animate;
+    checkAndScrollRef.current = checkAndScroll;
+  }, [animate, checkAndScroll]);
 
   const start = useCallback(() => {
     clearTimers();

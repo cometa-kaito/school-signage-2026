@@ -43,10 +43,6 @@ export function CalendarView({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const startDayOfWeek = new Date(year, month, 1).getDay();
   const todayStr = formatDateKey(new Date());
 
   const prevMonth = () => {
@@ -69,18 +65,28 @@ export function CalendarView({
     assignments: allAssignments.filter((a) => a._sourceDate === dateStr),
   });
 
-  const days = useMemo(() => {
+  const { year, month, startDayOfWeek, days } = useMemo(() => {
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth();
+    const dim = new Date(y, m + 1, 0).getDate();
+    const sdow = new Date(y, m, 1).getDay();
     const result: { day: number; dateStr: string; dow: number }[] = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
+    for (let day = 1; day <= dim; day++) {
+      const date = new Date(y, m, day);
       result.push({
         day,
         dateStr: formatDateKey(date),
         dow: date.getDay(),
       });
     }
-    return result;
-  }, [year, month, daysInMonth]);
+    return {
+      year: y,
+      month: m,
+      daysInMonth: dim,
+      startDayOfWeek: sdow,
+      days: result,
+    };
+  }, [currentDate]);
 
   const selectedData = selectedDate ? getDataForDate(selectedDate) : null;
 

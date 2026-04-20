@@ -71,11 +71,25 @@ function EditorMobileContent() {
     }
   }, [urlLevel, canEditMaster, editingLevel, setEditingLevel]);
 
-  const isMaster = editingLevel !== "class";
+  // URL の level パラメータでマスター編集が指示されている場合は、クラス文脈が
+  // 未確定でも編集画面を描画する（hasFullContext はクラス編集時のみ要件）。
+  const hasMasterTarget =
+    canEditMaster &&
+    ((urlLevel === "school") ||
+      (urlLevel === "department" && !!urlDepartment) ||
+      (urlLevel === "grade" && !!gradeId));
+  const hasRequiredContext = hasMasterTarget || hasFullContext;
+
+  // URL に master level 指示がある間はそれを優先（state の遅延による表示ちらつき防止）
+  const effectiveLevel: "school" | "department" | "grade" | "class" =
+    hasMasterTarget && (urlLevel === "school" || urlLevel === "department" || urlLevel === "grade")
+      ? urlLevel
+      : editingLevel;
+  const isMaster = effectiveLevel !== "class";
   const headerLabel = isMaster
-    ? editingLevel === "school"
+    ? effectiveLevel === "school"
       ? "学校全体にまとめて"
-      : editingLevel === "department"
+      : effectiveLevel === "department"
         ? "学科にまとめて"
         : "学年にまとめて"
     : data.className || "連絡を送る";
@@ -200,7 +214,7 @@ function EditorMobileContent() {
     }
   };
 
-  if (!hasFullContext) {
+  if (!hasRequiredContext) {
     return <ContextSelector onSelected={handleContextSelected} />;
   }
 

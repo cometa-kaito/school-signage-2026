@@ -41,6 +41,18 @@ service cloud.firestore {
             && request.auth.token.schoolId == schoolId);
     }
 
+    // 掲示板コンテンツ（予定・連絡・提出物）の書き込み権限
+    // クラス固有のデータだけでなく、学校/学科/学年マスターへの書き込みも許可する。
+    // 広告や displaySettings など構造メタデータは対象外（学校管理者以上のみ）。
+    function hasContentAccess(schoolId) {
+      return isSchoolAdmin(schoolId)
+        || (isAuthenticated()
+            && getMembership(schoolId).data.role in ['teacher', 'editor'])
+        || (isAuthenticated()
+            && (request.auth.token.teacher == true || request.auth.token.editor == true)
+            && request.auth.token.schoolId == schoolId);
+    }
+
     // ========================================
     // 学校データ
     // ========================================
@@ -53,7 +65,7 @@ service cloud.firestore {
       // 学校マスター日次データ
       match /master_daily_data/{dateId} {
         allow read: if true;
-        allow write: if isSchoolAdmin(schoolId);
+        allow write: if hasContentAccess(schoolId);
       }
 
       // 学科（学年横断の軸）
@@ -64,7 +76,7 @@ service cloud.firestore {
         // 学科マスター日次データ
         match /master_daily_data/{dateId} {
           allow read: if true;
-          allow write: if isSchoolAdmin(schoolId);
+          allow write: if hasContentAccess(schoolId);
         }
       }
 
@@ -75,7 +87,7 @@ service cloud.firestore {
 
         match /master_daily_data/{dateId} {
           allow read: if true;
-          allow write: if isSchoolAdmin(schoolId);
+          allow write: if hasContentAccess(schoolId);
         }
 
         match /classes/{classId} {
@@ -97,7 +109,7 @@ service cloud.firestore {
         // 学科マスター
         match /master_daily_data/{dateId} {
           allow read: if true;
-          allow write: if isSchoolAdmin(schoolId);
+          allow write: if hasContentAccess(schoolId);
         }
 
         // 学科配下の学年
@@ -108,7 +120,7 @@ service cloud.firestore {
           // 学年マスター（学科モード）
           match /master_daily_data/{dateId} {
             allow read: if true;
-            allow write: if isSchoolAdmin(schoolId);
+            allow write: if hasContentAccess(schoolId);
           }
 
           // 学科配下の学年配下のクラス

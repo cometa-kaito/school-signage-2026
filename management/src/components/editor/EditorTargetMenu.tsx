@@ -27,8 +27,10 @@ export function EditorTargetMenu({
   mobileMode = false,
 }: EditorTargetMenuProps) {
   const router = useRouter();
-  const { isAdmin, isSchoolAdmin } = useAuthContext();
-  const canEditMaster = !mobileMode && (isAdmin || isSchoolAdmin);
+  const { isAdmin, isSchoolAdmin, isTeacher } = useAuthContext();
+  // 掲示板コンテンツのマスター編集はエディター権限（teacher/editor claim）でも可。
+  // 広告編集は引き続き class-settings / admin 画面（school_admin 以上）に限定。
+  const canEditMaster = !mobileMode && (isAdmin || isSchoolAdmin || isTeacher);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

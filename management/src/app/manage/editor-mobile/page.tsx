@@ -43,12 +43,14 @@ const SUBJECT_OPTIONS = [
 function EditorMobileContent() {
   const { schoolId, gradeId, classId, hasFullContext, setContext } =
     useSchoolContextValue();
-  const { user, roleLabel, isAdmin, isSchoolAdmin } = useAuthContext();
+  const { user, roleLabel, isAdmin, isSchoolAdmin, isTeacher } =
+    useAuthContext();
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const urlLevel = searchParams.get("level");
   const urlDepartment = searchParams.get("department");
-  const canEditMaster = isAdmin || isSchoolAdmin;
+  // 掲示板コンテンツのマスター編集はエディター権限でも許可
+  const canEditMaster = isAdmin || isSchoolAdmin || isTeacher;
   const departmentId = urlDepartment;
 
   const {

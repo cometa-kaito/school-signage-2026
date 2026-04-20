@@ -47,12 +47,17 @@ type ContentType = "schedule" | "notice" | "assignment";
 function EditorContent() {
   const { schoolId, gradeId, classId, hasFullContext, setContext } =
     useSchoolContextValue();
-  const { isAdmin, isSchoolAdmin } = useAuthContext();
+  const { isAdmin, isSchoolAdmin, isTeacher } = useAuthContext();
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const urlLevel = searchParams.get("level");
   const urlDepartment = searchParams.get("department");
-  const canEditMaster = isAdmin || isSchoolAdmin;
+  // 掲示板コンテンツのマスター編集はエディター権限でも許可。
+  // 広告や学年/クラス作成等の構造変更は引き続き school_admin 以上（別画面）。
+  const canEditMaster = isAdmin || isSchoolAdmin || isTeacher;
+  // マスターデータを全クラスへコピーする機能は school_admin 以上に限定
+  // （Cloud Function 側が verifySchoolAdmin で守られている）。
+  const canCopyMaster = isAdmin || isSchoolAdmin;
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<
     string | null
@@ -607,7 +612,8 @@ function EditorContent() {
                   ? `まとめて編集中 — 同じ学年名の ${gradeSiblings.length} 学年すべてに反映されます`
                   : "まとめて編集中 — この学年の全クラスに反映されます"}
           </span>
-          {(editingLevel === "school" || editingLevel === "grade") &&
+          {canCopyMaster &&
+            (editingLevel === "school" || editingLevel === "grade") &&
             schoolId && (
               <MasterCopyButton
                 schoolId={schoolId}

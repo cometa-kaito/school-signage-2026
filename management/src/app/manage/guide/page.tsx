@@ -266,11 +266,6 @@ export default function GuidePage() {
   // ===== ナビゲーションリンク =====
   const navLinks = [
     {
-      href: "/",
-      title: "サイネージ表示",
-      desc: "教室ディスプレイで表示される画面（学校 / 学年 / クラスを URL で指定）",
-    },
-    {
       href: "/manage/editor",
       title: "連絡をつくる（PC）",
       desc: "予定・連絡・提出物を入力してサイネージに送る（ログインが必要）",
@@ -284,11 +279,6 @@ export default function GuidePage() {
       href: "/manage/admin",
       title: "学校管理",
       desc: "学校・学年・クラス・メンバー・広告の管理（管理者のみ）",
-    },
-    {
-      href: "/manage/school-admin",
-      title: "学校管理ハブ",
-      desc: "担当校の一覧から各画面へ素早く遷移（学校管理者）",
     },
   ];
 

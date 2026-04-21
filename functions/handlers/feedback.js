@@ -10,7 +10,9 @@
  *
  * 【認証情報】Google Cloud Secret Manager で管理:
  *   firebase functions:secrets:set RESEND_API_KEY
- *   firebase functions:secrets:set RESEND_FROM   # 任意（送信元アドレス上書き）
+ *
+ *   送信元アドレスは DEFAULT_RESEND_FROM (onboarding@resend.dev) を使用。
+ *   ドメイン検証済みアドレスに変える場合は環境変数 RESEND_FROM を設定。
  *
  *   ローカル emulator では functions/.secret.local に
  *     RESEND_API_KEY=...
@@ -23,8 +25,7 @@ const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { defineSecret } = require('firebase-functions/params');
 
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
-const RESEND_FROM_SECRET = defineSecret('RESEND_FROM');
-const FEEDBACK_SECRETS = [RESEND_API_KEY, RESEND_FROM_SECRET];
+const FEEDBACK_SECRETS = [RESEND_API_KEY];
 
 let Resend;
 try {
@@ -194,7 +195,7 @@ exports.submitFeedback = functions
         } else {
             emailProvider = 'resend';
             try {
-                const from = readSecret(RESEND_FROM_SECRET, 'RESEND_FROM') || DEFAULT_RESEND_FROM;
+                const from = process.env.RESEND_FROM || DEFAULT_RESEND_FROM;
                 const result = await resend.emails.send({
                     from,
                     to: FEEDBACK_RECIPIENT,

@@ -5,31 +5,26 @@
  * 【データ保存】
  *   feedback/{feedbackId} — システム管理者だけが /manage/admin で閲覧可能
  *
- * 【メール通知】優先順位:
- *   1) Resend (推奨): RESEND_API_KEY 環境変数が設定されていれば使う
- *      - https://resend.com で無料登録 (20051215kaito@gmail.com で登録)
- *      - ダッシュボードで API キー作成
- *      - 送信元は onboarding@resend.dev をそのまま使える
- *        （登録メール宛なら独自ドメイン検証不要）
- *   2) Gmail SMTP (フォールバック): GMAIL_USER / GMAIL_APP_PASSWORD が設定されていれば使う
- *      - https://myaccount.google.com/apppasswords でアプリパスワード発行 (2段階認証 ON 必須)
+ * 【メール通知】Resend のみを使用。未設定の場合は送信をスキップするが、
+ *   フィードバックの Firestore 保存は動作する（受付機能は決して壊れない）。
  *
- *   どちらも未設定の場合は送信をスキップするが、フィードバックの Firestore 保存と
- *   /manage/admin での閲覧は引き続き動作する（受付機能は決して壊れない）。
+ * 【認証情報】Google Cloud Secret Manager で管理:
+ *   firebase functions:secrets:set RESEND_API_KEY
+ *   firebase functions:secrets:set RESEND_FROM   # 任意（送信元アドレス上書き）
  *
- * 認証情報は functions/.env.school-signage-2026 に保存 (git 管理外)。
+ *   ローカル emulator では functions/.secret.local に
+ *     RESEND_API_KEY=...
+ *   の形式で書くと自動で読み込まれる（git 管理外）。
  */
 
 const { functions, admin, db } = require('../helpers/paths');
+const { logger } = require('firebase-functions');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
+const { defineSecret } = require('firebase-functions/params');
 
-let nodemailer;
-try {
-    // eslint-disable-next-line global-require
-    nodemailer = require('nodemailer');
-} catch (_) {
-    nodemailer = null;
-}
+const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
+const RESEND_FROM_SECRET = defineSecret('RESEND_FROM');
+const FEEDBACK_SECRETS = [RESEND_API_KEY, RESEND_FROM_SECRET];
 
 let Resend;
 try {
@@ -43,57 +38,23 @@ const FEEDBACK_RECIPIENT = '20051215kaito@gmail.com';
 const FEEDBACK_COLLECTION = 'feedback';
 const DEFAULT_RESEND_FROM = 'キミテラス フィードバック <onboarding@resend.dev>';
 
-// Resend クライアントと Gmail トランスポーターはコールドスタートごとに1回だけ生成
-let cachedResendClient = null;
-function getResendClient() {
-    if (cachedResendClient !== null) return cachedResendClient;
-    if (!Resend) {
-        cachedResendClient = false;
-        return false;
-    }
-    const apiKey = process.env.RESEND_API_KEY || null;
-    if (!apiKey) {
-        cachedResendClient = false;
-        return false;
-    }
-    cachedResendClient = new Resend(apiKey);
-    return cachedResendClient;
+/**
+ * Secret Manager / ローカル .secret.local / process.env のいずれかから読む。
+ * defineSecret の value() は Secret Manager バインドが無い起動では throw する場合があるため try/catch。
+ */
+function readSecret(secretParam, envKey) {
+    try {
+        const v = secretParam.value();
+        if (v) return v;
+    } catch (_) { /* 未バインド時は無視 */ }
+    return process.env[envKey] || null;
 }
 
-let cachedGmailTransporter = null;
-function getGmailTransporter() {
-    if (cachedGmailTransporter !== null) return cachedGmailTransporter;
-    if (!nodemailer) {
-        cachedGmailTransporter = false;
-        return false;
-    }
-
-    let user = null;
-    let pass = null;
-    try {
-        const cfg = functions.config();
-        user = cfg && cfg.gmail && cfg.gmail.user;
-        pass = cfg && cfg.gmail && cfg.gmail.password;
-    } catch (_) {
-        // functions.config() は環境によっては例外を投げる場合がある
-    }
-    // 環境変数フォールバック（ローカル emulator やカスタム deploy 用）
-    user = user || process.env.GMAIL_USER || null;
-    pass = pass || process.env.GMAIL_APP_PASSWORD || null;
-
-    if (!user || !pass) {
-        cachedGmailTransporter = false;
-        return false;
-    }
-
-    cachedGmailTransporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: { user, pass },
-    });
-    cachedGmailTransporter._fromUser = user;
-    return cachedGmailTransporter;
+function getResendClient() {
+    if (!Resend) return false;
+    const apiKey = readSecret(RESEND_API_KEY, 'RESEND_API_KEY');
+    if (!apiKey) return false;
+    return new Resend(apiKey);
 }
 
 function clampScore(n) {
@@ -174,7 +135,9 @@ function buildEmailHtml(data) {
  * submitFeedback
  * 認証不要。誰でも送信可能。
  */
-exports.submitFeedback = functions.https.onCall(async (data, context) => {
+exports.submitFeedback = functions
+    .runWith({ secrets: FEEDBACK_SECRETS })
+    .https.onCall(async (data, context) => {
     try {
         const studentReaction = clampScore(data.studentReaction);
         const teacherUtility = clampScore(data.teacherUtility);
@@ -214,7 +177,6 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
         const ref = await db.collection(FEEDBACK_COLLECTION).add(feedbackPayload);
 
         // メール送信（失敗してもフィードバック保存自体は成功扱い）
-        // 優先順位: Resend > Gmail SMTP > 未設定
         let emailStatus = 'skipped';
         let emailError = null;
         let emailProvider = null;
@@ -223,10 +185,16 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
         const htmlBody = buildEmailHtml(feedbackPayload);
 
         const resend = getResendClient();
-        if (resend) {
+        if (!resend) {
+            emailStatus = 'unconfigured';
+            logger.warn('feedback.email.unconfigured', {
+                feedbackId: ref.id,
+                schoolId: feedbackPayload.schoolId,
+            });
+        } else {
             emailProvider = 'resend';
             try {
-                const from = process.env.RESEND_FROM || DEFAULT_RESEND_FROM;
+                const from = readSecret(RESEND_FROM_SECRET, 'RESEND_FROM') || DEFAULT_RESEND_FROM;
                 const result = await resend.emails.send({
                     from,
                     to: FEEDBACK_RECIPIENT,
@@ -240,36 +208,23 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
                     emailError = typeof result.error === 'string'
                         ? result.error
                         : (result.error.message || JSON.stringify(result.error));
-                    console.error('Resend 送信エラー:', result.error);
+                    logger.error('feedback.email.resend_send_failed', {
+                        feedbackId: ref.id,
+                        schoolId: feedbackPayload.schoolId,
+                        error: emailError,
+                    });
                 } else {
                     emailStatus = 'sent';
                 }
             } catch (e) {
                 emailStatus = 'failed';
                 emailError = e.message;
-                console.error('Resend 例外:', e);
-            }
-        } else {
-            const transporter = getGmailTransporter();
-            if (!transporter) {
-                emailStatus = 'unconfigured';
-                console.warn('メール送信プロバイダ未設定 (Resend / Gmail いずれも未設定)');
-            } else {
-                emailProvider = 'gmail';
-                try {
-                    await transporter.sendMail({
-                        from: `キミテラス フィードバック <${transporter._fromUser}>`,
-                        to: FEEDBACK_RECIPIENT,
-                        subject,
-                        text: textBody,
-                        html: htmlBody,
-                    });
-                    emailStatus = 'sent';
-                } catch (e) {
-                    emailStatus = 'failed';
-                    emailError = e.message;
-                    console.error('Gmail 送信失敗:', e);
-                }
+                logger.error('feedback.email.resend_exception', {
+                    feedbackId: ref.id,
+                    schoolId: feedbackPayload.schoolId,
+                    message: e.message,
+                    stack: e.stack,
+                });
             }
         }
 
@@ -283,7 +238,10 @@ exports.submitFeedback = functions.https.onCall(async (data, context) => {
         return { success: true, feedbackId: ref.id, emailStatus, emailProvider };
     } catch (error) {
         if (error instanceof functions.https.HttpsError) throw error;
-        console.error('submitFeedback error:', error);
+        logger.error('submitFeedback.internal_error', {
+            message: error.message,
+            stack: error.stack,
+        });
         throw new functions.https.HttpsError('internal', error.message);
     }
 });

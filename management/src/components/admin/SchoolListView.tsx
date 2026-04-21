@@ -18,6 +18,7 @@ import {
   inviteMemberFn,
   removeMemberFn,
 } from "@/lib/firebase-functions";
+import { checkPasswordStrength, PASSWORD_POLICY_LABEL } from "@/lib/password-policy";
 import { Modal } from "@/components/ui/Modal";
 import { Loading } from "@/components/ui/Loading";
 import { EditIconButton } from "@/components/ui/EditIconButton";
@@ -194,6 +195,11 @@ export function SchoolListView() {
 
   const handleCreateUser = async () => {
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
+    const pwErr = checkPasswordStrength(newUserPassword);
+    if (pwErr) {
+      showToast(pwErr, "error");
+      return;
+    }
     setSaving(true);
     try {
       await runBusy("ユーザーを作成中...", async () => {
@@ -221,9 +227,12 @@ export function SchoolListView() {
 
   const handleUpdateGlobalUser = async () => {
     if (!editingUser) return;
-    if (newUserPassword && newUserPassword.length < 6) {
-      showToast("パスワードは6文字以上で設定してください", "error");
-      return;
+    if (newUserPassword) {
+      const err = checkPasswordStrength(newUserPassword);
+      if (err) {
+        showToast(err, "error");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -661,7 +670,7 @@ export function SchoolListView() {
             <PasswordInput
               value={newUserPassword}
               onChange={setNewUserPassword}
-              placeholder="6文字以上"
+              placeholder={PASSWORD_POLICY_LABEL}
             />
           </div>
         )}
@@ -671,7 +680,7 @@ export function SchoolListView() {
             <PasswordInput
               value={newUserPassword}
               onChange={setNewUserPassword}
-              placeholder="変更する場合のみ入力（6文字以上）"
+              placeholder={`変更する場合のみ入力（${PASSWORD_POLICY_LABEL}）`}
             />
             <p style={{ color: "#888", fontSize: "0.8rem", marginTop: 4 }}>
               空欄の場合はパスワードを変更しません。Firebase Auth の仕様上、

@@ -1,5 +1,7 @@
 // lib/image-cache.ts - IndexedDBを使用した画像キャッシュモジュール
 
+import { logger } from "@/lib/logger";
+
 const DB_NAME = "signage-image-cache";
 const DB_VERSION = 1;
 const STORE_NAME = "images";
@@ -32,7 +34,9 @@ class ImageCacheClass {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onerror = () => {
-        console.error("IndexedDB open error:", request.error);
+        logger.error("imageCache.indexeddb_open_failed", {
+          message: request.error?.message,
+        });
         reject(request.error);
       };
 
@@ -70,7 +74,10 @@ class ImageCacheClass {
 
       return this.saveToStore(id, url, blob);
     } catch (error) {
-      console.error(`ImageCache: Error caching image ${id}:`, error);
+      logger.error("imageCache.cache_image_failed", {
+        id,
+        message: (error as Error).message,
+      });
       return false;
     }
   }
@@ -100,9 +107,12 @@ class ImageCacheClass {
       clearTimeout(timeoutId);
 
       if (error instanceof Error && error.name === "AbortError") {
-        console.warn("ImageCache: Fetch timeout");
+        logger.warn("imageCache.fetch_timeout", { url });
       } else {
-        console.warn("ImageCache: CORS blocked or fetch failed, skipping cache");
+        logger.warn("imageCache.fetch_failed", {
+          url,
+          message: (error as Error).message,
+        });
       }
 
       return null;
@@ -136,7 +146,10 @@ class ImageCacheClass {
       };
 
       request.onerror = () => {
-        console.error(`ImageCache: Failed to cache image ${id}`, request.error);
+        logger.error("imageCache.save_failed", {
+          id,
+          message: request.error?.message,
+        });
         reject(request.error);
       };
     });
@@ -176,12 +189,18 @@ class ImageCacheClass {
         };
 
         request.onerror = () => {
-          console.error(`ImageCache: Error getting image ${id}`, request.error);
+          logger.error("imageCache.get_failed", {
+            id,
+            message: request.error?.message,
+          });
           resolve(null);
         };
       });
     } catch (error) {
-      console.error("ImageCache: Error in getImage:", error);
+      logger.error("imageCache.get_exception", {
+        id,
+        message: (error as Error).message,
+      });
       return null;
     }
   }
@@ -279,7 +298,9 @@ class ImageCacheClass {
         request.onerror = () => resolve(removedCount);
       });
     } catch (error) {
-      console.error("ImageCache: Error in cleanup:", error);
+      logger.error("imageCache.cleanup_failed", {
+        message: (error as Error).message,
+      });
       return 0;
     }
   }
@@ -309,7 +330,9 @@ class ImageCacheClass {
         request.onerror = () => resolve(false);
       });
     } catch (error) {
-      console.error("ImageCache: Error clearing cache:", error);
+      logger.error("imageCache.clear_failed", {
+        message: (error as Error).message,
+      });
       return false;
     }
   }

@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { logger } from "@/lib/logger";
 
 interface Notice {
   text: string;
@@ -98,7 +99,9 @@ export function useNotificationSound({
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.3);
     } catch (e) {
-      console.warn("通知音の再生に失敗:", e);
+      logger.warn("signage.notification_sound.play_failed", {
+        message: (e as Error).message,
+      });
     }
   }, []);
 

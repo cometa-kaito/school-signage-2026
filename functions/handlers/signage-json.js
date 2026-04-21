@@ -17,6 +17,7 @@ const {
     gradePathFor,
     formatDate,
 } = require('../helpers/paths');
+const { logger } = require('firebase-functions');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
@@ -26,7 +27,12 @@ function addSource(items, source) {
 
 async function generateClassSignageJson(schoolId, gradeId, classId, departmentId) {
     try {
-        console.log(`Generating signage JSON: school=${schoolId}, dept=${departmentId || '-'}, grade=${gradeId}, class=${classId}`);
+        logger.info('signageJson.generate.start', {
+            schoolId,
+            departmentId: departmentId || null,
+            gradeId,
+            classId,
+        });
 
         const classSnap = await classPathFor(schoolId, gradeId, classId, departmentId || null).get();
         const classData = classSnap.exists ? classSnap.data() : {};
@@ -166,10 +172,23 @@ async function generateClassSignageJson(schoolId, gradeId, classId, departmentId
         await file.makePublic();
 
         const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-        console.log(`Signage JSON generated: ${publicUrl}`);
+        logger.info('signageJson.generate.success', {
+            schoolId,
+            departmentId: departmentId || null,
+            gradeId,
+            classId,
+            publicUrl,
+        });
         return publicUrl;
     } catch (error) {
-        console.error('generateClassSignageJson error:', error);
+        logger.error('signageJson.generate.failed', {
+            schoolId,
+            departmentId: departmentId || null,
+            gradeId,
+            classId,
+            message: error.message,
+            stack: error.stack,
+        });
         throw error;
     }
 }

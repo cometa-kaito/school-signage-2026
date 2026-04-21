@@ -10,7 +10,8 @@
 
 const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
-const { validateRequired } = require('../helpers/validation');
+const { validateRequired, validatePasswordStrength } = require('../helpers/validation');
+const { getClientIp, hashValue, consumeRateLimit, resetRateLimit } = require('../helpers/rate-limit');
 
 const EDITOR_EMAIL_DOMAIN = 'signage.local';
 
@@ -29,11 +30,19 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
     validateRequired(data, ['password']);
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;
 
+    // レートリミット: IP+学校単位で 5分5回まで、超過で15分ブロック
+    const ipHash = hashValue(getClientIp(context));
+    const rateLimitKey = `editor_${targetSchoolId}_${ipHash}`;
+    await consumeRateLimit({ key: rateLimitKey });
+
     // パスワード検証
     const editorConfigSnap = await db.collection('schools').doc(targetSchoolId)
         .collection('config').doc('editor_auth').get();
     if (!editorConfigSnap.exists) throw new functions.https.HttpsError('not-found', 'エディター認証が設定されていません');
     if (editorConfigSnap.data().password !== password) throw new functions.https.HttpsError('unauthenticated', 'パスワードが間違っています');
+
+    // 成功時はカウンタをリセット（ブロック回避）
+    await resetRateLimit(rateLimitKey);
 
     const email = getEditorEmail(targetSchoolId);
     const claims = { teacher: true, schoolId: targetSchoolId };
@@ -71,7 +80,7 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
 exports.setEditorPassword = functions.https.onCall(withAuth(async (data, context) => {
     const { password, schoolId } = data;
     validateRequired(data, ['password']);
-    if (password.length < 6) throw new functions.https.HttpsError('invalid-argument', 'パスワードは6文字以上必要です');
+    validatePasswordStrength(password);
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;
 
     // Firestoreに保存

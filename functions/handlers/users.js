@@ -5,7 +5,12 @@
 
 const { functions, admin, db } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
-const { validateRequired, preventSelfAction, getErrorMessage } = require('../helpers/validation');
+const {
+    validateRequired,
+    preventSelfAction,
+    getErrorMessage,
+    validatePasswordStrength,
+} = require('../helpers/validation');
 
 exports.listUsers = functions.https.onCall(withAuth(async (data, context) => {
     const listResult = await admin.auth().listUsers(100);
@@ -23,7 +28,7 @@ exports.listUsers = functions.https.onCall(withAuth(async (data, context) => {
 exports.createAdminUser = functions.https.onCall(withAuth(async (data, context) => {
     const { email, password, displayName, setAsAdmin } = data;
     validateRequired(data, ['email', 'password']);
-    if (password.length < 6) throw new functions.https.HttpsError('invalid-argument', 'パスワードは6文字以上必要です');
+    validatePasswordStrength(password);
 
     try {
         const userRecord = await admin.auth().createUser({
@@ -61,7 +66,10 @@ exports.updateUser = functions.https.onCall(withAuth(async (data, context) => {
         const u = {};
         if (email) u.email = email;
         if (displayName !== undefined) u.displayName = displayName;
-        if (password && password.length >= 6) u.password = password;
+        if (password) {
+            validatePasswordStrength(password);
+            u.password = password;
+        }
         if (Object.keys(u).length === 0) throw new functions.https.HttpsError('invalid-argument', '更新するデータがありません');
         await admin.auth().updateUser(uid, u);
         return { success: true, message: 'ユーザー情報を更新しました' };

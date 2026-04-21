@@ -67,6 +67,10 @@ node_modules/
 .env.*
 !.env.example
 
+# Firebase Functions ローカル emulator 用シークレット（漏洩厳禁）
+.secret.local
+!.secret.local.example
+
 # dataconnect generated files
 .dataconnect
 

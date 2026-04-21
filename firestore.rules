@@ -210,6 +210,15 @@ service cloud.firestore {
       allow read, write: if false; // Trigger Email extension + Cloud Functions のみ
     }
 
+    // ========================================
+    // レートリミット内部記録 (loginAsEditor などで使用)
+    // Cloud Functions の Admin SDK 経由のみ書き込み可能。
+    // ========================================
+
+    match /auth_rate_limit/{key} {
+      allow read, write: if false;
+    }
+
     // デフォルト
     match /{document=**} {
       allow read, write: if false;

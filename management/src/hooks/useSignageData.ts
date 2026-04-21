@@ -28,6 +28,7 @@ import {
 } from "@/lib/paths";
 import { getTodayString } from "@/lib/utils";
 import { getDaysAgoStr, filterByDisplayRange } from "@/lib/data-filter";
+import { logger } from "@/lib/logger";
 
 // ========================================
 // 型定義
@@ -391,7 +392,8 @@ export function useSignageData(
               : [];
             mergeAndUpdate();
           },
-          (err) => console.warn("学科広告監視エラー:", err)
+          (err) =>
+            logger.warn("signage.listener.department_ads", { message: err.message })
         )
       );
       unsubscribes.push(
@@ -409,7 +411,8 @@ export function useSignageData(
             departmentMasterRef.current = snapshotToMap(snapshot);
             mergeAndUpdate();
           },
-          (err) => console.warn("学科マスター監視エラー:", err)
+          (err) =>
+            logger.warn("signage.listener.department_master", { message: err.message })
         )
       );
     } else {
@@ -461,7 +464,8 @@ export function useSignageData(
             : [];
           mergeAndUpdate();
         },
-        (err) => console.warn("学年config監視エラー:", err)
+        (err) =>
+          logger.warn("signage.listener.grade_config", { message: err.message })
       )
     );
 
@@ -476,7 +480,8 @@ export function useSignageData(
               : [];
             mergeAndUpdate();
           },
-          (err) => console.warn("学科config監視エラー:", err)
+          (err) =>
+            logger.warn("signage.listener.department_config", { message: err.message })
         )
       );
     } else {
@@ -493,7 +498,8 @@ export function useSignageData(
             : [];
           mergeAndUpdate();
         },
-        (err) => console.warn("学校config監視エラー:", err)
+        (err) =>
+          logger.warn("signage.listener.school_config", { message: err.message })
       )
     );
 
@@ -517,7 +523,7 @@ export function useSignageData(
           mergeAndUpdate();
         },
         (error) => {
-          console.warn("学校マスターデータの監視エラー（無視可）:", error);
+          logger.warn("signage.listener.school_master", { message: error.message });
         }
       )
     );
@@ -536,7 +542,7 @@ export function useSignageData(
           mergeAndUpdate();
         },
         (error) => {
-          console.warn("学年マスターデータの監視エラー（無視可）:", error);
+          logger.warn("signage.listener.grade_master", { message: error.message });
         }
       )
     );
@@ -674,7 +680,9 @@ export function useSignageData(
           }, 1000);
         }
       } catch (error) {
-        console.error("静的JSON取得エラー:", error);
+        logger.error("signage.static_json.fetch_failed", {
+          message: (error as Error).message,
+        });
       }
     };
 
@@ -729,9 +737,9 @@ export function useSignageData(
       watchdogTimer = setTimeout(() => {
         if (cancelled) return;
         if (isInitialLoadRef.current) {
-          console.warn(
-            `Firestore からのデータ受信が ${FALLBACK_MS}ms 以内に来なかったため静的 JSON にフォールバック`
-          );
+          logger.warn("signage.firestore.fallback_to_static", {
+            timeoutMs: FALLBACK_MS,
+          });
           firestoreCleanup();
           modeRef.current = "static";
           cleanup = startStaticJsonPolling();

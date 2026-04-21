@@ -4,6 +4,7 @@
  */
 
 const functions = require('firebase-functions');
+const { logger } = require('firebase-functions');
 const { db } = require('./paths');
 
 /**
@@ -88,7 +89,12 @@ function withAuth(handler, authCheck) {
             return await handler(data, context);
         } catch (error) {
             if (error instanceof functions.https.HttpsError) throw error;
-            console.error(`${handler.name || 'handler'} error:`, error);
+            logger.error(`${handler.name || 'handler'} error`, {
+                handler: handler.name || 'handler',
+                uid: context.auth ? context.auth.uid : null,
+                message: error.message,
+                stack: error.stack,
+            });
             throw new functions.https.HttpsError('internal', error.message);
         }
     };

@@ -24,7 +24,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   "auth/too-many-requests": "ログイン試行回数が多すぎます",
   "auth/network-request-failed": "ネットワークエラーが発生しました",
   "auth/email-already-in-use": "このメールアドレスは既に使用されています",
-  "auth/weak-password": "パスワードは6文字以上にしてください",
+  "auth/weak-password": "パスワードが弱すぎます。8文字以上の英数字混在にしてください",
   "auth/popup-closed-by-user": "ログインがキャンセルされました",
   "auth/cancelled-popup-request": "ログインがキャンセルされました",
   "auth/popup-blocked": "ポップアップがブロックされました。許可してください",

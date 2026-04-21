@@ -28,6 +28,7 @@ import {
   toggleUserStatusFn,
   setEditorPasswordFn,
 } from "@/lib/firebase-functions";
+import { checkPasswordStrength, PASSWORD_POLICY_LABEL } from "@/lib/password-policy";
 import { getDoc, setDoc } from "firebase/firestore";
 import { doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -642,6 +643,11 @@ export function SchoolDetailView({
   // ユーザー作成
   const handleCreateUser = async () => {
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
+    const pwErr = checkPasswordStrength(newUserPassword);
+    if (pwErr) {
+      showToast(pwErr, "error");
+      return;
+    }
     setSaving(true);
     setBusyMessage("ユーザーを作成中...");
     try {
@@ -671,9 +677,12 @@ export function SchoolDetailView({
   // ユーザー編集
   const handleUpdateUser = async () => {
     if (!editingUser) return;
-    if (newUserPassword && newUserPassword.length < 6) {
-      showToast("パスワードは6文字以上で設定してください", "error");
-      return;
+    if (newUserPassword) {
+      const err = checkPasswordStrength(newUserPassword);
+      if (err) {
+        showToast(err, "error");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -727,8 +736,9 @@ export function SchoolDetailView({
 
   const handleSetEditorPassword = async () => {
     if (!editorPassword.trim()) return;
-    if (editorPassword.trim().length < 6) {
-      showToast("パスワードは6文字以上で設定してください", "error");
+    const err = checkPasswordStrength(editorPassword.trim());
+    if (err) {
+      showToast(err, "error");
       return;
     }
     setEditorPwdSaving(true);
@@ -2067,7 +2077,7 @@ export function SchoolDetailView({
             <PasswordInput
               value={newUserPassword}
               onChange={setNewUserPassword}
-              placeholder="6文字以上"
+              placeholder={PASSWORD_POLICY_LABEL}
             />
           </div>
         )}
@@ -2077,7 +2087,7 @@ export function SchoolDetailView({
             <PasswordInput
               value={newUserPassword}
               onChange={setNewUserPassword}
-              placeholder="変更する場合のみ入力（6文字以上）"
+              placeholder={`変更する場合のみ入力（${PASSWORD_POLICY_LABEL}）`}
             />
             <p style={{ color: "#888", fontSize: "0.8rem", marginTop: 4 }}>
               空欄の場合はパスワードを変更しません。Firebase Auth の仕様上、

@@ -9,6 +9,7 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ImageCache } from "@/lib/image-cache";
 import { debounce } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 import { SignageHeader } from "./SignageHeader";
 import { ScheduleGrid } from "./ScheduleGrid";
 import { NoticeList } from "./NoticeList";
@@ -18,6 +19,7 @@ import { MobileAdArea } from "./MobileAdArea";
 import { StartupScreen } from "./StartupScreen";
 import { UpdateBanner } from "./UpdateBanner";
 import { CalendarModal } from "./CalendarModal";
+import { SignageErrorBoundary } from "./SignageErrorBoundary";
 import styles from "@/styles/signage.module.css";
 
 const IMAGE_POLLING_INTERVAL = 300000; // 画像キャッシュ: 5分
@@ -185,7 +187,9 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
   // ========================================
   useEffect(() => {
     ImageCache.init().catch((err) => {
-      console.warn("ImageCache初期化エラー:", err);
+      logger.warn("signage.image_cache.init_failed", {
+        message: (err as Error).message,
+      });
     });
   }, []);
 
@@ -290,27 +294,35 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
       {isMobile ? (
         // モバイルレイアウト
         <div className={styles.mobileLayout}>
-          <MobileAdArea
-            currentAd={currentAd}
-            mediaUrl={mediaUrl}
-            isQuietTime={isQuietTime}
-            ads={ads}
-            currentIndex={currentIndex}
-            dateText={dateText}
-            dayText={dayText}
-            time={time}
-            className={displayClassName}
-            onVideoEnded={onVideoEnded}
-            onIndexChange={setIndex}
-          />
+          <SignageErrorBoundary section="mobile_ad">
+            <MobileAdArea
+              currentAd={currentAd}
+              mediaUrl={mediaUrl}
+              isQuietTime={isQuietTime}
+              ads={ads}
+              currentIndex={currentIndex}
+              dateText={dateText}
+              dayText={dayText}
+              time={time}
+              className={displayClassName}
+              onVideoEnded={onVideoEnded}
+              onIndexChange={setIndex}
+            />
+          </SignageErrorBoundary>
           <div className={styles.mobileInfoArea}>
             <div className={styles.mobileContentGrid}>
-              <ScheduleGrid
-                weeklySchedules={weeklySchedules}
-                onCalendarOpen={handleCalendarOpen}
-              />
-              <NoticeList notices={notices} ref={noticeListRef} />
-              <AssignmentTable assignments={assignments} />
+              <SignageErrorBoundary section="schedule">
+                <ScheduleGrid
+                  weeklySchedules={weeklySchedules}
+                  onCalendarOpen={handleCalendarOpen}
+                />
+              </SignageErrorBoundary>
+              <SignageErrorBoundary section="notices">
+                <NoticeList notices={notices} ref={noticeListRef} />
+              </SignageErrorBoundary>
+              <SignageErrorBoundary section="assignments">
+                <AssignmentTable assignments={assignments} />
+              </SignageErrorBoundary>
             </div>
           </div>
         </div>
@@ -325,20 +337,28 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
             gradeName={gradeName}
           />
           <div className={styles.container}>
-            <AdDisplay
-              currentAd={currentAd}
-              mediaUrl={mediaUrl}
-              isQuietTime={isQuietTime}
-              onVideoEnded={onVideoEnded}
-            />
+            <SignageErrorBoundary section="ad">
+              <AdDisplay
+                currentAd={currentAd}
+                mediaUrl={mediaUrl}
+                isQuietTime={isQuietTime}
+                onVideoEnded={onVideoEnded}
+              />
+            </SignageErrorBoundary>
             <main className={styles.infoArea} onClick={toggleDetailMode}>
               <div className={styles.contentGrid}>
-                <ScheduleGrid
-                  weeklySchedules={weeklySchedules}
-                  onCalendarOpen={handleCalendarOpen}
-                />
-                <NoticeList notices={notices} ref={noticeListRef} />
-                <AssignmentTable assignments={assignments} />
+                <SignageErrorBoundary section="schedule">
+                  <ScheduleGrid
+                    weeklySchedules={weeklySchedules}
+                    onCalendarOpen={handleCalendarOpen}
+                  />
+                </SignageErrorBoundary>
+                <SignageErrorBoundary section="notices">
+                  <NoticeList notices={notices} ref={noticeListRef} />
+                </SignageErrorBoundary>
+                <SignageErrorBoundary section="assignments">
+                  <AssignmentTable assignments={assignments} />
+                </SignageErrorBoundary>
               </div>
             </main>
           </div>

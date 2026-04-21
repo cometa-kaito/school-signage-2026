@@ -9,6 +9,7 @@ import {
   type DocumentReference,
   type DocumentData,
 } from "firebase/firestore";
+import { logger } from "@/lib/logger";
 
 interface UseFirestoreDocResult<T> {
   data: T | null;
@@ -52,7 +53,10 @@ export function useFirestoreDoc<T = DocumentData>(
         setError(null);
       },
       (err) => {
-        console.error("Firestore listener error:", err);
+        logger.error("firestore.doc_listener_error", {
+          path: docRef.path,
+          message: err.message,
+        });
         setError(err);
         setLoading(false);
       }
@@ -93,7 +97,9 @@ export function useFirestoreCollection<T = DocumentData>(
         setError(null);
       },
       (err) => {
-        console.error("Firestore collection listener error:", err);
+        logger.error("firestore.collection_listener_error", {
+          message: err.message,
+        });
         setError(err);
         setLoading(false);
       }

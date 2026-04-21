@@ -47,9 +47,41 @@ function preventSelfAction(targetUid, currentUid, action) {
     }
 }
 
+const PASSWORD_MIN_LENGTH = 8;
+
+/**
+ * パスワード強度を検証し、不適切なら HttpsError を投げる。
+ * 要件: 8文字以上 / 英字と数字を両方含む / 空白のみ不可。
+ *
+ * @param {unknown} password
+ * @throws {functions.https.HttpsError}
+ */
+function validatePasswordStrength(password) {
+    if (typeof password !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'パスワードを入力してください');
+    }
+    if (password.length < PASSWORD_MIN_LENGTH) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            `パスワードは${PASSWORD_MIN_LENGTH}文字以上必要です`
+        );
+    }
+    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'パスワードは英字と数字の両方を含む必要があります'
+        );
+    }
+    if (/^\s*$/.test(password)) {
+        throw new functions.https.HttpsError('invalid-argument', 'パスワードに空白のみは使えません');
+    }
+}
+
 module.exports = {
     ERROR_MESSAGES,
+    PASSWORD_MIN_LENGTH,
     getErrorMessage,
     validateRequired,
     preventSelfAction,
+    validatePasswordStrength,
 };

@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# キミテラス Management (Frontend)
 
-## Getting Started
+キミテラス（学校向けデジタルサイネージ）のフロントエンド。Next.js (App Router) + TypeScript + React で構築し、`output: 'export'` による静的エクスポートを Firebase Hosting で配信します。
 
-First, run the development server:
+サイネージ表示画面と各種管理画面（エディター、学校管理、クラス設定）の両方を含みます。プロジェクト全体の概要は [`../README.md`](../README.md) を参照してください。
+
+## 開発
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000 でサイネージ表示を確認できます。各管理画面のパスは下記参照。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Firestoreなどバックエンドと合わせて確認したい場合は、リポジトリルートの `signage/` でFirebaseエミュレータを起動してください:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd .. && npx firebase emulators:start
+```
 
-## Learn More
+## ビルド & デプロイ
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# 静的エクスポートを out/ に生成
+npx next build
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# デプロイ（signage/firebase.json が management/out を参照）
+cd .. && npx firebase deploy --only hosting
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## ページ構成（App Router）
 
-## Deploy on Vercel
+| パス | ファイル | 用途 |
+|---|---|---|
+| `/` | `src/app/page.tsx` | サイネージ表示 |
+| `/manage/editor` | `src/app/manage/editor/` | エディター（予定/連絡/提出物のCRUD） |
+| `/manage/editor-mobile` | `src/app/manage/editor-mobile/` | モバイル向けエディター |
+| `/manage/admin` | `src/app/manage/admin/` | 学校 / 学年 / クラス / メンバー管理 |
+| `/manage/class-settings` | `src/app/manage/class-settings/` | 広告 / 静寂時間 |
+| `/manage/login` | `src/app/manage/login/` | ログイン |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+URLパラメータ `school`, `grade`, `class` でコンテキストを指定します（`useSchoolContext` が URLパラメータ → localStorage → デフォルトの順で解決）。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ディレクトリ
+
+```
+src/
+├── app/          # App Router ページ
+├── components/   # auth/, context/, editor/, admin/, class-settings/, signage/, ui/
+├── lib/          # firebase.ts, firebase-functions.ts, paths.ts, auth.ts, image-cache.ts, data-filter.ts, utils.ts
+├── hooks/        # useAuth, useSchoolContext, useEditorData, useSignageData, useAdRotation 等
+├── providers/    # AuthProvider, SchoolContextProvider
+└── types/        # school.ts, auth.ts
+```
+
+## 主要モジュール
+
+- **`lib/firebase.ts`** — Firebase 初期化（プロジェクト設定はここ）
+- **`lib/firebase-functions.ts`** — Cloud Functions 呼び出しラッパー
+- **`lib/paths.ts`** — Firestore ドキュメントパスの一元管理（`classDocRef`, `dailyDataDocRef` など）
+- **`lib/image-cache.ts`** — 広告画像の IndexedDB キャッシュ（オフライン耐性）
+- **`lib/data-filter.ts`** — 表示期間フィルタ等のユーティリティ
+- **`hooks/useEditorData`** — Firestore リアルタイムリスナー + CRUD + マスター編集レベル切替
+- **`hooks/useSignageData`** — 3階層データマージ + Firestore / 静的JSON フォールバック
+
+## スタイル
+
+`globals.css` + ページ / コンポーネント固有の CSS Modules (`.module.css`)。Tailwind は使用していません。
+
+## 注意
+
+- `next.config.ts` で `output: 'export'` を指定しているため、サーバー機能（Route Handlers, ISR, middleware の動的処理）は使えません。
+- 画像最適化を無効化しているため、`<img>` をそのまま使用しています。
+- ブランド名は「キミテラス by Rebounder」。
+
+詳細なデータモデル、RBAC、Cloud Functions 一覧、デプロイ手順はリポジトリルートの [`../README.md`](../README.md) を参照してください。

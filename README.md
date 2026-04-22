@@ -1,57 +1,66 @@
-# School Signage (キミテラス by Rebounder)
+# キミテラス by Rebounder
 
-学校・教室向けデジタルサイネージシステム。予定、連絡事項、提出物、広告をリアルタイムで表示・管理できます。
+学校・教室向けデジタルサイネージシステム（旧 DIGI+）。予定・連絡事項・提出物・広告をリアルタイムで表示し、管理画面から編集できます。マルチテナント対応（複数学校 / 複数学年 / 複数クラス）。
 
-## 🎯 概要
+## 概要
 
-このシステムは、教室に設置されたディスプレイに学校情報を表示するためのWebアプリケーションです。Firebase を使用したリアルタイム同期により、管理者が更新した情報は即座にサイネージ画面に反映されます。
+教室に設置されたディスプレイ（Chromium系ブラウザ / キオスク）に学校情報を表示するWebアプリです。Firestoreのリアルタイム同期により、管理者の更新が即座にサイネージへ反映されます。学校ネットワークでFirestoreがブロックされる場合は静的JSONポーリングへ自動フォールバックします。
 
 ### 主な機能
 
-- 📅 **今後3日間の予定表示**（土日を自動スキップ）
-- 📢 **各種連絡事項**（重要マーク対応）
-- ⚠️ **提出物管理**（期限切れ警告、残り日数表示）
-- 🖼️ **広告ローテーション**（最大5枚、表示時間設定可能）
-- 🔔 **更新通知**（音声通知 + 視覚的バナー）
-- 🔇 **授業時間モード**（Quiet Hours: 音声・広告の自動無効化）
-- 📱 **自動スクロール**（コンテンツが多い場合に自動でスクロール）
-- 🖥️ **キオスクモード対応**（自動起動用）
+- 今後3日間の予定表示（土日を自動スキップ）
+- 連絡事項（重要マーク・自動スクロール対応）
+- 提出物管理（期限切れ警告、残り日数表示）
+- 広告ローテーション（画像/動画、表示時間設定可能）
+- 静寂時間（Quiet Hours）：授業時間中は広告・音声を抑制
+- 詳細表示モード（タップで全画面、20秒後自動復帰）
+- モバイルレイアウト（幅 < 900px で自動切替）
+- 画像のIndexedDBキャッシュ（オフライン耐性）
+- キオスクモード対応
 
-## 🏗️ システム構成
+## システム構成
 
 ```
-signage/
-├── public/                    # フロントエンド（Firebase Hosting）
-│   ├── index.html            # サイネージ表示画面
-│   ├── dashboard.html        # 管理者ダッシュボード
-│   ├── admin.html            # 管理者設定（ユーザー管理等）
-│   ├── main.js               # サイネージ表示ロジック
-│   ├── dashboard.js          # ダッシュボードロジック
-│   ├── config.js             # Firebase設定 & 認証ヘルパー
-│   ├── auth.js               # 認証UIコンポーネント
-│   ├── ui.js                 # UI描画ヘルパー
-│   ├── utils.js              # 共通ユーティリティ
-│   └── *.css                 # スタイルシート
-├── functions/                 # Firebase Cloud Functions
-│   └── index.js              # ユーザー管理API
-├── firebase.json              # Firebase設定
-├── firestore.rules           # Firestoreセキュリティルール
-├── storage.rules             # Storageセキュリティルール
-└── setup-admin.js            # 初期管理者セットアップスクリプト
+（リポジトリルート）
+├── management/                # フロントエンド（Next.js + TypeScript, 静的エクスポート）
+│   ├── next.config.ts         # output: 'export'
+│   ├── public/                # 静的アセット
+│   └── src/
+│       ├── app/               # App Router
+│       │   ├── page.tsx                   # サイネージ表示（/）
+│       │   ├── manage/editor/             # エディター（/manage/editor）
+│       │   ├── manage/editor-mobile/      # モバイルエディター
+│       │   ├── manage/admin/              # 学校管理
+│       │   ├── manage/class-settings/     # クラス設定（広告/静寂時間）
+│       │   └── manage/login/              # ログイン
+│       ├── components/        # auth/, context/, editor/, admin/, class-settings/, signage/, ui/
+│       ├── lib/               # firebase.ts, firebase-functions.ts, paths.ts, auth.ts, image-cache.ts, data-filter.ts
+│       ├── hooks/             # useAuth, useSchoolContext, useEditorData, useSignageData, useAdRotation 等
+│       ├── providers/         # AuthProvider, SchoolContextProvider
+│       └── types/             # school.ts, auth.ts
+├── functions/                 # Firebase Cloud Functions (Node.js 20)
+│   ├── index.js               # エントリポイント（再エクスポート）
+│   ├── helpers/               # 共通ヘルパー
+│   └── handlers/              # 機能別ハンドラー
+├── scripts/                   # 運用スクリプト
+├── firebase.json              # Hosting設定（management/out をデプロイ）
+├── firestore.rules            # Firestoreセキュリティルール（RBAC対応）
+└── storage.rules              # Storageセキュリティルール
 ```
 
-## 🔧 技術スタック
+## 技術スタック
 
 | 区分 | 技術 |
 |------|------|
-| フロントエンド | Vanilla JavaScript (ES Modules) |
+| フロントエンド | Next.js (App Router) + TypeScript + React, CSS Modules, 静的エクスポート |
 | バックエンド | Firebase Cloud Functions (Node.js 20) |
 | データベース | Cloud Firestore |
 | ファイル保存 | Cloud Storage |
 | 認証 | Firebase Authentication |
 | ホスティング | Firebase Hosting |
+| 対象ブラウザ | Chromium系（教室ディスプレイ向け） |
 
-## 📦 セットアップ
+## セットアップ
 
 ### 前提条件
 
@@ -59,129 +68,103 @@ signage/
 - Firebase CLI (`npm install -g firebase-tools`)
 - Firebaseプロジェクト
 
-### 1. リポジトリのクローン
-
-```bash
-git clone <repository-url>
-cd signage
-```
-
-### 2. 依存関係のインストール
+### 1. 依存関係のインストール
 
 ```bash
 npm install
 cd functions && npm install && cd ..
+cd management && npm install && cd ..
 ```
 
-### 3. Firebase設定
+### 2. Firebase設定
 
 ```bash
-# Firebaseにログイン
 firebase login
-
-# プロジェクトを選択/作成
 firebase use --add
 ```
 
-### 4. Firebase設定の更新
+`management/src/lib/firebase.ts` の `firebaseConfig` を自分のプロジェクトの設定に更新してください。
 
-`public/config.js` と `public/main.js` の `firebaseConfig` を自分のプロジェクトの設定に更新してください：
-
-```javascript
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-```
-
-### 5. 初期管理者の作成
-
-`serviceAccountKey.json` を Firebase Console からダウンロードし、プロジェクトルートに配置。
+### 3. ローカル開発
 
 ```bash
-# setup-admin.js を編集して管理者情報を設定後
-node setup-admin.js
+# 管理画面の開発サーバー
+cd management && npm run dev
+
+# Firebase エミュレータ（Hosting / Firestore / Functions / Storage）
+npx firebase emulators:start
+# 特定サービスのみ
+npx firebase emulators:start --only hosting,firestore
 ```
 
-### 6. デプロイ
+### 4. ビルド & デプロイ
 
 ```bash
-# すべてをデプロイ
-firebase deploy
+# 静的エクスポートを生成（management/out/ に出力）
+cd management && npx next build && cd ..
 
-# 個別にデプロイ
-firebase deploy --only hosting
-firebase deploy --only functions
-firebase deploy --only firestore:rules
-firebase deploy --only storage:rules
+# デプロイ
+npx firebase deploy --only hosting    # フロントエンド
+npx firebase deploy --only functions  # Cloud Functions
+npx firebase deploy                   # 全体（Hosting + Functions + Rules）
 ```
 
-## 📱 使い方
+**本番URL**
 
-### サイネージ画面（表示用）
+- サイネージ表示: https://school-signage-2026.web.app/
+- 管理画面: https://school-signage-2026.web.app/manage/editor
 
-- **URL**: `https://YOUR_PROJECT.web.app/`
-- 認証不要で閲覧可能
-- 起動時に5秒のカウントダウン（タップでスキップ可能）
-- キオスクモード: `?kiosk=1` または `?autostart=1` を付与
+### デプロイチェックリスト
 
-### 管理者ダッシュボード
+1. `serviceAccountKey.json` がpublicに公開されていないこと
+2. `firebase.ts` の設定が正しいこと
+3. `next build` が成功し `out/` が生成されること
+4. デプロイ後、サイネージ（`/`）が正常表示されること
+5. 管理画面（`/manage/editor`）でログイン・CRUDが動作すること
+6. 旧URL（`/editor.html` 等）が新URLに301リダイレクトされること
+7. 問題発生時のロールバック: `npx firebase hosting:rollback`
 
-- **URL**: `https://YOUR_PROJECT.web.app/dashboard.html`
-- 管理者認証必須（メール/パスワード または Google）
-- 各項目をクリックで編集、「+ 追加」で新規作成
+## URL構成
 
-### 管理できる項目
+- `/?school=X&grade=Y&class=Z` — サイネージ表示（パラメータなしは管理画面にリダイレクト）
+- `/manage/editor?school=X&grade=Y&class=Z` — エディター（予定/連絡/提出物のCRUD）
+- `/manage/editor-mobile?school=X&grade=Y&class=Z` — モバイルエディター
+- `/manage/admin` — 学校一覧（system_admin）
+- `/manage/admin?school=X` — 学校詳細（学年/クラス/メンバー管理）
+- `/manage/class-settings?school=X&grade=Y&class=Z` — クラス設定（広告/静寂時間）
+- `/manage/login` — ログイン
 
-| 項目 | 説明 |
-|------|------|
-| クラス名 | 画面右上に表示される名前 |
-| 予定 | 日時と内容、表示期間を設定可能 |
-| 連絡事項 | テキストと重要フラグ |
-| 提出物 | 期限、科目、提出物名 |
-| 広告画像 | 最大5枚、ローテーション表示 |
-
-## 🗄️ データ構造
-
-### Firestore
+## データモデル（3階層: 学校 > 学年 > クラス）
 
 ```
-schools/
-└── {SCHOOL_ID}/
-    ├── config/
-    │   └── display_settings    # クラス名、広告、授業時間設定
-    └── daily_data/
-        └── {YYYY-MM-DD}/       # 日付ごとのデータ
-            ├── schedules[]     # 予定リスト
-            ├── notices[]       # 連絡リスト
-            └── assignments[]   # 提出物リスト
+schools/{schoolId}
+  ├── grades/{gradeId}                       # 学年
+  │   ├── name: "電子工学科2年"
+  │   ├── order: 1
+  │   └── classes/{classId}                  # クラス
+  │       ├── name: "A組"
+  │       ├── displaySettings: { ads, quietHours }
+  │       └── daily_data/{YYYY-MM-DD}        # 日次データ（予定・連絡・提出物）
+  └── config/editor_auth                     # 学校パスワード（簡易ログイン）
+
+memberships/{userId}_{schoolId}              # ユーザーと学校の紐づけ
+  ├── role: "school_admin" | "teacher" | "editor"
+  └── classIds: []
 ```
 
-### display_settings ドキュメント
+Firestoreドキュメントパスはフロントエンド側で `management/src/lib/paths.ts` に一元化されています:
+
+- `classDocRef(schoolId, gradeId, classId)`
+- `dailyDataDocRef(schoolId, gradeId, classId, dateStr)`
+- `dailyDataCollectionRef(schoolId, gradeId, classId)`
+- `schoolMasterDailyDataDocRef(schoolId, dateStr)`
+- `gradeMasterDailyDataDocRef(schoolId, gradeId, dateStr)`
+
+### daily_data ドキュメント例
 
 ```javascript
 {
-  class_name: "1年A組",
-  ads: [
-    { id: "ad_xxx", type: "image", url: "...", duration_sec: 10 }
-  ],
-  quiet_hours: [
-    { start: "08:50", end: "09:40" },  // 1限
-    { start: "09:50", end: "10:40" }   // 2限
-    // ...
-  ]
-}
-```
-
-### daily_data ドキュメント
-
-```javascript
-{
-  date: "2025-01-20",
+  date: "2026-04-22",
   schedules: [
     { time: "1限", content: "数学テスト", display_start: "", display_end: "" }
   ],
@@ -189,124 +172,109 @@ schools/
     { text: "明日は体育祭です", is_highlight: true }
   ],
   assignments: [
-    { deadline: "2025-01-25", subject: "国語", task: "読書感想文" }
+    { deadline: "2026-04-30", subject: "国語", task: "読書感想文" }
   ]
 }
 ```
 
-## 🔒 セキュリティ
+## RBAC（権限管理）
 
-### 認証・権限
+| ロール | できること |
+|---|---|
+| `system_admin` | 全学校の作成・管理 |
+| `school_admin` | 自校の全学年・クラス・メンバー管理 |
+| `teacher` | 担当クラスのコンテンツ編集 |
+| `editor` | 担当クラスのコンテンツ編集（簡易ログイン） |
 
-- **サイネージ画面**: 認証不要（公開コンテンツ）
-- **管理画面**: 管理者権限（Custom Claims: `admin: true`）が必須
-- **Cloud Functions**: 管理者のみ実行可能
+## レイアウトモード
 
-### Firestoreルール概要
+- **サイネージモード** (幅 ≥ 900px): 2カラムグリッド、右側に広告
+- **モバイルモード** (幅 < 900px): 上部バナー広告
+- **詳細表示モード**: タップで広告を隠して全画面、20秒後自動復帰
 
-| コレクション | 読み取り | 書き込み |
-|--------------|----------|----------|
-| schools/{id}/config/* | 全員 | 認証済み管理者 |
-| schools/{id}/daily_data/* | 全員 | 認証済み管理者 |
-| settings/* | 管理者 | 管理者 |
-| users/* | 本人 or 管理者 | 管理者 |
+## アーキテクチャ
 
-### Storageルール概要
+- **AuthProvider**: `onAuthStateChanged` でFirebase Auth状態を管理
+- **SchoolContextProvider**: 学校 / 学年 / クラスのコンテキスト（URLパラメータ → localStorage → デフォルト）
+- **useEditorData hook**: Firestoreリアルタイムリスナー + CRUD + マスター編集レベル切替
+- **useSignageData hook**: 3階層データマージ + Firestoreリアルタイム / 静的JSONフォールバック
+- **CSS**: `globals.css` + ページ固有 CSS Modules (`.module.css`)
 
-- `/images/**`, `/videos/**`, `/media/**`: 読み取り公開、アップロードは管理者のみ
-- ファイルサイズ制限: 画像50MB、動画100MB
-- `/private/**`: 管理者のみアクセス可能
+### サイネージ表示の主要コンポーネント
 
-## 🛠️ Cloud Functions
+- `SignagePage.tsx` — メインオーケストレータ（スタートアップ画面、レイアウト切替、詳細モード）
+- `ScheduleGrid.tsx` — 3日分のスケジュール表示
+- `NoticeList.tsx` — 連絡事項（自動スクロール）
+- `AssignmentTable.tsx` — 提出物テーブル
+- `AdDisplay.tsx` / `MobileAdArea.tsx` — 広告表示（画像/動画ローテーション）
+- `CalendarModal.tsx` — カレンダーモーダル
 
-| 関数名 | 説明 |
-|--------|------|
-| `listUsers` | ユーザー一覧取得 |
-| `createAdminUser` | ユーザー作成 |
-| `setAdminRole` | 管理者権限の付与/削除 |
-| `updateUser` | ユーザー情報更新 |
-| `deleteUser` | ユーザー削除 |
-| `toggleUserStatus` | ユーザーの有効/無効切替 |
-| `setEmailVerified` | メール検証ステータス更新 |
+## Cloud Functions
 
-## 🖥️ キオスクモード設定（Raspberry Pi等）
+| カテゴリ | 関数 |
+|---|---|
+| 学校管理 | `createSchool`, `listSchools`, `updateSchool`, `deleteSchool` |
+| 学年管理 | `createGrade`, `listGrades`, `updateGrade`, `deleteGrade` |
+| クラス管理 | `createClass`, `listClasses`, `updateClass`, `deleteClass` |
+| メンバー管理 | `inviteMember`, `updateMembership`, `removeMember`, `listMembers`, `getMyMemberships` |
+| ユーザー管理 | `listUsers`, `createAdminUser`, `setAdminRole`, `updateUser`, `deleteUser`, `toggleUserStatus`, `setEmailVerified` |
+| エディター認証 | `loginAsEditor`, `setEditorPassword` |
+| JSON生成トリガー | `onClassDataChange`, `onClassConfigChange` |
+| 手動 | `regenerateSignageJson`, `migrateToGradeStructure` |
 
-### Chromiumでの自動起動例
+## 学校ネットワーク対応
+
+### Firestore接続フォールバック
+
+サイネージ表示画面（`useSignageData` hook）はFirestoreへの接続を5秒でテストし、失敗した場合は静的JSONポーリングモードに自動切替（Firebase Storageから3秒間隔でJSON取得）。学校のプロキシやファイアウォールでWebSocket/gRPCがブロックされる環境でも動作します。
+
+### 画像キャッシュ
+
+広告画像をIndexedDBにキャッシュ（`lib/image-cache.ts`）。ネットワーク断でも直前のキャッシュから表示可能。
+
+### 音声自動再生制限
+
+ブラウザの自動再生ポリシーにより、最初のユーザー操作（タップ/クリック）があるまで通知音は再生されません。キオスクモードでは初回タップ後に有効化されます。
+
+## キオスクモード設定（Raspberry Pi等）
 
 ```bash
 # /home/pi/.config/lxsession/LXDE-pi/autostart
-@chromium-browser --kiosk --disable-infobars https://YOUR_PROJECT.web.app/?kiosk=1
+@chromium-browser --kiosk --disable-infobars https://school-signage-2026.web.app/?school=YOUR_SCHOOL&grade=YOUR_GRADE&class=YOUR_CLASS
 ```
 
-### 推奨設定
+推奨：解像度1920×1080以上、Chromium / Chrome、定期的なキャッシュクリア + リロード。
 
-- 画面解像度: 1920×1080（フルHD）以上
-- ブラウザ: Chromium / Chrome
-- 自動更新: ブラウザのキャッシュクリア + リロードを定期実行
+## テスト手順（デプロイ後の確認）
 
-## 🔊 音声通知について
+1. **サイネージ表示** (`/`): 予定・連絡・提出物の表示、広告ローテーション、自動スクロール
+2. **エディター** (`/manage/editor`): ログイン、各種CRUD、カレンダー、レスポンシブ
+3. **学校管理** (`/manage/admin`): 管理者ログイン、学校 / 学年 / クラス / メンバーの管理
+4. **クラス設定** (`/manage/class-settings`): 広告アップロード・削除・並替、静寂時間設定
+5. **旧URLリダイレクト**: `/editor.html` → `/manage/editor` 等
+6. **モバイル表示**: 幅 < 900px で自動切替
+7. **静寂時間**: 授業時間設定時に広告非表示
 
-- **ブラウザ制約**: 初回ユーザー操作前は音声再生がブロックされる場合があります
-- **起動画面**: タップすることでAudioContextが有効化されます
-- **キオスクモード**: 自動起動の場合、音声が無効になることがあります
-- **画面右下**: 🔊/🔇 アイコンで音声状態を確認可能
+## トラブルシューティング
 
-## ⚙️ カスタマイズ
+- **ログインできない**: Firebase Authentication でユーザーが存在するか、ロール / メンバーシップが付与されているか、ブラウザコンソールのエラーを確認
+- **データが表示されない**: `school` / `grade` / `class` URLパラメータが正しいか、Firestoreにデータがあるか、セキュリティルールがデプロイ済みか確認
+- **画像がアップロードできない**: Storageルールを確認、ファイルサイズ・形式（image/*）を確認
 
-### 学校IDの変更
+## 注意事項
 
-`public/config.js` の `SCHOOL_ID` を変更：
+- ブランド名は「キミテラス by Rebounder」
+- `serviceAccountKey.json` がリポジトリに含まれているため取り扱い注意（公開しないこと）
+- デフォルト学校ID: `DEFAULT_SCHOOL_ID = "gn_tech"`
 
-```javascript
-export const SCHOOL_ID = "your_school_id";
-```
-
-### スタイルの変更
-
-- `public/style.css`: サイネージ画面のスタイル
-- `public/dashboard-style.css`: ダッシュボードのスタイル
-- `public/auth-style.css`: ログイン画面のスタイル
-
-### 授業時間（Quiet Hours）の設定
-
-管理画面から、または Firestore で直接 `display_settings.quiet_hours` を編集：
-
-```javascript
-quiet_hours: [
-  { start: "08:50", end: "09:40" },  // 1限
-  { start: "09:50", end: "10:40" },  // 2限
-  // 必要に応じて追加
-]
-```
-
-## 🐛 トラブルシューティング
-
-### ログインできない
-
-1. Firebase Authentication でユーザーが作成されているか確認
-2. Custom Claims に `admin: true` が設定されているか確認
-3. ブラウザのコンソールでエラーを確認
-
-### データが表示されない
-
-1. Firestore にデータが存在するか確認
-2. `SCHOOL_ID` が正しいか確認
-3. セキュリティルールがデプロイされているか確認
-
-### 画像がアップロードできない
-
-1. Storage のセキュリティルールを確認
-2. ファイルサイズが50MB以下か確認
-3. ファイル形式が画像（image/*）か確認
-
-## 📄 ライセンス
+## ライセンス
 
 Proprietary - All rights reserved.
 
-## 👥 開発
+## 開発
 
 Rebounder Team
 
 ---
 
-**キミテラス by Rebounder** - 教室をスマートに。
+**キミテラス by Rebounder** — 教室をスマートに。

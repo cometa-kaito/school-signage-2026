@@ -88,7 +88,10 @@ exports.getSchoolDetail = functions.https.onCall(withAuth(async (data, context) 
         } catch (e) { /* skip deleted users */ }
     }));
 
-    const editorPassword = (authSnap && authSnap.exists) ? (authSnap.data().password || '') : '';
+    // エディターパスワードは機密情報のためクライアントに返さない。設定有無のフラグのみ返却。
+    const hasEditorPassword = !!(authSnap && authSnap.exists
+        && ((authSnap.data().passwordHash && authSnap.data().passwordHash.length > 0)
+            || (authSnap.data().password && authSnap.data().password.length > 0)));
     const quietHours = (configSnap && configSnap.exists) ? (configSnap.data().quiet_hours || []) : [];
 
     let users = [];
@@ -112,7 +115,7 @@ exports.getSchoolDetail = functions.https.onCall(withAuth(async (data, context) 
         gradesByDept,
         classesByDeptGrade,
         members,
-        editorPassword,
+        hasEditorPassword,
         quietHours,
         users,
     };

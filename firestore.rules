@@ -136,9 +136,13 @@ service cloud.firestore {
         }
       }
 
-      // エディター認証設定
+      // 学校コンフィグ
+      // - editor_auth: パスワードハッシュを含むため管理者/学校管理者のみ読み取り可
+      // - それ以外 (display_settings, schedule_templates 等): サイネージ表示で未認証読み取りが必要
       match /config/{configId} {
-        allow read: if true;
+        allow read: if configId != 'editor_auth'
+          || hasAdminAccess()
+          || isSchoolAdmin(schoolId);
         allow write: if hasAdminAccess() || isSchoolAdmin(schoolId);
       }
 

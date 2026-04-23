@@ -2,18 +2,20 @@
  * handlers/editor-auth.js
  * エディター認証
  *
- * パスワードのみでログイン可能。
- * 内部的にFirebase Authユーザー(editor_{schoolId}@signage.local)を自動作成し、
- * signInWithEmailAndPasswordでログインする方式。
- * createCustomTokenを使わないためIAM権限不要。
+ * パスワードは bcrypt でハッシュ化して Firestore に保存する。
+ * 旧データ（password: 平文）からの移行は loginAsEditor 成功時に lazy migration で行う。
+ * 内部的に Firebase Auth ユーザー(editor_{schoolId}@signage.local)を自動作成し、
+ * signInWithEmailAndPassword でログインする方式。
  */
 
+const bcrypt = require('bcrypt');
 const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, validatePasswordStrength } = require('../helpers/validation');
 const { getClientIp, hashValue, consumeRateLimit, resetRateLimit } = require('../helpers/rate-limit');
 
 const EDITOR_EMAIL_DOMAIN = 'signage.local';
+const BCRYPT_ROUNDS = 12;
 
 function getEditorEmail(schoolId) {
     return `editor_${schoolId}@${EDITOR_EMAIL_DOMAIN}`;
@@ -21,7 +23,7 @@ function getEditorEmail(schoolId) {
 
 /**
  * エディターログイン
- * 1. Firestoreでパスワードを検証
+ * 1. Firestoreでパスワードを検証（bcrypt ハッシュ比較 / 旧データは平文比較 + 即ハッシュ化）
  * 2. Firebase Authユーザーを作成/更新（パスワード同期 + カスタムクレーム設定）
  * 3. メールアドレスを返却 → クライアントがsignInWithEmailAndPasswordでログイン
  */
@@ -36,10 +38,35 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
     await consumeRateLimit({ key: rateLimitKey });
 
     // パスワード検証
-    const editorConfigSnap = await db.collection('schools').doc(targetSchoolId)
-        .collection('config').doc('editor_auth').get();
+    const editorConfigRef = db.collection('schools').doc(targetSchoolId)
+        .collection('config').doc('editor_auth');
+    const editorConfigSnap = await editorConfigRef.get();
     if (!editorConfigSnap.exists) throw new functions.https.HttpsError('not-found', 'エディター認証が設定されていません');
-    if (editorConfigSnap.data().password !== password) throw new functions.https.HttpsError('unauthenticated', 'パスワードが間違っています');
+
+    const configData = editorConfigSnap.data() || {};
+    const storedHash = configData.passwordHash;
+    const storedPlain = configData.password;
+
+    let ok = false;
+    let needsMigration = false;
+    if (typeof storedHash === 'string' && storedHash.length > 0) {
+        ok = await bcrypt.compare(password, storedHash);
+    } else if (typeof storedPlain === 'string' && storedPlain.length > 0) {
+        // 旧データ（平文保存）からのフォールバック
+        ok = storedPlain === password;
+        needsMigration = ok;
+    }
+    if (!ok) throw new functions.https.HttpsError('unauthenticated', 'パスワードが間違っています');
+
+    // lazy migration: 旧平文データを bcrypt ハッシュに上書きし、平文フィールドを削除
+    if (needsMigration) {
+        const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        await editorConfigRef.set({
+            passwordHash: hash,
+            password: admin.firestore.FieldValue.delete(),
+            migratedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    }
 
     // 成功時はカウンタをリセット（ブロック回避）
     await resetRateLimit(rateLimitKey);
@@ -76,6 +103,7 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
 
 /**
  * エディターパスワード設定
+ * bcrypt でハッシュ化して保存。旧 password フィールドがあれば削除する。
  */
 exports.setEditorPassword = functions.https.onCall(withAuth(async (data, context) => {
     const { password, schoolId } = data;
@@ -83,9 +111,15 @@ exports.setEditorPassword = functions.https.onCall(withAuth(async (data, context
     validatePasswordStrength(password);
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;
 
-    // Firestoreに保存
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    // Firestoreに保存（平文 password は削除）
     await db.collection('schools').doc(targetSchoolId).collection('config').doc('editor_auth')
-        .set({ password, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        .set({
+            passwordHash,
+            password: admin.firestore.FieldValue.delete(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
 
     // Firebase Authユーザーも同期更新
     const email = getEditorEmail(targetSchoolId);

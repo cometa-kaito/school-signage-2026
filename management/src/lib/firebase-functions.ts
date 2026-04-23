@@ -271,7 +271,7 @@ export const getSchoolDetailFn = httpsCallable<
     gradesByDept: Record<string, Grade[]>;
     classesByDeptGrade: Record<string, Record<string, Class[]>>;
     members: Membership[];
-    editorPassword: string;
+    hasEditorPassword: boolean;
     quietHours: { start: string; end: string }[];
     users: UserInfo[];
   }

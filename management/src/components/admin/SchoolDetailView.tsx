@@ -168,8 +168,9 @@ export function SchoolDetailView({
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
 
-  // Editor password
+  // Editor password (平文はサーバから取得しない。入力用の新規パスワードのみ保持)
   const [editorPassword, setEditorPassword] = useState("");
+  const [hasEditorPassword, setHasEditorPassword] = useState(false);
   const [editorPwdSaving, setEditorPwdSaving] = useState(false);
 
   // School quiet hours
@@ -201,9 +202,7 @@ export function SchoolDetailView({
         if (isSystemAdmin) {
           setUsers(d.users || []);
         }
-        if (d.editorPassword) {
-          setEditorPassword(d.editorPassword);
-        }
+        setHasEditorPassword(!!d.hasEditorPassword);
         if (d.quietHours) {
           setSchoolQuietHours(d.quietHours);
         }
@@ -745,6 +744,8 @@ export function SchoolDetailView({
     try {
       await setEditorPasswordFn({ schoolId, password: editorPassword });
       showToast("エディターパスワードを設定しました", "success");
+      setEditorPassword("");
+      setHasEditorPassword(true);
     } catch (err) {
       showToast("エラー: " + (err as Error).message, "error");
     }
@@ -1592,13 +1593,16 @@ export function SchoolDetailView({
             <h3>エディターパスワード</h3>
             <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: 12 }}>
               教員・エディターがログインするためのパスワードを設定します。
+              {hasEditorPassword
+                ? "現在のパスワードは暗号化保存されているため表示できません。再発行するには新しいパスワードを入力してください。"
+                : "まだ設定されていません。"}
             </p>
             <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
               <div style={{ flex: 1 }}>
                 <PasswordInput
                   value={editorPassword}
                   onChange={setEditorPassword}
-                  placeholder="新しいパスワード"
+                  placeholder={hasEditorPassword ? "新しいパスワード（再設定）" : "新しいパスワード"}
                   inputStyle={{
                     padding: "8px 12px",
                     border: "1px solid #ddd",

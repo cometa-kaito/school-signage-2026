@@ -77,8 +77,11 @@ export interface QuietHour {
 
 export interface SignageData {
   schoolName: string;
+  departmentName: string;
   gradeName: string;
   className: string;
+  /** クラス無し運用の学年（grade.hasClasses === false）なら true */
+  hideClassName: boolean;
   weeklySchedules: Record<string, Schedule[]>;
   notices: Notice[];
   assignments: Assignment[];
@@ -133,8 +136,10 @@ export function useSignageData(
   const forceStatic = options?.forceStatic ?? false;
   const [data, setData] = useState<SignageData>({
     schoolName: "",
+    departmentName: "",
     gradeName: "",
     className: "",
+    hideClassName: false,
     weeklySchedules: {},
     notices: [],
     assignments: [],
@@ -164,6 +169,8 @@ export function useSignageData(
     adDisplayOrder: [],
   });
   const gradeNameRef = useRef("");
+  const hideClassNameRef = useRef(false);
+  const departmentNameRef = useRef("");
   // 階層の広告ストア
   const schoolAdsRef = useRef<Ad[]>([]);
   const gradeAdsRef = useRef<Ad[]>([]);
@@ -322,8 +329,10 @@ export function useSignageData(
     setData((prev) => ({
       ...prev,
       schoolName: classConfigRef.current.schoolName,
+      departmentName: departmentNameRef.current,
       gradeName: gradeNameRef.current,
       className: classConfigRef.current.className,
+      hideClassName: hideClassNameRef.current,
       ads: mergedAds,
       quietHours: effectiveQuietHours,
       weeklySchedules: newWeeklySchedules,
@@ -364,6 +373,7 @@ export function useSignageData(
           const d = snap.data();
           gradeNameRef.current = d.name || "";
           gradeAdsRef.current = d.displaySettings?.ads || [];
+          hideClassNameRef.current = d.hasClasses === false;
           mergeAndUpdate();
         }
       })
@@ -381,15 +391,20 @@ export function useSignageData(
       })
     );
 
-    // 1c. 学科広告・学科マスター（学科モードのみ）
+    // 1c. 学科名・学科広告・学科マスター（学科モードのみ）
     if (departmentId) {
       unsubscribes.push(
         onSnapshot(
           departmentDocRef(schoolId, departmentId),
           (snap) => {
-            departmentAdsRef.current = snap.exists()
-              ? snap.data().displaySettings?.ads || []
-              : [];
+            if (snap.exists()) {
+              const d = snap.data();
+              departmentNameRef.current = d.name || "";
+              departmentAdsRef.current = d.displaySettings?.ads || [];
+            } else {
+              departmentNameRef.current = "";
+              departmentAdsRef.current = [];
+            }
             mergeAndUpdate();
           },
           (err) =>
@@ -416,6 +431,7 @@ export function useSignageData(
         )
       );
     } else {
+      departmentNameRef.current = "";
       departmentAdsRef.current = [];
       departmentMasterRef.current = {};
     }
@@ -664,8 +680,10 @@ export function useSignageData(
 
         setData({
           schoolName: config.schoolName || "School Name",
+          departmentName: config.departmentName || "",
           gradeName: config.gradeName || "",
           className: config.className || "",
+          hideClassName: config.hasClasses === false,
           ads: config.ads || [],
           quietHours: config.quiet_hours || config.quietHours || [],
           weeklySchedules: newWeeklySchedules,

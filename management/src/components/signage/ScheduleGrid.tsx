@@ -110,34 +110,24 @@ export function ScheduleGrid({ weeklySchedules, onCalendarOpen }: ScheduleGridPr
             >
               <div className={styles.scheduleDateHeader}>{headerText}</div>
               <div className={styles.scheduleScrollArea}>
-                {sorted.length === 0 ? (
-                  <div className={styles.noSchedule}>予定なし</div>
-                ) : (
-                  <>
-                    {sorted.map((schedule, idx) => {
-                      return (
-                        <div key={idx} className={styles.scheduleListItem}>
-                          <SourceBadge source={schedule._source} compact align="right" />
-                          <span className={styles.scheduleTime}>
-                            {schedule.time}
-                          </span>
-                          <span className={styles.scheduleContent}>
-                            {schedule.content}
-                            {schedule.location ? ` (${schedule.location})` : ""}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    {Array.from({ length: placeholderCount }).map((_, idx) => (
-                      <div
-                        key={`ph-${idx}`}
-                        className={`${styles.scheduleListItem} ${styles.schedulePlaceholder}`}
-                      >
-                        &nbsp;
-                      </div>
-                    ))}
-                  </>
-                )}
+                {sorted.map((schedule, idx) => (
+                  <div key={idx} className={styles.scheduleListItem}>
+                    <SourceBadge source={schedule._source} compact align="right" />
+                    <span className={styles.scheduleTime}>{schedule.time}</span>
+                    <span className={styles.scheduleContent}>
+                      {schedule.content}
+                      {schedule.location ? ` (${schedule.location})` : ""}
+                    </span>
+                  </div>
+                ))}
+                {Array.from({ length: placeholderCount }).map((_, idx) => (
+                  <div
+                    key={`ph-${idx}`}
+                    className={`${styles.scheduleListItem} ${styles.schedulePlaceholder}`}
+                  >
+                    &nbsp;
+                  </div>
+                ))}
               </div>
             </div>
           );

@@ -38,7 +38,10 @@ async function generateClassSignageJson(schoolId, gradeId, classId, departmentId
         const classData = classSnap.exists ? classSnap.data() : {};
 
         const gradeSnap = await gradePathFor(schoolId, gradeId, departmentId || null).get();
-        const gradeName = gradeSnap.exists ? (gradeSnap.data().name || '') : '';
+        const gradeData = gradeSnap.exists ? gradeSnap.data() : {};
+        const gradeName = gradeData.name || '';
+        // クラス無し運用（学年 1 単位）は hasClasses === false
+        const hasClasses = gradeData.hasClasses !== false;
 
         let deptName = '';
         let deptDocData = {};
@@ -158,6 +161,7 @@ async function generateClassSignageJson(schoolId, gradeId, classId, departmentId
                 departmentName: deptName,
                 gradeName,
                 className: classData.name || '',
+                hasClasses,
                 ads: mergedAds,
                 quietHours: resolvedQH,
             },

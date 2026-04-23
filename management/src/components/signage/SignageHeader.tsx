@@ -10,19 +10,16 @@ interface SignageHeaderProps {
   dateText: string;
   dayText: string;
   time: string;
-  className: string;
-  gradeName: string;
+  /** 既に組み立て済みの表示名（例: "情報科 1年"、"1年 A組"、"情報科 1年 A組"） */
+  displayName: string;
 }
 
 export function SignageHeader({
   dateText,
   dayText,
   time,
-  className,
-  gradeName,
+  displayName,
 }: SignageHeaderProps) {
-  const displayName = gradeName ? `${gradeName} ${className}` : className;
-
   return (
     <div className={styles.adHeader}>
       <span className={styles.dateText}>{dateText}</span>

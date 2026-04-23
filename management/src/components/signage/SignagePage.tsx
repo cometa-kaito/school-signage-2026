@@ -39,8 +39,10 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
   // ========================================
   const {
     schoolName,
+    departmentName,
     gradeName,
     className,
+    hideClassName,
     weeklySchedules,
     notices,
     assignments,
@@ -256,11 +258,20 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
   // コンテンツ 7 : 広告 3 の比率は CSS (.container) で固定する。
 
   // ========================================
-  // 表示クラス名
+  // 表示名（ヘッダー / モバイル広告）
+  //   - 学科モード + クラス無し運用: "学科 学年"
+  //   - 学科モード + クラス有り運用: "学科 学年 クラス"
+  //   - クラスモード + クラス無し運用: "学年"
+  //   - クラスモード + クラス有り運用: "学年 クラス"
   // ========================================
   const displayClassName = useMemo(() => {
-    return gradeName ? `${gradeName} ${className}` : className;
-  }, [gradeName, className]);
+    const parts = [
+      departmentName,
+      gradeName,
+      hideClassName ? "" : className,
+    ].filter(Boolean);
+    return parts.join(" ");
+  }, [departmentName, gradeName, className, hideClassName]);
 
   // ========================================
   // ルートクラス
@@ -333,8 +344,7 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
             dateText={dateText}
             dayText={dayText}
             time={time}
-            className={className}
-            gradeName={gradeName}
+            displayName={displayClassName}
           />
           <div className={styles.container}>
             <SignageErrorBoundary section="ad">

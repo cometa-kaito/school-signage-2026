@@ -8,7 +8,7 @@
  * signInWithEmailAndPassword でログインする方式。
  */
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, validatePasswordStrength } = require('../helpers/validation');

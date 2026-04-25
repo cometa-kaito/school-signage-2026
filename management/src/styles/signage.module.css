@@ -183,12 +183,8 @@
 .contentGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  /*
-   * 予定セクションが「5 行 + 日付ヘッダー + カードヘッダー」を快適に
-   * 収められるよう、上段(予定)を下段(連絡+提出物)より大きく取る。
-   * 下段は連絡＋提出物が横 2 列で並ぶため、縦方向は短めでよい。
-   */
-  grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
+  /* 予定（上段） : 連絡+提出物（下段） = 50:50 */
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--content-gap);
   flex: 1;
   min-height: 0;
@@ -274,28 +270,35 @@
 }
 
 /*
- * 5 行分の高さを「空のスロット行」を可視化することで確保する。
- * - グリッドで 5 等分する方式は、カード高が低いと文字が削れるため採用しない
- * - 代わりに JS が常に 5 行ぶんの行（実データ＋プレースホルダー）を出力し、
- *   プレースホルダー行は罫線を見せたまま中身だけ透明にすることで
- *   「5 行のうちこの位置に予定が入ります」という空きスロットを視覚化する
+ * 予定スクロール領域を size コンテナにし、5 等分グリッドで 5 行を常時確保する。
+ * 行の文字サイズは container query 単位（cqh）で「コンテナ高さの一定割合」として
+ * 自動算出するため、カードの縦幅が変わっても 5 行が常に綺麗に収まる。
+ * cqh 非対応の WebView 向けに clamp(vw) のフォールバック宣言を先に置く。
  */
 .scheduleScrollArea {
   flex: 1;
   overflow: hidden;
   min-height: 0;
+  container-type: size;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
 }
 
-/* デスクトップ: 6 行目以降は非表示 */
+/* デスクトップ: 6 行目以降はグリッドからも除外 */
 .scheduleScrollArea > .scheduleListItem:nth-of-type(n + 6) {
   display: none;
 }
 
 .scheduleListItem {
-  font-size: clamp(1.05rem, 1.6vw, 1.5rem);
-  padding: 0.15rem 0;
-  border-bottom: 1px dotted var(--border-color);
+  /* フォールバック（cqh 非対応 WebView 用） */
+  font-size: clamp(0.85rem, 1.4vw, 1.3rem);
+  /* container query 対応時: スクロール領域高さの約 12% */
+  font-size: clamp(0.7rem, 12cqh, 1.4rem);
   line-height: 1.25;
+  padding: 0;
+  border-bottom: 1px dotted var(--border-color);
+  overflow: hidden;
+  min-width: 0;
 }
 
 .scheduleTime {
@@ -375,7 +378,8 @@
 
 .listGroup li {
   padding: 0.25rem 0;
-  border-bottom: 1px solid var(--border-color);
+  /* 予定セクションと統一感のある dotted ボーダー */
+  border-bottom: 1px dotted var(--border-color);
   font-size: clamp(1.1rem, 1.7vw, 1.55rem);
   line-height: 1.35;
   font-weight: 600;
@@ -438,7 +442,8 @@
 
 .taskTable td {
   padding: 0.3rem 0.4rem;
-  border-bottom: 1px solid var(--border-color);
+  /* 予定セクションと統一感のある dotted ボーダー */
+  border-bottom: 1px dotted var(--border-color);
   font-size: clamp(1rem, 1.5vw, 1.4rem);
   font-weight: 600;
   line-height: 1.3;
@@ -1170,9 +1175,14 @@
 /* =====================
    17. プレースホルダー行
    ===================== */
+/*
+ * 連絡・提出物の空きスロット行も、予定セクションと同じく
+ * 中身を透明にして罫線（dotted）を見せ、5 行ぶんの空きを視覚化する。
+ */
 .noticePlaceholder,
 .assignmentPlaceholder {
-  visibility: hidden;
+  color: transparent;
+  user-select: none;
 }
 
 /* =====================
@@ -1259,8 +1269,8 @@
 
   .contentGrid {
     grid-template-columns: 1fr 1fr;
-    /* タブレットでも 5 行ぶんの予定を確保できるよう上段を広めに取る */
-    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+    /* タブレットも上下 50:50 — 予定の行高は cqh で自動調整される */
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     flex: 1;
     overflow: hidden;
   }
@@ -1269,9 +1279,8 @@
     font-size: 0.7rem;
   }
 
-  .scheduleListItem {
-    font-size: 1rem;
-  }
+  /* .scheduleListItem の font-size はコンテナクエリ(cqh)で自動算出するため
+     タブレット用の固定値オーバーライドは置かない */
 
   .listGroup li {
     font-size: 1rem;
@@ -1344,6 +1353,10 @@
     flex: 1 !important;
     max-height: none !important;
     overflow: visible !important;
+    /* モバイルは縦積みで高さ無限のため、5 等分グリッドと size コンテナを解除 */
+    display: block !important;
+    container-type: normal !important;
+    grid-template-rows: none !important;
   }
 
   .scheduleDateHeader {

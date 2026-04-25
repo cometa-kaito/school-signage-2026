@@ -268,10 +268,17 @@
   border-bottom-color: var(--primary-color);
 }
 
+/*
+ * 5 行分の高さを CSS レベルで常時確保する。
+ * Grid の `repeat(5, minmax(0, 1fr))` により、カードの高さに関係なく
+ * 常に等しい 5 行のスロットが視覚的に確保される（データ 0 件でも同じ）。
+ */
 .scheduleScrollArea {
   flex: 1;
   overflow: hidden;
   min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
 }
 
 /* デスクトップ: 6 行目以降は非表示 */
@@ -284,6 +291,8 @@
   padding: 0.2rem 0;
   border-bottom: 1px dotted var(--border-color);
   line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .scheduleTime {
@@ -1326,6 +1335,9 @@
     flex: 1 !important;
     max-height: none !important;
     overflow: visible !important;
+    /* モバイルでは自然な縦積みに戻す（5 行固定 grid を解除） */
+    display: block !important;
+    grid-template-rows: none !important;
   }
 
   .scheduleDateHeader {

@@ -183,7 +183,12 @@
 .contentGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  /*
+   * 予定セクションが「5 行 + 日付ヘッダー + カードヘッダー」を快適に
+   * 収められるよう、上段(予定)を下段(連絡+提出物)より大きく取る。
+   * 下段は連絡＋提出物が横 2 列で並ぶため、縦方向は短めでよい。
+   */
+  grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: var(--content-gap);
   flex: 1;
   min-height: 0;
@@ -288,9 +293,9 @@
 
 .scheduleListItem {
   font-size: clamp(1.05rem, 1.6vw, 1.5rem);
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
   border-bottom: 1px dotted var(--border-color);
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .scheduleTime {
@@ -1254,7 +1259,8 @@
 
   .contentGrid {
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: minmax(0, 35fr) minmax(0, 65fr);
+    /* タブレットでも 5 行ぶんの予定を確保できるよう上段を広めに取る */
+    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
     flex: 1;
     overflow: hidden;
   }

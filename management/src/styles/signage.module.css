@@ -269,16 +269,16 @@
 }
 
 /*
- * 5 行分の高さを CSS レベルで常時確保する。
- * Grid の `repeat(5, minmax(0, 1fr))` により、カードの高さに関係なく
- * 常に等しい 5 行のスロットが視覚的に確保される（データ 0 件でも同じ）。
+ * 5 行分の高さを「空のスロット行」を可視化することで確保する。
+ * - グリッドで 5 等分する方式は、カード高が低いと文字が削れるため採用しない
+ * - 代わりに JS が常に 5 行ぶんの行（実データ＋プレースホルダー）を出力し、
+ *   プレースホルダー行は罫線を見せたまま中身だけ透明にすることで
+ *   「5 行のうちこの位置に予定が入ります」という空きスロットを視覚化する
  */
 .scheduleScrollArea {
   flex: 1;
   overflow: hidden;
   min-height: 0;
-  display: grid;
-  grid-template-rows: repeat(5, minmax(0, 1fr));
 }
 
 /* デスクトップ: 6 行目以降は非表示 */
@@ -291,8 +291,6 @@
   padding: 0.2rem 0;
   border-bottom: 1px dotted var(--border-color);
   line-height: 1.3;
-  min-width: 0;
-  overflow: hidden;
 }
 
 .scheduleTime {
@@ -318,9 +316,14 @@
   justify-content: center;
 }
 
+/*
+ * 予定の空きスロット行: 中身（&nbsp;）を透明にして見えなくし、
+ * 罫線（dotted）はそのまま見せることで「5 行ぶんの行が用意されています」と
+ * デザイン的に明示する。実データ行と同じ高さを取る。
+ */
 .schedulePlaceholder {
-  visibility: hidden;
-  border-bottom: 1px dotted transparent !important;
+  color: transparent;
+  user-select: none;
 }
 
 /* カレンダーボタン — 主張を抑えた中立色のボタン（白地＋黒枠）に変更 */
@@ -1335,9 +1338,6 @@
     flex: 1 !important;
     max-height: none !important;
     overflow: visible !important;
-    /* モバイルでは自然な縦積みに戻す（5 行固定 grid を解除） */
-    display: block !important;
-    grid-template-rows: none !important;
   }
 
   .scheduleDateHeader {

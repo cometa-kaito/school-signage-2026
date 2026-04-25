@@ -340,6 +340,23 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
                 <AssignmentTable assignments={assignments} />
               </SignageErrorBoundary>
             </div>
+            {/*
+             * モバイル限定: フィードバック導線。/manage/guide のフィードバック
+             * フォームに直接遷移する。kiosk(常時表示の TV) では不要なため
+             * モバイルレイアウト内にだけ配置する。
+             */}
+            <footer className={styles.mobileFooter}>
+              <a
+                href="/manage/guide"
+                className={styles.feedbackBtn}
+                aria-label="フィードバックを送るページへ移動"
+              >
+                フィードバックを送る
+              </a>
+              <p className={styles.mobileFooterNote}>
+                気付いたことを教えてください（ログイン不要）
+              </p>
+            </footer>
           </div>
         </div>
       ) : (

@@ -1224,6 +1224,48 @@
   gap: 10px;
 }
 
+/*
+ * モバイル限定フッター: フィードバック導線
+ * 横長 kiosk では非表示。モバイル表示中だけ最下部に出る。
+ */
+.mobileFooter {
+  margin-top: 18px;
+  padding: 14px 10px 24px;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.feedbackBtn {
+  display: inline-block;
+  padding: 12px 28px;
+  border-radius: 999px;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--primary-color);
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.feedbackBtn:hover,
+.feedbackBtn:focus {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.feedbackBtn:active {
+  transform: scale(0.98);
+}
+
+.mobileFooterNote {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* =====================
    レスポンシブ（タブレット: 900px-1024px）
    ===================== */

@@ -7,6 +7,7 @@ import { useQuietHours } from "@/hooks/useQuietHours";
 import { useAdRotation } from "@/hooks/useAdRotation";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useVersionWatcher } from "@/hooks/useVersionWatcher";
 import { ImageCache } from "@/lib/image-cache";
 import { debounce } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -65,6 +66,10 @@ export function SignagePage({ schoolId, gradeId, classId, departmentId, forceSta
     isInitialLoad,
     isQuietTime,
   });
+
+  // Kiosk クライアントが古いバンドルを表示し続けないよう、
+  // /version.json をポーリングしてビルド版が変わったら自動 reload する。
+  useVersionWatcher();
 
   // 自動スクロール — 連絡事項がオーバーフローしたら双方向スクロール
   const noticeListRef = useRef<HTMLUListElement>(null);

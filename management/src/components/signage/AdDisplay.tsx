@@ -87,13 +87,20 @@ export function AdDisplay({ currentAd, mediaUrl, isQuietTime, onVideoEnded }: Ad
   };
 
   const caption = hasMedia ? (currentAd?.caption || "").trim() : "";
+  const captionStyle = {
+    "--ad-caption-scale": String(currentAd?.caption_font_scale ?? 1),
+  } as React.CSSProperties;
 
   return (
     <aside className={areaClass}>
       <div className={styles.adContainer}>
         {renderBackdrop()}
         <div className={styles.adForeground}>{renderMedia()}</div>
-        {caption && <div className={styles.adCaption}>{caption}</div>}
+        {caption && (
+          <div className={styles.adCaption} style={captionStyle}>
+            {caption}
+          </div>
+        )}
       </div>
     </aside>
   );

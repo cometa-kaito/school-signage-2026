@@ -128,11 +128,18 @@ export function MobileAdArea({
       mediaEl
     );
     const caption = (ad.caption || "").trim();
+    const captionStyle = {
+      "--ad-caption-scale": String(ad.caption_font_scale ?? 1),
+    } as React.CSSProperties;
     return (
       <>
         {backdrop}
         {foreground}
-        {caption && <div className={styles.mobileAdCaption}>{caption}</div>}
+        {caption && (
+          <div className={styles.mobileAdCaption} style={captionStyle}>
+            {caption}
+          </div>
+        )}
       </>
     );
   };

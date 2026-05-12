@@ -11,6 +11,8 @@ export interface Ad {
   type: "image" | "video";
   duration_sec?: number;
   link_url?: string;
+  caption?: string;
+  caption_font_scale?: number;
 }
 
 interface ImageCacheType {

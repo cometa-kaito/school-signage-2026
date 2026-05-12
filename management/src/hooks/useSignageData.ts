@@ -68,6 +68,8 @@ export interface Ad {
   link_url?: string;
   /** 広告下部に表示する任意のキャプション（企業名・大学名等） */
   caption?: string;
+  /** キャプション文字サイズ倍率（既定1.0、選択肢: 0.85=小 / 1=標準 / 1.3=大 / 1.6=特大） */
+  caption_font_scale?: number;
 }
 
 export interface QuietHour {

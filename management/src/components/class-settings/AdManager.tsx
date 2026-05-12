@@ -90,7 +90,7 @@ export function AdManager({
   onAdsChange,
   title = "広告管理",
   description,
-  maxAds = 5,
+  maxAds = 20,
 }: AdManagerProps) {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);

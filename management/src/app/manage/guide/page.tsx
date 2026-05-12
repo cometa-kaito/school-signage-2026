@@ -176,13 +176,19 @@ export default function GuidePage() {
 
   useEffect(() => {
     let cancelled = false;
+    // 選択された学校変更時、ラベル/一覧/ローディング状態をリセットして
+    // 非同期取得を開始する。リセットは同期的な setState だが、副作用と
+    // 整合させるため effect 内に置く必要がある。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setClassroomLabel("");
     if (!selectedSchoolId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClassrooms([]);
       return;
     }
     const school = schools.find((s) => s.id === selectedSchoolId);
     if (!school) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setClassroomsLoading(true);
     (async () => {
       try {

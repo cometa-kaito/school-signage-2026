@@ -291,14 +291,23 @@
 
 .scheduleListItem {
   /* フォールバック（cqh 非対応 WebView 用） */
-  font-size: clamp(0.85rem, 1.4vw, 1.3rem);
+  font-size: calc(clamp(0.85rem, 1.4vw, 1.3rem) * var(--row-scale, 1));
   /* container query 対応時: スクロール領域高さの約 12% */
-  font-size: clamp(0.7rem, 12cqh, 1.4rem);
+  font-size: calc(clamp(0.7rem, 12cqh, 1.4rem) * var(--row-scale, 1));
   line-height: 1.25;
   padding: 0;
   border-bottom: 1px dotted var(--border-color);
   overflow: hidden;
   min-width: 0;
+  /* 既定では 1 行強制。行内容が幅を超えたら ScheduleRow が縮小・最終手段で折り返しに切替 */
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+/* JS による縮小でも 1 行に収まらない極端な長文の保険: 折り返し許可（行高は親 grid で固定なので 2 行は overflow:hidden で安全に切られる） */
+.scheduleListItemWrap {
+  white-space: normal;
+  line-height: 1.1;
 }
 
 .scheduleTime {

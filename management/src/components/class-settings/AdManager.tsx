@@ -19,6 +19,57 @@ export interface AdItem {
   link_url?: string;
   duration_sec?: number;
   caption?: string;
+  caption_font_scale?: number;
+}
+
+const CAPTION_FONT_SCALE_OPTIONS = [
+  { value: 0.85, label: "小" },
+  { value: 1, label: "標準" },
+  { value: 1.3, label: "大" },
+  { value: 1.6, label: "特大" },
+] as const;
+const CAPTION_FONT_SCALE_VALUES = CAPTION_FONT_SCALE_OPTIONS.map((o) => o.value);
+
+/**
+ * PDFの1ページ目を白背景PNGのBlobに変換する。
+ * - pdfjs-dist を動的importしてバンドル分離
+ * - Workerは pdfjs.version に対応するCDNからロード（Turbopack/staticExport両対応）
+ * - サイネージ向けに横1920pxを目標解像度とする（最大4倍）
+ */
+async function convertPdfFirstPageToPng(file: File): Promise<Blob> {
+  const pdfjs = await import("pdfjs-dist");
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  try {
+    const page = await pdf.getPage(1);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = Math.min(1920 / baseViewport.width, 4);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvasコンテキストが取得できません");
+
+    // 透明PDFが暗くならないように白背景を敷く
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({ canvas, viewport }).promise;
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+    if (!blob) throw new Error("PDFの画像変換に失敗しました");
+    return blob;
+  } finally {
+    await pdf.destroy();
+  }
 }
 
 interface AdManagerProps {
@@ -39,7 +90,7 @@ export function AdManager({
   onAdsChange,
   title = "広告管理",
   description,
-  maxAds = 5,
+  maxAds = 20,
 }: AdManagerProps) {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -129,9 +180,18 @@ export function AdManager({
     const captionInput = document.getElementById(
       `ad-caption-${uid}`
     ) as HTMLInputElement | null;
+    const fontScaleInput = document.getElementById(
+      `ad-caption-scale-${uid}`
+    ) as HTMLSelectElement | null;
     const linkUrl = (linkInput?.value || "").trim();
     const duration = parseInt(durationInput?.value || "10", 10);
     const caption = (captionInput?.value || "").trim().slice(0, 60);
+    const fontScaleRaw = parseFloat(fontScaleInput?.value || "1");
+    const captionFontScale = CAPTION_FONT_SCALE_VALUES.includes(
+      fontScaleRaw as (typeof CAPTION_FONT_SCALE_VALUES)[number]
+    )
+      ? fontScaleRaw
+      : 1;
 
     if (linkUrl && !/^https?:\/\//.test(linkUrl)) {
       showToast("URLは http:// または https:// で始めてください", "error");
@@ -146,6 +206,7 @@ export function AdManager({
         link_url: linkUrl,
         duration_sec: Math.max(3, Math.min(120, duration)),
         caption,
+        caption_font_scale: captionFontScale,
       };
       await saveAds(newAds);
       onAdsChange(newAds);
@@ -160,12 +221,26 @@ export function AdManager({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isVideo = file.type.startsWith("video/");
     setSaving(true);
     try {
+      // PDFはブラウザ側で1ページ目をPNG化してから既存の画像アップロード経路に流す
+      let uploadFile: File = file;
+      let isVideo = file.type.startsWith("video/");
+      if (file.type === "application/pdf") {
+        const pngBlob = await convertPdfFirstPageToPng(file);
+        const baseName = file.name.replace(/\.pdf$/i, "");
+        uploadFile = new File([pngBlob], `${baseName}.png`, {
+          type: "image/png",
+        });
+        isVideo = false;
+      }
+
       const folder = isVideo ? "videos" : "ads";
-      const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
+      const storageRef = ref(
+        storage,
+        `${folder}/${Date.now()}_${uploadFile.name}`
+      );
+      await uploadBytes(storageRef, uploadFile);
       const url = await getDownloadURL(storageRef);
       const newAd: AdItem = {
         id: `ad_${Date.now()}`,
@@ -211,7 +286,8 @@ export function AdManager({
         )}
       </div>
       <p className={styles.settingDescription}>
-        {description || `最大${maxAds}枚まで。画像または動画をアップロードできます。`}
+        {description ||
+          `最大${maxAds}枚まで。画像・動画・PDFをアップロードできます（PDFは1ページ目を画像化します）。`}
       </p>
 
       {ads.length === 0 ? (
@@ -294,6 +370,20 @@ export function AdManager({
                     />
                   </div>
                   <div className={styles.adSettingRow}>
+                    <span className={styles.adSettingLabel}>文字サイズ:</span>
+                    <select
+                      id={`ad-caption-scale-${uid}`}
+                      defaultValue={String(ad.caption_font_scale ?? 1)}
+                      className={styles.adSettingInput}
+                    >
+                      {CAPTION_FONT_SCALE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.adSettingRow}>
                     <span className={styles.adSettingLabel}>表示秒数:</span>
                     <input
                       type="number"
@@ -339,7 +429,7 @@ export function AdManager({
       <input
         type="file"
         ref={fileInputRef}
-        accept="image/*,video/*"
+        accept="image/*,video/*,application/pdf"
         style={{ display: "none" }}
         onChange={handleFileChange}
       />

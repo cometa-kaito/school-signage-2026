@@ -108,8 +108,12 @@ export function SchoolListView() {
   };
 
   useEffect(() => {
+    // マウント時のみ全体データを取得。loadAll 内部の setState は非同期
+    // 取得結果の反映に必要。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openCreateModal = () => {
     setEditingSchool(null);

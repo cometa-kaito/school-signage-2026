@@ -100,6 +100,9 @@ function EditorContent() {
   }, [urlLevel, canEditMaster, setEditingLevel]);
 
   useEffect(() => {
+    // URLクエリから初期値を反映するための同期。ユーザー操作で後から
+    // 変えられるため、純粋な派生ではなく state を保持する必要がある。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (urlDepartment) setSelectedDepartmentId(urlDepartment);
   }, [urlDepartment]);
 
@@ -121,18 +124,22 @@ function EditorContent() {
   >({});
 
   // 学科モードで学年マスター編集中: 同名学年の (dept, grade) を算出
+  // gradeSiblings は派生状態だが、他箇所で setGradeSiblings を呼ぶ経路があるため
+  // state として保持する必要がある。effect 内の setState は段階的に解消予定。
   useEffect(() => {
     if (
       hierarchyMode !== "department" ||
       !selectedDepartmentId ||
       !gradeId
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGradeSiblings([]);
       return;
     }
     const myList = allGradesByDept[selectedDepartmentId] || [];
     const myGrade = myList.find((g) => g.id === gradeId);
     if (!myGrade) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGradeSiblings([]);
       return;
     }
@@ -144,6 +151,7 @@ function EditorContent() {
         }
       });
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGradeSiblings(siblings);
   }, [hierarchyMode, selectedDepartmentId, gradeId, allGradesByDept]);
 

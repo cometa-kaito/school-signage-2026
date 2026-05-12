@@ -45,6 +45,8 @@ export function QuietHoursEditor({
   useEffect(() => {
     let cancelled = false;
     if (!primaryRef) {
+      // 参照先がない場合は即座にローディング完了とする。
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }

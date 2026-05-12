@@ -176,6 +176,9 @@ export function FeedbackListView() {
   }, [showToast]);
 
   useEffect(() => {
+    // 初回マウント/load 関数差替え時のフェッチ。load 内部の setState は
+    // 非同期処理の進捗反映に必要で、effect 経由でしか起動できない。
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 

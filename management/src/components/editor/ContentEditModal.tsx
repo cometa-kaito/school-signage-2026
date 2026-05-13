@@ -119,25 +119,26 @@ export function ContentEditModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      let data: Record<string, unknown> = {};
+      const data: Record<string, unknown> = {};
       if (type === "schedule") {
-        data = {
-          time: timeSelect === "その他" ? timeCustom : timeSelect,
-          content,
-          location: location || undefined,
-          display_start: displayStart,
-          display_end: displayEnd,
-        };
+        const t = (timeSelect === "その他" ? timeCustom : timeSelect).trim();
+        const c = content.trim();
+        if (t) data.time = t;
+        if (c) data.content = c;
+        const loc = location.trim();
+        if (loc) data.location = loc;
+        if (displayStart) data.display_start = displayStart;
+        if (displayEnd) data.display_end = displayEnd;
       } else if (type === "notice") {
-        data = {
-          text,
-          is_highlight: isHighlight,
-          play_sound: playSound,
-          display_start: displayStart,
-          display_end: displayEnd,
-        };
+        data.text = text;
+        data.is_highlight = isHighlight;
+        data.play_sound = playSound;
+        if (displayStart) data.display_start = displayStart;
+        if (displayEnd) data.display_end = displayEnd;
       } else if (type === "assignment") {
-        data = { deadline, subject, task };
+        data.deadline = deadline;
+        data.subject = subject;
+        data.task = task;
       }
       await onSave(type, dateStr, index, data);
       onClose();

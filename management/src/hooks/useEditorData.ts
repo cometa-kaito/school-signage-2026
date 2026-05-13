@@ -77,6 +77,26 @@ const FIELD_MAP: Record<string, string> = {
   assignment: "assignments",
 };
 
+// Firestore は undefined を拒否するため、書き込み前に再帰的に除去する。
+// 呼び出し元のフォーム実装ミス（例: `field: value || undefined`）で
+// 全体の保存が落ちないようにするための防御層。
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((v) => v !== undefined)
+      .map((v) => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export function useEditorData(
   schoolId: string | null,
   gradeId: string | null,
@@ -465,6 +485,10 @@ export function useEditorData(
       if (editingLevel === "school") item._source = "school";
       else if (editingLevel === "department") item._source = "department";
       else if (editingLevel === "grade") item._source = "grade";
+
+      // Firestore は undefined を許容しないため、書き込む item から
+      // undefined フィールドを除去する（フォーム側のミスに対する保険）。
+      item = stripUndefined(item);
 
       // 1) 楽観的に UI を更新（即時反映）
       applyLocalSave(type, dateStr, index, item);

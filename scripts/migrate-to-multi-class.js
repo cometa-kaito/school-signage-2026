@@ -158,7 +158,7 @@ async function migrate() {
     console.log(`移行データ: ${count}日分`);
     console.log(`メンバーシップ: ${memberCount}件新規作成`);
     console.log(`\nサイネージURL例:`);
-    console.log(`  https://school-signage-2026.web.app/?school=${SCHOOL_ID}&class=${classRef.id}&kiosk=1`);
+    console.log(`  https://app.school-signage.net/?school=${SCHOOL_ID}&class=${classRef.id}&kiosk=1`);
 
     process.exit(0);
 }

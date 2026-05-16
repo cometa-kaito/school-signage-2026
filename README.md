@@ -111,8 +111,13 @@ npx firebase deploy                   # 全体（Hosting + Functions + Rules）
 
 **本番URL**
 
-- サイネージ表示: https://school-signage-2026.web.app/
-- 管理画面: https://school-signage-2026.web.app/manage/editor
+- サイネージ表示: https://app.school-signage.net/
+- 管理画面: https://app.school-signage.net/manage/editor
+
+**フォールバックURL**（学校ネットワークで上記が通らない場合や、切り戻し用に当面残置）
+
+- https://school-signage-2026.web.app/
+- https://school-signage-2026.web.app/manage/editor
 
 ### デプロイチェックリスト
 
@@ -240,7 +245,7 @@ Firestoreドキュメントパスはフロントエンド側で `management/src/
 
 ```bash
 # /home/pi/.config/lxsession/LXDE-pi/autostart
-@chromium-browser --kiosk --disable-infobars https://school-signage-2026.web.app/?school=YOUR_SCHOOL&grade=YOUR_GRADE&class=YOUR_CLASS
+@chromium-browser --kiosk --disable-infobars https://app.school-signage.net/?school=YOUR_SCHOOL&grade=YOUR_GRADE&class=YOUR_CLASS
 ```
 
 推奨：解像度1920×1080以上、Chromium / Chrome、定期的なキャッシュクリア + リロード。

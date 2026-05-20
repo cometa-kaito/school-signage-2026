@@ -290,15 +290,22 @@
 }
 
 .scheduleListItem {
+  /* 行のベースフォント。--row-scale は行全体ではなく内容テキスト(.scheduleContent)
+     にのみ掛けるため、ここでは掛けない。これにより「1限」等の時限表示は
+     文字数に関係なく一定サイズを保つ。 */
   /* フォールバック（cqh 非対応 WebView 用） */
-  font-size: calc(clamp(0.85rem, 1.4vw, 1.3rem) * var(--row-scale, 1));
+  font-size: clamp(0.85rem, 1.4vw, 1.3rem);
   /* container query 対応時: スクロール領域高さの約 12% */
-  font-size: calc(clamp(0.7rem, 12cqh, 1.4rem) * var(--row-scale, 1));
+  font-size: clamp(0.7rem, 12cqh, 1.4rem);
   line-height: 1.25;
   padding: 0;
   border-bottom: 1px dotted var(--border-color);
   overflow: hidden;
   min-width: 0;
+  /* 文字は行の下端（点線の直上）に揃える＝下詰め */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   /* 既定では 1 行強制。行内容が幅を超えたら ScheduleRow が縮小・最終手段で折り返しに切替 */
   white-space: nowrap;
   text-overflow: clip;
@@ -308,6 +315,18 @@
 .scheduleListItemWrap {
   white-space: normal;
   line-height: 1.1;
+}
+
+/*
+ * 下詰めレイアウト用の行内ラッパー。
+ * 行（.scheduleListItem / .listGroup li）を flex-column で下詰めにする際、
+ * バッジ・時限・本文の各 span が縦に積まれて 2 段になるのを防ぐため、
+ * 中身を単一の子要素にまとめて 1 行（インラインフロー＋float）を維持する。
+ * flex アイテムは BFC になるので、SourceBadge の float:right も内側で正しく効く。
+ */
+.rowInner {
+  min-width: 0;
+  white-space: inherit;
 }
 
 .scheduleTime {
@@ -321,6 +340,9 @@
 .scheduleContent {
   display: inline;
   font-weight: 600;
+  /* 行が幅に収まらないとき縮小するのは内容テキストのみ。
+     ScheduleRow が行要素に書き込む --row-scale を継承して反映する。 */
+  font-size: calc(1em * var(--row-scale, 1));
 }
 
 .noSchedule {
@@ -372,12 +394,15 @@
 }
 
 .listGroup {
-  list-style-type: disc;
-  padding-left: 1.5rem;
+  list-style: none;
+  padding-left: 0;
   flex: 1;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* 予定セクションと同じく 5 行を等分し、点線の罫線を均等に並べる */
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
 }
 
 /* デスクトップ: 6 行目以降は非表示 */
@@ -386,12 +411,18 @@
 }
 
 .listGroup li {
-  padding: 0.25rem 0;
+  padding: 0 0 0.2rem;
   /* 予定セクションと統一感のある dotted ボーダー */
   border-bottom: 1px dotted var(--border-color);
   font-size: clamp(1.1rem, 1.7vw, 1.55rem);
   line-height: 1.35;
   font-weight: 600;
+  overflow: hidden;
+  min-height: 0;
+  /* 連絡は行内で上下中央に配置（横方向は既定の左揃えのまま） */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .noNotice {
@@ -405,7 +436,6 @@
   background-color: var(--urgent-weak);
   border-left: 4px solid var(--urgent-color);
   padding-left: 10px !important;
-  margin-left: -1.5rem;
   list-style: none;
 }
 
@@ -431,6 +461,8 @@
 .taskTable {
   width: 100%;
   border-collapse: collapse;
+  /* ラッパー高さいっぱいに広げ、行を均等寄りに分配して罫線を整える */
+  height: 100%;
 }
 
 .taskTable th {
@@ -457,6 +489,8 @@
   font-weight: 600;
   line-height: 1.3;
   overflow: hidden;
+  /* 文字は行の下端（点線の直上）に揃える＝下詰め */
+  vertical-align: bottom;
 }
 
 .noAssignment {
@@ -1438,6 +1472,8 @@
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+    /* モバイルは縦積みで高さ無限のため、5 等分グリッドを解除 */
+    display: block !important;
   }
 
   .listGroup li {
@@ -1456,6 +1492,11 @@
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  .taskTable {
+    /* モバイルは自然高さで縦に伸ばす（行の等分分配は解除） */
+    height: auto !important;
   }
 
   .taskTable th,

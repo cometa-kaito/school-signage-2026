@@ -26,15 +26,20 @@ function ScheduleRow({ schedule }: { schedule: Schedule }) {
 
     const fit = () => {
       try {
+        // 行内容は .scheduleListItemInner にまとまっている。下詰め用に親を
+        // flex-column 化しているため、はみ出し判定は内側要素の幅で行う。
+        const inner = el.firstElementChild as HTMLElement | null;
+        if (!inner) return;
+
         el.style.removeProperty("--row-scale");
         el.classList.remove(styles.scheduleListItemWrap);
-        if (el.scrollWidth <= el.clientWidth + 1) return;
+        if (inner.scrollWidth <= el.clientWidth + 1) return;
 
         el.style.setProperty("--row-scale", "0.78");
-        if (el.scrollWidth <= el.clientWidth + 1) return;
+        if (inner.scrollWidth <= el.clientWidth + 1) return;
 
         el.style.setProperty("--row-scale", "0.65");
-        if (el.scrollWidth <= el.clientWidth + 1) return;
+        if (inner.scrollWidth <= el.clientWidth + 1) return;
 
         // それでも入らない極端な長文は折り返しを許可（行高は固定なので
         // 縦方向は overflow:hidden で安全に抑える）
@@ -53,12 +58,14 @@ function ScheduleRow({ schedule }: { schedule: Schedule }) {
 
   return (
     <div ref={rowRef} className={styles.scheduleListItem}>
-      <SourceBadge source={schedule._source} compact align="right" />
-      <span className={styles.scheduleTime}>{schedule.time}</span>
-      <span className={styles.scheduleContent}>
-        {schedule.content}
-        {schedule.location ? ` (${schedule.location})` : ""}
-      </span>
+      <div className={styles.rowInner}>
+        <SourceBadge source={schedule._source} compact align="right" />
+        <span className={styles.scheduleTime}>{schedule.time}</span>
+        <span className={styles.scheduleContent}>
+          {schedule.content}
+          {schedule.location ? ` (${schedule.location})` : ""}
+        </span>
+      </div>
     </div>
   );
 }

@@ -30,9 +30,11 @@ export const NoticeList = forwardRef<HTMLUListElement, NoticeListProps>(
                     key={idx}
                     className={isHighlight ? styles.highlight : undefined}
                   >
-                    <SourceBadge source={notice._source} compact align="right" />
-                    {isHighlight && "【重要】"}
-                    {notice.text}
+                    <div className={styles.rowInner}>
+                      <SourceBadge source={notice._source} compact align="right" />
+                      {isHighlight && "【重要】"}
+                      {notice.text}
+                    </div>
                   </li>
                 );
               })}

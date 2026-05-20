@@ -124,10 +124,13 @@ export function ContentEditModal({
         data = {
           time: timeSelect === "その他" ? timeCustom : timeSelect,
           content,
-          location: location || undefined,
           display_start: displayStart,
           display_end: displayEnd,
         };
+        // 場所は任意。空のときはキー自体を付けない。
+        // （Firestore は undefined 値を拒否するため、location:undefined を
+        //   含めると場所未入力の予定が保存できなくなる）
+        if (location) data.location = location;
       } else if (type === "notice") {
         data = {
           text,
@@ -205,12 +208,12 @@ export function ContentEditModal({
             />
           </div>
           <div className="form-group">
-            <label>場所</label>
+            <label>場所（任意）</label>
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="例: 体育館, 教室A"
+              placeholder="例: 体育館, 教室A（空欄可）"
             />
           </div>
           <div className="form-group">

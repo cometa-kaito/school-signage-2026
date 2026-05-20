@@ -454,6 +454,12 @@ function EditorContent() {
   };
 
   if (!hasRequiredContext) {
+    // 学科モードでは ContextSelector が非対応（学科セレクタが無く、学年が
+    // department スコープで引けないためデッドエンドになる）。学科対応の
+    // EditorTargetMenu にフォールバックして学科→学年→クラスを選べるようにする。
+    if (hierarchyMode === "department" && schoolId) {
+      return <EditorTargetMenu schoolId={schoolId} basePath="/manage/editor" />;
+    }
     return <ContextSelector onSelected={handleContextSelected} />;
   }
 
@@ -507,7 +513,8 @@ function EditorContent() {
                 setSelectedDepartmentId(e.target.value || null);
                 setContext(schoolId!, null, null);
               }}
-              disabled={editingLevel === "school"}
+              // 学校全体／学年マスター編集中は学科を固定（学年マスターでは学年のみ変更可）
+              disabled={editingLevel === "school" || editingLevel === "grade"}
             >
               <option value="">-- 学科 --</option>
               {departments.map((d) => (
@@ -611,13 +618,21 @@ function EditorContent() {
             flexWrap: "wrap",
           }}
         >
-          <span>
+          <span style={{ flex: 1, textAlign: "center" }}>
             {editingLevel === "school"
               ? "まとめて編集中 — この学校の全クラスに反映されます"
               : editingLevel === "department"
                 ? "まとめて編集中 — 同じ学科の全クラスに反映されます"
                 : hierarchyMode === "department" && gradeSiblings.length > 1
-                  ? `まとめて編集中 — 同じ学年名の ${gradeSiblings.length} 学年すべてに反映されます`
+                  ? `まとめて編集中 — 「${
+                      grades.find((g) => g.id === gradeId)?.name ?? "この学年"
+                    }」に反映されます（${gradeSiblings
+                      .map(
+                        (s) =>
+                          departments.find((d) => d.id === s.departmentId)?.name
+                      )
+                      .filter(Boolean)
+                      .join("・")}）`
                   : "まとめて編集中 — この学年の全クラスに反映されます"}
           </span>
           {canCopyMaster &&

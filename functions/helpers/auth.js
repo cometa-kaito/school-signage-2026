@@ -61,11 +61,15 @@ async function verifySchoolAdmin(context, schoolId) {
 async function verifyClassAccess(context, schoolId, _classId) {
     verifyAuth(context);
     if (context.auth.token.admin || context.auth.token.systemRole === 'system_admin') return;
+    // claim ベースのエディター（teacher / editor）も許可。Firestore ルールの
+    // hasClassAccess / hasContentAccess と権限範囲を揃える。
+    if ((context.auth.token.teacher === true || context.auth.token.editor === true)
+        && context.auth.token.schoolId === schoolId) return;
     const membershipId = `${context.auth.uid}_${schoolId}`;
     const snap = await db.collection('memberships').doc(membershipId).get();
     if (!snap.exists) throw new functions.https.HttpsError('permission-denied', 'アクセス権がありません');
     const m = snap.data();
-    if (m.role === 'school_admin' || m.role === 'teacher') return;
+    if (m.role === 'school_admin' || m.role === 'teacher' || m.role === 'editor') return;
     throw new functions.https.HttpsError('permission-denied', 'このクラスへのアクセス権がありません');
 }
 

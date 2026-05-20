@@ -22,35 +22,43 @@ service cloud.firestore {
       return isSystemAdmin() || isLegacyAdmin();
     }
 
-    function getMembership(schoolId) {
-      return get(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + schoolId));
+    function membershipPath(schoolId) {
+      return /databases/$(database)/documents/memberships/$(request.auth.uid + '_' + schoolId);
+    }
+
+    // membership ドキュメントの存在を確認してから参照する。
+    // exists() ガード無しで .data を参照すると、membership を持たないユーザー
+    // （claim だけのエディター等）でルール評価がエラー→拒否になりうる。
+    function hasMembership(schoolId) {
+      return isAuthenticated() && exists(membershipPath(schoolId));
+    }
+
+    function membershipRole(schoolId) {
+      return get(membershipPath(schoolId)).data.role;
     }
 
     function isSchoolAdmin(schoolId) {
       return hasAdminAccess()
-        || (isAuthenticated()
-            && getMembership(schoolId).data.role == 'school_admin');
+        || (hasMembership(schoolId) && membershipRole(schoolId) == 'school_admin');
     }
 
-    function hasClassAccess(schoolId, classId) {
-      return isSchoolAdmin(schoolId)
-        || (isAuthenticated()
-            && getMembership(schoolId).data.role == 'teacher')
-        || (isAuthenticated()
-            && request.auth.token.teacher == true
-            && request.auth.token.schoolId == schoolId);
-    }
-
-    // 掲示板コンテンツ（予定・連絡・提出物）の書き込み権限
-    // クラス固有のデータだけでなく、学校/学科/学年マスターへの書き込みも許可する。
+    // 掲示板コンテンツ（予定・連絡・提出物）の書き込み権限。
+    // 学校/学科/学年マスターとクラス個別データの双方に同じ権限を適用する。
+    // editor / teacher（claim・membership どちらでも）と school_admin 以上を許可。
     // 広告や displaySettings など構造メタデータは対象外（学校管理者以上のみ）。
     function hasContentAccess(schoolId) {
       return isSchoolAdmin(schoolId)
-        || (isAuthenticated()
-            && getMembership(schoolId).data.role in ['teacher', 'editor'])
+        || (hasMembership(schoolId) && membershipRole(schoolId) in ['teacher', 'editor'])
         || (isAuthenticated()
             && (request.auth.token.teacher == true || request.auth.token.editor == true)
             && request.auth.token.schoolId == schoolId);
+    }
+
+    // クラス個別データ（daily_data）もマスターと同じ掲示板コンテンツのため、
+    // hasContentAccess と同一の権限を適用する（editor が抜けていた不具合の修正）。
+    // classId は将来のクラス限定権限のために残す。
+    function hasClassAccess(schoolId, classId) {
+      return hasContentAccess(schoolId);
     }
 
     // ========================================

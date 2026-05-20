@@ -136,6 +136,19 @@ describe('verifyClassAccess', () => {
         ).resolves.toBeUndefined();
     });
 
+    it('editor 通過', async () => {
+        membershipDocs.set('me_s1', { role: 'editor' });
+        await expect(
+            auth.verifyClassAccess(ctx({}), 's1', 'c1')
+        ).resolves.toBeUndefined();
+    });
+
+    it('claim editor 通過（membership なし）', async () => {
+        await expect(
+            auth.verifyClassAccess(ctx({ editor: true, schoolId: 's1' }), 's1', 'c1')
+        ).resolves.toBeUndefined();
+    });
+
     it('membership なしは permission-denied', async () => {
         await expect(
             auth.verifyClassAccess(ctx({}), 's1', 'c1')

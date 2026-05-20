@@ -55,7 +55,13 @@ export function useAuth(): AuthState {
         setMemberships(mems);
 
         const schoolAdmin = mems.some((m) => m.role === "school_admin");
-        const teacher = admin || claimTeacher || schoolAdmin;
+        // claim だけでなく membership の role が teacher / editor のユーザーも
+        // 編集権限ありとして扱う（membership 付与のエディターが編集画面で
+        // 「エディター以上の権限が必要です」と弾かれる不具合の修正）。
+        const membershipEditor = mems.some(
+          (m) => m.role === "teacher" || m.role === "editor"
+        );
+        const teacher = admin || claimTeacher || schoolAdmin || membershipEditor;
 
         setIsAdmin(admin);
         setIsSchoolAdmin(schoolAdmin);
@@ -92,7 +98,8 @@ export function useAuth(): AuthState {
       admin ||
         freshClaims.teacher === true ||
         freshClaims.editor === true ||
-        schoolAdmin
+        schoolAdmin ||
+        mems.some((m) => m.role === "teacher" || m.role === "editor")
     );
   }, [user, loadMemberships]);
 

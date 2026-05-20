@@ -1,7 +1,11 @@
 // lib/firebase.ts - Firebase初期化シングルトン
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import {
+  initializeFirestore,
+  getFirestore,
+  type Firestore,
+} from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import {
   getAuth,
@@ -29,7 +33,21 @@ function getOrInitApp(): FirebaseApp {
 }
 
 export const app: FirebaseApp = getOrInitApp();
-export const db: Firestore = getFirestore(app);
+
+// ignoreUndefinedProperties: true で、書き込みデータに undefined フィールドが
+// 含まれても Firestore がエラーにせず自動的に省略する。任意項目（予定の場所等）を
+// 未入力のまま保存しても失敗しなくなる。
+// initializeFirestore は1度しか呼べないため、HMR等で再評価された場合は
+// 既存インスタンスを取得する。
+function getOrInitFirestore(target: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(target, { ignoreUndefinedProperties: true });
+  } catch {
+    return getFirestore(target);
+  }
+}
+
+export const db: Firestore = getOrInitFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 export const auth: Auth = getAuth(app);
 export const functions: Functions = getFunctions(app, "asia-northeast1");

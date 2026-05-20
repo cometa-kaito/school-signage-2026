@@ -121,15 +121,12 @@ export function ContentEditModal({
     try {
       let data: Record<string, unknown> = {};
       if (type === "schedule") {
+        // 予定は当日のみ表示のため表示期間は持たない。
         data = {
           time: timeSelect === "その他" ? timeCustom : timeSelect,
           content,
-          display_start: displayStart,
-          display_end: displayEnd,
         };
         // 場所は任意。空のときはキー自体を付けない。
-        // （Firestore は undefined 値を拒否するため、location:undefined を
-        //   含めると場所未入力の予定が保存できなくなる）
         if (location) data.location = location;
       } else if (type === "notice") {
         data = {
@@ -215,24 +212,6 @@ export function ContentEditModal({
               onChange={(e) => setLocation(e.target.value)}
               placeholder="例: 体育館, 教室A（空欄可）"
             />
-          </div>
-          <div className="form-group">
-            <label>表示期間（空欄＝この日のみ表示）</label>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input
-                type="date"
-                value={displayStart}
-                onChange={(e) => setDisplayStart(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <span>〜</span>
-              <input
-                type="date"
-                value={displayEnd}
-                onChange={(e) => setDisplayEnd(e.target.value)}
-                style={{ flex: 1 }}
-              />
-            </div>
           </div>
         </>
       )}

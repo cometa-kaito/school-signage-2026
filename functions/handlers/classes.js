@@ -6,7 +6,7 @@
  */
 
 const {
-    functions, admin, db, classPathFor, classesCollectionFor
+    functions, hotFunctions, admin, db, classPathFor, classesCollectionFor
 } = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
@@ -25,7 +25,7 @@ exports.createClass = functions.https.onCall(withAuth(async (data, context) => {
     await verifySchoolAdmin(context, data.schoolId);
 }));
 
-exports.listClasses = functions.https.onCall(withAuth(async (data, context) => {
+exports.listClasses = hotFunctions.https.onCall(withAuth(async (data, context) => {
     const { schoolId, gradeId, departmentId } = data;
     const snap = await classesCollectionFor(schoolId, gradeId, departmentId || null)
         .orderBy('name', 'asc').get();

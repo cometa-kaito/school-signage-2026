@@ -3,7 +3,7 @@
  * メンバーシップ管理
  */
 
-const { functions, admin, db } = require('../helpers/paths');
+const { functions, hotFunctions, admin, db } = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, preventSelfAction } = require('../helpers/validation');
 
@@ -80,7 +80,7 @@ exports.listMembers = functions.https.onCall(withAuth(async (data, context) => {
     await verifySchoolAdmin(context, data.schoolId);
 }));
 
-exports.getMyMemberships = functions.https.onCall(withAuth(async (data, context) => {
+exports.getMyMemberships = hotFunctions.https.onCall(withAuth(async (data, context) => {
     const snap = await db.collection('memberships').where('userId', '==', context.auth.uid).get();
     const memberships = [];
     for (const doc of snap.docs) {

@@ -3,7 +3,7 @@
  * 学校管理
  */
 
-const { functions, admin, db } = require('../helpers/paths');
+const { functions, hotFunctions, admin, db } = require('../helpers/paths');
 const { verifyAuth, verifyAdmin, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
@@ -54,7 +54,7 @@ exports.createSchool = functions.https.onCall(withAuth(async (data, context) => 
 }, (context) => verifyAdmin(context)));
 
 // 公開用の学校一覧（認証不要、id/name/hierarchyMode のみ返す）
-exports.listSchoolsPublic = functions.https.onCall(async () => {
+exports.listSchoolsPublic = hotFunctions.https.onCall(async () => {
     const snap = await db.collection('schools').get();
     const schools = [];
     snap.forEach(doc => {
@@ -69,7 +69,7 @@ exports.listSchoolsPublic = functions.https.onCall(async () => {
     return { schools };
 });
 
-exports.listSchools = functions.https.onCall(withAuth(async (data, context) => {
+exports.listSchools = hotFunctions.https.onCall(withAuth(async (data, context) => {
     if (context.auth.token.admin || context.auth.token.systemRole === 'system_admin') {
         const snap = await db.collection('schools').get();
         const schools = [];

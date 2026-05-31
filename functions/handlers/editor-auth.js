@@ -9,7 +9,7 @@
  */
 
 const bcrypt = require('bcryptjs');
-const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
+const { functions, hotFunctions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, validatePasswordStrength } = require('../helpers/validation');
 const { getClientIp, hashValue, consumeRateLimit, resetRateLimit } = require('../helpers/rate-limit');
@@ -27,7 +27,7 @@ function getEditorEmail(schoolId) {
  * 2. Firebase Authユーザーを作成/更新（パスワード同期 + カスタムクレーム設定）
  * 3. メールアドレスを返却 → クライアントがsignInWithEmailAndPasswordでログイン
  */
-exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) => {
+exports.loginAsEditor = hotFunctions.https.onCall(withAuth(async (data, context) => {
     const { password, schoolId } = data;
     validateRequired(data, ['password']);
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;

@@ -6,7 +6,7 @@
  */
 
 const {
-    functions, admin, db, gradePathFor, gradesCollectionFor
+    functions, hotFunctions, admin, db, gradePathFor, gradesCollectionFor
 } = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
@@ -24,7 +24,7 @@ exports.createGrade = functions.https.onCall(withAuth(async (data, context) => {
     await verifySchoolAdmin(context, data.schoolId);
 }));
 
-exports.listGrades = functions.https.onCall(withAuth(async (data, context) => {
+exports.listGrades = hotFunctions.https.onCall(withAuth(async (data, context) => {
     const { schoolId, departmentId } = data;
     const snap = await gradesCollectionFor(schoolId, departmentId || null)
         .orderBy('order', 'asc').get();

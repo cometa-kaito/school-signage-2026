@@ -13,6 +13,12 @@ const functions = require('firebase-functions');
 const REGION = 'asia-northeast1';
 const regionalFunctions = functions.region(REGION);
 
+// ホットパス用の関数ビルダー。
+// ログイン〜初期データ読込で必ず呼ばれる関数（loginAsEditor / getMyMemberships /
+// listSchools 系）はコールドスタートが体感遅延の主因になるため、常時 1 インスタンスを
+// 温めて待ち時間を無くす。対象を絞ることで常時稼働の課金増を最小限にする。
+const hotFunctions = functions.region(REGION).runWith({ minInstances: 1 });
+
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
@@ -216,6 +222,7 @@ function classesCollectionFor(schoolId, gradeId, departmentId) {
 module.exports = {
     admin,
     functions: regionalFunctions,
+    hotFunctions,
     db,
     bucket,
     DEFAULT_SCHOOL_ID,

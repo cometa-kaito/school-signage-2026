@@ -222,6 +222,10 @@ function classesCollectionFor(schoolId, gradeId, departmentId) {
 module.exports = {
     admin,
     functions: regionalFunctions,
+    // HttpsError は firebase-functions のトップレベル https 名前空間だけが持つ。
+    // regionalFunctions (= functions.region(...)) の .https は onCall/onRequest のみで
+    // HttpsError を持たない（呼ぶと "is not a constructor"）。throw 用に本物を別途公開する。
+    HttpsError: functions.https.HttpsError,
     hotFunctions,
     db,
     bucket,

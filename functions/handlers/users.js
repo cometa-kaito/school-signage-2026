@@ -3,7 +3,7 @@
  * ユーザー管理
  */
 
-const { functions, admin, db } = require('../helpers/paths');
+const { functions, admin, db, HttpsError } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const {
     validateRequired,
@@ -39,7 +39,7 @@ exports.createAdminUser = functions.https.onCall(withAuth(async (data, context) 
         }
         return { success: true, message: `ユーザー ${email} を作成しました`, uid: userRecord.uid };
     } catch (error) {
-        throw new functions.https.HttpsError('internal', getErrorMessage(error));
+        throw new HttpsError('internal', getErrorMessage(error));
     }
 }, (context) => verifyAdmin(context)));
 
@@ -70,12 +70,12 @@ exports.updateUser = functions.https.onCall(withAuth(async (data, context) => {
             validatePasswordStrength(password);
             u.password = password;
         }
-        if (Object.keys(u).length === 0) throw new functions.https.HttpsError('invalid-argument', '更新するデータがありません');
+        if (Object.keys(u).length === 0) throw new HttpsError('invalid-argument', '更新するデータがありません');
         await admin.auth().updateUser(uid, u);
         return { success: true, message: 'ユーザー情報を更新しました' };
     } catch (error) {
-        if (error instanceof functions.https.HttpsError) throw error;
-        throw new functions.https.HttpsError('internal', getErrorMessage(error));
+        if (error instanceof HttpsError) throw error;
+        throw new HttpsError('internal', getErrorMessage(error));
     }
 }, (context) => verifyAdmin(context)));
 

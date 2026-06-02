@@ -119,15 +119,20 @@ describe("logout", () => {
 describe("loginAsEditor", () => {
   it("CloudFunction 成功 → Firebase ログインする", async () => {
     mocks.loginAsEditorFn.mockResolvedValue({
-      data: { success: true, email: "editor@example.com" },
+      data: {
+        success: true,
+        email: "editor@example.com",
+        signInPassword: "one-time-secret-abc123",
+      },
     });
     mocks.signInWithEmailAndPassword.mockResolvedValue({ user: { uid: "u1" } });
     const result = await loginAsEditor("pw", "s1");
     expect(result.success).toBe(true);
+    // 編集者パスワード("pw")ではなく、サーバ発行の使い捨てパスワードでサインインする
     expect(mocks.signInWithEmailAndPassword).toHaveBeenCalledWith(
       expect.anything(),
       "editor@example.com",
-      "pw"
+      "one-time-secret-abc123"
     );
   });
 

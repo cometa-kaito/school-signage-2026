@@ -77,11 +77,40 @@ function validatePasswordStrength(password) {
     }
 }
 
+const EDITOR_PASSWORD_MIN_LENGTH = 4;
+
+/**
+ * エディター用パスワード強度を検証し、不適切なら HttpsError を投げる。
+ * 要件: 4文字以上 / 空白のみ不可。文字種の制約はなし（英字のみでも可）。
+ *
+ * 管理者ユーザー用の validatePasswordStrength より緩いポリシー。
+ * フロント側の同一検証: management/src/lib/password-policy.ts::checkEditorPasswordStrength
+ *
+ * @param {unknown} password
+ * @throws {functions.https.HttpsError}
+ */
+function validateEditorPasswordStrength(password) {
+    if (typeof password !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'パスワードを入力してください');
+    }
+    if (password.length < EDITOR_PASSWORD_MIN_LENGTH) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            `パスワードは${EDITOR_PASSWORD_MIN_LENGTH}文字以上必要です`
+        );
+    }
+    if (/^\s*$/.test(password)) {
+        throw new functions.https.HttpsError('invalid-argument', 'パスワードに空白のみは使えません');
+    }
+}
+
 module.exports = {
     ERROR_MESSAGES,
     PASSWORD_MIN_LENGTH,
+    EDITOR_PASSWORD_MIN_LENGTH,
     getErrorMessage,
     validateRequired,
     preventSelfAction,
     validatePasswordStrength,
+    validateEditorPasswordStrength,
 };

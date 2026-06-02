@@ -50,7 +50,7 @@ export const setEmailVerifiedFn = httpsCallable<
 
 export const loginAsEditorFn = httpsCallable<
   { password: string; schoolId: string },
-  { success: boolean; email?: string; schoolId?: string }
+  { success: boolean; email?: string; signInPassword?: string; schoolId?: string }
 >(functions, "loginAsEditor");
 export const setEditorPasswordFn = httpsCallable<
   { schoolId: string; password: string },

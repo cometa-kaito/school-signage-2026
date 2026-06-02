@@ -5,7 +5,7 @@
  *   - 学科配下に学年 (grades) がぶら下がる
  */
 
-const { functions, admin, db, departmentPath } = require('../helpers/paths');
+const { functions, admin, db, departmentPath, HttpsError } = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
@@ -54,7 +54,7 @@ exports.deleteDepartment = functions.https.onCall(withAuth(async (data, context)
     const gradesSnap = await departmentPath(schoolId, departmentId)
         .collection('grades').limit(1).get();
     if (!gradesSnap.empty) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
             'failed-precondition',
             '学科配下に学年が残っています。先に学年を削除してください。'
         );

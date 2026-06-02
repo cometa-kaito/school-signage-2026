@@ -83,12 +83,14 @@ export async function loginAsEditor(
 ): Promise<AuthResult> {
   try {
     const result = await loginAsEditorFn({ password, schoolId });
-    if (result.data.success && result.data.email) {
+    if (result.data.success && result.data.email && result.data.signInPassword) {
       await setPersistence(auth, browserLocalPersistence);
+      // 編集者パスワードそのものではなく、サーバが発行した使い捨てパスワードで
+      // サインインする（編集者パスワードを Firebase Auth の6文字制限から切り離す）。
       const cred = await signInWithEmailAndPassword(
         auth,
         result.data.email,
-        password
+        result.data.signInPassword
       );
       return { success: true, user: cred.user };
     }

@@ -5,9 +5,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getUserClaims, getUserRoleLabel } from "@/lib/auth";
+import { getUserClaims } from "@/lib/auth";
 import { getMyMembershipsFn } from "@/lib/firebase-functions";
 import type { Claims, Membership } from "@/types/auth";
+
+/**
+ * 取得済みの claims / memberships からロールラベルを算出する。
+ * 以前は getUserRoleLabel() を呼んでいたが、その中で getMyMemberships を
+ * 再取得しており、ログインのたびに同じ Cloud Function を二重に叩いていた。
+ * 既に取得済みの値から同じ判定を行うことで往復を 1 回削減する。
+ * 判定順序は従来の getUserRoleLabel と一致させる（claim teacher を membership より優先）。
+ */
+function computeRoleLabel(claims: Claims, mems: Membership[]): string {
+  if (claims.admin === true || claims.systemRole === "system_admin")
+    return "システム管理者";
+  if (claims.teacher === true || claims.editor === true) return "教員";
+  if (mems.some((m) => m.role === "school_admin")) return "学校管理者";
+  if (mems.some((m) => m.role === "teacher")) return "教員";
+  return "";
+}
 
 export interface AuthState {
   user: User | null;
@@ -44,16 +60,19 @@ export function useAuth(): AuthState {
     async (firebaseUser: User | null) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const userClaims = await getUserClaims(firebaseUser);
+        // claims の取得（ローカルのトークン復号）と memberships の取得
+        // （Cloud Function 呼び出し）は互いに独立なので並列化して待ち時間を縮める。
+        const [userClaims, mems] = await Promise.all([
+          getUserClaims(firebaseUser),
+          loadMemberships(),
+        ]);
         setClaims(userClaims);
+        setMemberships(mems);
+
         const admin =
           userClaims.admin === true || userClaims.systemRole === "system_admin";
         const claimTeacher =
           userClaims.teacher === true || userClaims.editor === true;
-
-        const mems = await loadMemberships();
-        setMemberships(mems);
-
         const schoolAdmin = mems.some((m) => m.role === "school_admin");
         // claim だけでなく membership の role が teacher / editor のユーザーも
         // 編集権限ありとして扱う（membership 付与のエディターが編集画面で
@@ -67,8 +86,9 @@ export function useAuth(): AuthState {
         setIsSchoolAdmin(schoolAdmin);
         setIsTeacher(teacher);
 
-        const label = await getUserRoleLabel(firebaseUser);
-        setRoleLabel(label);
+        // roleLabel は取得済みの claims/mems から算出する（getMyMemberships の
+        // 二重呼び出しを排除。従来は getUserRoleLabel が内部で再取得していた）。
+        setRoleLabel(computeRoleLabel(userClaims, mems));
       } else {
         setClaims({});
         setRoleLabel("");

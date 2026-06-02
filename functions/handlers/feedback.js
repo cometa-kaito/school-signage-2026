@@ -19,7 +19,7 @@
  *   の形式で書くと自動で読み込まれる（git 管理外）。
  */
 
-const { functions, admin, db } = require('../helpers/paths');
+const { functions, admin, db, HttpsError } = require('../helpers/paths');
 const { logger } = require('firebase-functions');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
 const { defineSecret } = require('firebase-functions/params');
@@ -144,21 +144,21 @@ exports.submitFeedback = functions
         const teacherUtility = clampScore(data.teacherUtility);
 
         if (studentReaction === null) {
-            throw new functions.https.HttpsError('invalid-argument', '生徒の反応は 1〜5 で選んでください');
+            throw new HttpsError('invalid-argument', '生徒の反応は 1〜5 で選んでください');
         }
         if (teacherUtility === null) {
-            throw new functions.https.HttpsError('invalid-argument', '先生の負担は 1〜5 で選んでください');
+            throw new HttpsError('invalid-argument', '先生の負担は 1〜5 で選んでください');
         }
         if (!data.schoolId || typeof data.schoolId !== 'string') {
-            throw new functions.https.HttpsError('invalid-argument', '学校を選んでください');
+            throw new HttpsError('invalid-argument', '学校を選んでください');
         }
         if (!data.classroomLabel || typeof data.classroomLabel !== 'string') {
-            throw new functions.https.HttpsError('invalid-argument', '教室を選んでください');
+            throw new HttpsError('invalid-argument', '教室を選んでください');
         }
 
         const schoolSnap = await db.collection('schools').doc(data.schoolId).get();
         if (!schoolSnap.exists) {
-            throw new functions.https.HttpsError('invalid-argument', '選択された学校が見つかりません');
+            throw new HttpsError('invalid-argument', '選択された学校が見つかりません');
         }
         const schoolName = schoolSnap.data().name || data.schoolId;
 
@@ -238,12 +238,12 @@ exports.submitFeedback = functions
 
         return { success: true, feedbackId: ref.id, emailStatus, emailProvider };
     } catch (error) {
-        if (error instanceof functions.https.HttpsError) throw error;
+        if (error instanceof HttpsError) throw error;
         logger.error('submitFeedback.internal_error', {
             message: error.message,
             stack: error.stack,
         });
-        throw new functions.https.HttpsError('internal', error.message);
+        throw new HttpsError('internal', error.message);
     }
 });
 

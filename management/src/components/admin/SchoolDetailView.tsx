@@ -28,7 +28,12 @@ import {
   toggleUserStatusFn,
   setEditorPasswordFn,
 } from "@/lib/firebase-functions";
-import { checkPasswordStrength, PASSWORD_POLICY_LABEL } from "@/lib/password-policy";
+import {
+  checkPasswordStrength,
+  PASSWORD_POLICY_LABEL,
+  checkEditorPasswordStrength,
+  EDITOR_PASSWORD_POLICY_LABEL,
+} from "@/lib/password-policy";
 import { getDoc, setDoc } from "firebase/firestore";
 import { doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -735,7 +740,7 @@ export function SchoolDetailView({
 
   const handleSetEditorPassword = async () => {
     if (!editorPassword.trim()) return;
-    const err = checkPasswordStrength(editorPassword.trim());
+    const err = checkEditorPasswordStrength(editorPassword.trim());
     if (err) {
       showToast(err, "error");
       return;
@@ -1592,7 +1597,7 @@ export function SchoolDetailView({
           <div className={styles.settingCard}>
             <h3>エディターパスワード</h3>
             <p style={{ color: "#888", fontSize: "0.85rem", marginBottom: 12 }}>
-              教員・エディターがログインするためのパスワードを設定します。
+              教員・エディターがログインするためのパスワードを設定します（{EDITOR_PASSWORD_POLICY_LABEL}）。
               {hasEditorPassword
                 ? "現在のパスワードは暗号化保存されているため表示できません。再発行するには新しいパスワードを入力してください。"
                 : "まだ設定されていません。"}

@@ -3,7 +3,7 @@
  * メンバーシップ管理
  */
 
-const { functions, admin, db } = require('../helpers/paths');
+const { functions, hotFunctions, admin, db, HttpsError } = require('../helpers/paths');
 const { verifyAuth, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired, preventSelfAction } = require('../helpers/validation');
 
@@ -11,12 +11,12 @@ exports.inviteMember = functions.https.onCall(withAuth(async (data, context) => 
     const { schoolId, email, role, classIds } = data;
 
     if (!['school_admin', 'teacher', 'editor'].includes(role)) {
-        throw new functions.https.HttpsError('invalid-argument', '無効なロールです');
+        throw new HttpsError('invalid-argument', '無効なロールです');
     }
 
     let userRecord;
     try { userRecord = await admin.auth().getUserByEmail(email); }
-    catch (e) { throw new functions.https.HttpsError('not-found', `ユーザー ${email} が見つかりません。先にユーザーを作成してください。`); }
+    catch (e) { throw new HttpsError('not-found', `ユーザー ${email} が見つかりません。先にユーザーを作成してください。`); }
 
     const membershipId = `${userRecord.uid}_${schoolId}`;
     await db.collection('memberships').doc(membershipId).set({
@@ -80,7 +80,7 @@ exports.listMembers = functions.https.onCall(withAuth(async (data, context) => {
     await verifySchoolAdmin(context, data.schoolId);
 }));
 
-exports.getMyMemberships = functions.https.onCall(withAuth(async (data, context) => {
+exports.getMyMemberships = hotFunctions.https.onCall(withAuth(async (data, context) => {
     const snap = await db.collection('memberships').where('userId', '==', context.auth.uid).get();
     const memberships = [];
     for (const doc of snap.docs) {

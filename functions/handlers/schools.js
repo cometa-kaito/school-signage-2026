@@ -3,7 +3,7 @@
  * 学校管理
  */
 
-const { functions, admin, db } = require('../helpers/paths');
+const { functions, hotFunctions, admin, db, HttpsError } = require('../helpers/paths');
 const { verifyAuth, verifyAdmin, verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
@@ -31,7 +31,7 @@ exports.createSchool = functions.https.onCall(withAuth(async (data, context) => 
         }
     }
     if (!schoolId) {
-        throw new functions.https.HttpsError('internal', '学校IDの生成に失敗しました');
+        throw new HttpsError('internal', '学校IDの生成に失敗しました');
     }
 
     const mode = hierarchyMode === 'department' ? 'department' : 'class';
@@ -54,7 +54,7 @@ exports.createSchool = functions.https.onCall(withAuth(async (data, context) => 
 }, (context) => verifyAdmin(context)));
 
 // 公開用の学校一覧（認証不要、id/name/hierarchyMode のみ返す）
-exports.listSchoolsPublic = functions.https.onCall(async () => {
+exports.listSchoolsPublic = hotFunctions.https.onCall(async () => {
     const snap = await db.collection('schools').get();
     const schools = [];
     snap.forEach(doc => {
@@ -69,7 +69,7 @@ exports.listSchoolsPublic = functions.https.onCall(async () => {
     return { schools };
 });
 
-exports.listSchools = functions.https.onCall(withAuth(async (data, context) => {
+exports.listSchools = hotFunctions.https.onCall(withAuth(async (data, context) => {
     if (context.auth.token.admin || context.auth.token.systemRole === 'system_admin') {
         const snap = await db.collection('schools').get();
         const schools = [];
@@ -120,13 +120,13 @@ exports.setSchoolHierarchyMode = functions.https.onCall(withAuth(async (data, co
     const { schoolId, mode } = data;
     validateRequired(data, ['schoolId', 'mode']);
     if (mode !== 'class' && mode !== 'department') {
-        throw new functions.https.HttpsError('invalid-argument', 'mode は "class" か "department"');
+        throw new HttpsError('invalid-argument', 'mode は "class" か "department"');
     }
 
     const schoolRef = db.collection('schools').doc(schoolId);
     const schoolSnap = await schoolRef.get();
     if (!schoolSnap.exists) {
-        throw new functions.https.HttpsError('not-found', '学校が見つかりません');
+        throw new HttpsError('not-found', '学校が見つかりません');
     }
     const currentMode = schoolSnap.data().hierarchyMode || 'class';
     if (currentMode === mode) {
@@ -148,7 +148,7 @@ exports.setSchoolHierarchyMode = functions.https.onCall(withAuth(async (data, co
             }));
         }
         if (blockers.length > 0) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
                 'failed-precondition',
                 `学科モードへの切替には、学校直下の学年・クラスを削除してから学科を作成する必要があります (${blockers.length}件)`,
                 { blockers }
@@ -172,7 +172,7 @@ exports.setSchoolHierarchyMode = functions.https.onCall(withAuth(async (data, co
             }
         }
         if (blockers.length > 0) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
                 'failed-precondition',
                 `クラスモードへの切替には、学科配下を整理してから切替する必要があります (${blockers.length}件)`,
                 { blockers }

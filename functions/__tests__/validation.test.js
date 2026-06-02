@@ -72,3 +72,45 @@ describe('preventSelfAction', () => {
         ).toThrow(/自分自身を削除/);
     });
 });
+
+describe('validateEditorPasswordStrength', () => {
+    // 許可ケース
+    it('4文字以上の英字のみを許可', () => {
+        expect(() => validation.validateEditorPasswordStrength('abcd')).not.toThrow();
+    });
+
+    it('英字のみ（数字なし）でも許可', () => {
+        expect(() => validation.validateEditorPasswordStrength('password')).not.toThrow();
+    });
+
+    it('数字のみでも許可', () => {
+        expect(() => validation.validateEditorPasswordStrength('1234')).not.toThrow();
+    });
+
+    // 拒否ケース
+    it('4文字未満は拒否', () => {
+        expect(() => validation.validateEditorPasswordStrength('abc')).toThrow(/4文字以上/);
+    });
+
+    it('文字列以外は拒否', () => {
+        expect(() => validation.validateEditorPasswordStrength(undefined)).toThrow(/入力してください/);
+    });
+
+    it('空白のみは拒否', () => {
+        expect(() => validation.validateEditorPasswordStrength('     ')).toThrow(/空白のみ/);
+    });
+});
+
+describe('validatePasswordStrength (管理者用は据え置き)', () => {
+    it('8文字以上 + 英字と数字を含めば許可', () => {
+        expect(() => validation.validatePasswordStrength('abcd1234')).not.toThrow();
+    });
+
+    it('英字のみ（数字なし）は拒否（編集者用とは異なり厳格なまま）', () => {
+        expect(() => validation.validatePasswordStrength('abcdefgh')).toThrow(/英字と数字/);
+    });
+
+    it('8文字未満は拒否', () => {
+        expect(() => validation.validatePasswordStrength('abc123')).toThrow(/8文字以上/);
+    });
+});

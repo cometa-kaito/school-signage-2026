@@ -2,16 +2,21 @@
  * handlers/editor-auth.js
  * エディター認証
  *
- * パスワードは bcrypt でハッシュ化して Firestore に保存する。
+ * パスワードは bcrypt でハッシュ化して Firestore に保存し、サーバ側で検証する。
  * 旧データ（password: 平文）からの移行は loginAsEditor 成功時に lazy migration で行う。
- * 内部的に Firebase Auth ユーザー(editor_{schoolId}@signage.local)を自動作成し、
- * signInWithEmailAndPassword でログインする方式。
+ * 検証成功後は Firebase Auth ユーザー(editor_{schoolId}@signage.local)に毎回
+ * ランダムな使い捨てパスワードを発行し、それを返してクライアントが
+ * signInWithEmailAndPassword でログインする。編集者パスワード自体は Auth に保存しない
+ * ため、(1) Auth の最小6文字制限に縛られない（編集者ポリシーの4文字でも可）、
+ * (2) 編集者パスワードを直接使って Auth にサインインし、サーバ検証/レート制限を
+ * 迂回する攻撃を防げる、という2点を満たす。
  */
 
 const bcrypt = require('bcryptjs');
-const { functions, admin, db, DEFAULT_SCHOOL_ID } = require('../helpers/paths');
+const crypto = require('crypto');
+const { functions, hotFunctions, admin, db, DEFAULT_SCHOOL_ID, HttpsError } = require('../helpers/paths');
 const { verifyAdmin, withAuth } = require('../helpers/auth');
-const { validateRequired, validatePasswordStrength } = require('../helpers/validation');
+const { validateRequired, validateEditorPasswordStrength } = require('../helpers/validation');
 const { getClientIp, hashValue, consumeRateLimit, resetRateLimit } = require('../helpers/rate-limit');
 
 const EDITOR_EMAIL_DOMAIN = 'signage.local';
@@ -22,12 +27,20 @@ function getEditorEmail(schoolId) {
 }
 
 /**
+ * Firebase Auth サインイン用の使い捨てパスワードを生成する。
+ * 編集者パスワードとは無関係なランダム値（48桁hex で 6文字制限を常に満たす）。
+ */
+function generateSignInPassword() {
+    return crypto.randomBytes(24).toString('hex');
+}
+
+/**
  * エディターログイン
  * 1. Firestoreでパスワードを検証（bcrypt ハッシュ比較 / 旧データは平文比較 + 即ハッシュ化）
- * 2. Firebase Authユーザーを作成/更新（パスワード同期 + カスタムクレーム設定）
- * 3. メールアドレスを返却 → クライアントがsignInWithEmailAndPasswordでログイン
+ * 2. Firebase Authユーザーを用意し、使い捨てパスワードを設定 + カスタムクレーム付与
+ * 3. メールアドレスと使い捨てパスワードを返却 → クライアントが signInWithEmailAndPassword
  */
-exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) => {
+exports.loginAsEditor = hotFunctions.https.onCall(withAuth(async (data, context) => {
     const { password, schoolId } = data;
     validateRequired(data, ['password']);
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;
@@ -41,7 +54,7 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
     const editorConfigRef = db.collection('schools').doc(targetSchoolId)
         .collection('config').doc('editor_auth');
     const editorConfigSnap = await editorConfigRef.get();
-    if (!editorConfigSnap.exists) throw new functions.https.HttpsError('not-found', 'エディター認証が設定されていません');
+    if (!editorConfigSnap.exists) throw new HttpsError('not-found', 'エディター認証が設定されていません');
 
     const configData = editorConfigSnap.data() || {};
     const storedHash = configData.passwordHash;
@@ -56,7 +69,7 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
         ok = storedPlain === password;
         needsMigration = ok;
     }
-    if (!ok) throw new functions.https.HttpsError('unauthenticated', 'パスワードが間違っています');
+    if (!ok) throw new HttpsError('unauthenticated', 'パスワードが間違っています');
 
     // lazy migration: 旧平文データを bcrypt ハッシュに上書きし、平文フィールドを削除
     if (needsMigration) {
@@ -73,42 +86,45 @@ exports.loginAsEditor = functions.https.onCall(withAuth(async (data, context) =>
 
     const email = getEditorEmail(targetSchoolId);
     const claims = { teacher: true, schoolId: targetSchoolId };
+    // 編集者パスワードは Auth に保存せず、毎回ランダムな使い捨てパスワードを発行する。
+    const signInPassword = generateSignInPassword();
 
-    // Firebase Authユーザーを作成または更新
+    // Firebase Authユーザーを作成または更新（使い捨てパスワードを設定）
     let uid;
     try {
         const userRecord = await admin.auth().getUserByEmail(email);
         uid = userRecord.uid;
-        // パスワードとクレームを同期
-        await admin.auth().updateUser(uid, { password });
+        await admin.auth().updateUser(uid, { password: signInPassword });
         await admin.auth().setCustomUserClaims(uid, claims);
     } catch (e) {
         if (e.code === 'auth/user-not-found') {
             // 新規作成
             const newUser = await admin.auth().createUser({
                 email,
-                password,
+                password: signInPassword,
                 emailVerified: true,
                 displayName: `エディター (${targetSchoolId})`
             });
             uid = newUser.uid;
             await admin.auth().setCustomUserClaims(uid, claims);
         } else {
-            throw new functions.https.HttpsError('internal', 'ユーザー作成エラー: ' + e.message);
+            throw new HttpsError('internal', 'ユーザー準備エラー: ' + e.message);
         }
     }
 
-    return { success: true, email, schoolId: targetSchoolId, message: 'エディターとしてログインしました' };
+    return { success: true, email, signInPassword, schoolId: targetSchoolId, message: 'エディターとしてログインしました' };
 }, null));
 
 /**
  * エディターパスワード設定
  * bcrypt でハッシュ化して保存。旧 password フィールドがあれば削除する。
+ * Auth ユーザーは存在保証＋クレーム付与のみ（ログイン時に毎回使い捨てパスワードを
+ * 発行するため、編集者パスワードを Auth へ保存する必要はない）。
  */
 exports.setEditorPassword = functions.https.onCall(withAuth(async (data, context) => {
     const { password, schoolId } = data;
     validateRequired(data, ['password']);
-    validatePasswordStrength(password);
+    validateEditorPasswordStrength(password);
     const targetSchoolId = schoolId || DEFAULT_SCHOOL_ID;
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -121,18 +137,16 @@ exports.setEditorPassword = functions.https.onCall(withAuth(async (data, context
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
 
-    // Firebase Authユーザーも同期更新
+    // Firebase Authユーザーの存在保証 + クレーム付与（パスワードは保存しない）
     const email = getEditorEmail(targetSchoolId);
     const claims = { teacher: true, schoolId: targetSchoolId };
     try {
         const userRecord = await admin.auth().getUserByEmail(email);
-        await admin.auth().updateUser(userRecord.uid, { password });
         await admin.auth().setCustomUserClaims(userRecord.uid, claims);
     } catch (e) {
         if (e.code === 'auth/user-not-found') {
             const newUser = await admin.auth().createUser({
                 email,
-                password,
                 emailVerified: true,
                 displayName: `エディター (${targetSchoolId})`
             });

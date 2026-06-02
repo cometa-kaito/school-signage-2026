@@ -3,7 +3,7 @@
  * マスターコンテンツのクラスへのコピー機能
  */
 
-const { functions, db, schoolMasterDailyDataPath, gradeMasterDailyDataPath, dailyDataPath } = require('../helpers/paths');
+const { functions, db, schoolMasterDailyDataPath, gradeMasterDailyDataPath, dailyDataPath, HttpsError } = require('../helpers/paths');
 const { verifySchoolAdmin, withAuth } = require('../helpers/auth');
 const { validateRequired } = require('../helpers/validation');
 
@@ -17,10 +17,10 @@ exports.copyMasterToClasses = functions.https.onCall(withAuth(async (data, conte
     validateRequired(data, ['schoolId', 'sourceLevel', 'dateStr', 'contentType']);
 
     if (!['school', 'grade'].includes(sourceLevel)) {
-        throw new functions.https.HttpsError('invalid-argument', 'sourceLevelは school または grade を指定してください');
+        throw new HttpsError('invalid-argument', 'sourceLevelは school または grade を指定してください');
     }
     if (!['schedules', 'notices', 'assignments', 'all'].includes(contentType)) {
-        throw new functions.https.HttpsError('invalid-argument', '無効なcontentTypeです');
+        throw new HttpsError('invalid-argument', '無効なcontentTypeです');
     }
 
     // マスターデータを取得
@@ -34,7 +34,7 @@ exports.copyMasterToClasses = functions.https.onCall(withAuth(async (data, conte
 
     const masterSnap = await masterRef.get();
     if (!masterSnap.exists) {
-        throw new functions.https.HttpsError('not-found', '指定日のマスターデータが見つかりません');
+        throw new HttpsError('not-found', '指定日のマスターデータが見つかりません');
     }
     const masterData = masterSnap.data();
 

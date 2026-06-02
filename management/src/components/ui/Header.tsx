@@ -32,15 +32,23 @@ export function Header({ title, children }: HeaderProps) {
         {!isGuide && (
           <a
             href="/manage/guide"
-            style={{
-              fontSize: "var(--fs-sm)",
-              color: "var(--color-text-muted)",
-              textDecoration: "none",
-              fontWeight: 500,
-              whiteSpace: "nowrap",
-            }}
+            className={styles.feedbackButton}
+            title="つかい方とフィードバック"
+            aria-label="フィードバックを送る・つかい方を見る"
           >
-            つかい方・フィードバック
+            <svg
+              className={styles.feedbackIcon}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            フィードバック
           </a>
         )}
         <LogoutButton />
